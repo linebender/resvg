@@ -1,3 +1,6 @@
+// Copyright 2020 the Resvg Authors
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 use com::com_interface;
 use com::interfaces::iunknown::IUnknown;
 use com::sys::HRESULT;

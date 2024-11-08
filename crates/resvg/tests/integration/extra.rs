@@ -1,3 +1,6 @@
+// Copyright 2023 the Resvg Authors
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 use crate::{render_extra, render_extra_with_scale, render_node};
 
 #[test]

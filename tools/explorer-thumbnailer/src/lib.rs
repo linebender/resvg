@@ -1,10 +1,13 @@
-use com::registration::{RegistryKeyInfo, dll_register_server, dll_unregister_server};
-use thumbnail_provider::{CLSID_THUMBNAIL_PROVIDER_CLASS, ThumbnailProvider};
+// Copyright 2020 the Resvg Authors
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
+use com::registration::{dll_register_server, dll_unregister_server, RegistryKeyInfo};
+use thumbnail_provider::{ThumbnailProvider, CLSID_THUMBNAIL_PROVIDER_CLASS};
 
 mod error;
-mod utils;
 mod interfaces;
 mod thumbnail_provider;
+mod utils;
 
 // we replace the com::registration::inproc_dll_module macro in order to be able
 // to modify DllRegisterServer and DllUnregisterServer functions
@@ -62,13 +65,14 @@ inproc_dll_module![(CLSID_THUMBNAIL_PROVIDER_CLASS, ThumbnailProvider),];
 
 fn get_all_relevant_registry_keys() -> Vec<RegistryKeyInfo> {
     let mut res = get_relevant_registry_keys();
-    res.extend(vec![
-        RegistryKeyInfo::new(".SVG\\shellex\\{E357FCCD-A995-4576-B01F-234630154E96}", "", "{4432C229-DFD0-4B18-8C4D-F58932AF6105}")
-    ]);
+    res.extend(vec![RegistryKeyInfo::new(
+        ".SVG\\shellex\\{E357FCCD-A995-4576-B01F-234630154E96}",
+        "",
+        "{4432C229-DFD0-4B18-8C4D-F58932AF6105}",
+    )]);
 
     res
 }
-
 
 #[no_mangle]
 extern "stdcall" fn DllRegisterServer() -> com::sys::HRESULT {

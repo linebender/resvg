@@ -78,10 +78,3 @@ The major difference is `png` directories. `resvg-test-suite/png` contains refer
 This is how the SVG files should be rendered.
 While `resvg/tests/png` contains PNGs rendered by the resvg itself
 and used only for regression testing.
-
-## License
-
-MIT
-
-The library itself is under the MPL2.0, but tests are under MIT,
-so you can do whatever you want with them.

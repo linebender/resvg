@@ -1,3 +1,6 @@
+// Copyright 2020 the Resvg Authors
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 use once_cell::sync::Lazy;
 use rgb::{FromSlice, RGBA8};
 use std::path::Path;

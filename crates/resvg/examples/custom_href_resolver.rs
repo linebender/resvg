@@ -1,3 +1,6 @@
+// Copyright 2022 the Resvg Authors
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 fn main() {
     let mut opt = usvg::Options::default();
 

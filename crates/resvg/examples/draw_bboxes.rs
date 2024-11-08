@@ -1,3 +1,6 @@
+// Copyright 2017 the Resvg Authors
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     if !(args.len() == 3 || args.len() == 5) {

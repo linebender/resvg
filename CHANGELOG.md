@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 This changelog also contains important changes in dependencies.
 
 ## [Unreleased]
+### Changed
+- License to `Apache-2.0 OR MIT`.
+  See [resvg#838](https://github.com/linebender/resvg/issues/838) for more information.
 
 ## [0.44.0] - 2024-09-28
 ### Added

@@ -1,11 +1,9 @@
 [package]
 name = "codegen"
 version = "0.1.0"
-authors = ["Yevhenii Reizner <razrfalcon@gmail.com>"]
-license = "MIT"
+license.workspace = true
 edition = "2021"
-
-[workspace]
+publish = false
 
 [[bin]]
 name = "codegen"

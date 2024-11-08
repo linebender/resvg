@@ -1,3 +1,6 @@
+// Copyright 2020 the Resvg Authors
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 use crate::interfaces::{IInitializeWithStream, IThumbnailProvider};
 use crate::utils::{img_to_hbitmap, render_thumbnail, tree_from_istream};
 use crate::WINLOG_SOURCE;

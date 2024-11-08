@@ -6,6 +6,30 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  fmt:
+    name: formatting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # TODO: Enable this when more of the Linebender CI has been applied.
+      #- name: install stable toolchain
+      #  uses: dtolnay/rust-toolchain@master
+      #  with:
+      #    toolchain: ${{ env.RUST_STABLE_VER }}
+      #    components: rustfmt
+
+      - name: cargo fmt
+        run: cargo fmt --all --check
+
+      - name: install ripgrep
+        run: |
+          sudo apt update
+          sudo apt install ripgrep
+
+      - name: check copyright headers
+        run: bash .github/copyright.sh
+
   build:
     runs-on: ubuntu-latest
     steps:

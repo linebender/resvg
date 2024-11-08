@@ -1,3 +1,6 @@
+// Copyright 2020 the Resvg Authors
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 use com::sys::{E_POINTER, HRESULT, S_FALSE};
 use resvg::usvg;
 use Error::*;

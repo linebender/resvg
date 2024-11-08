@@ -1,8 +1,13 @@
 [workspace]
 members = [
+    "crates/c-api",
     "crates/resvg",
     "crates/usvg",
-    "crates/c-api",
+    "crates/usvg/codegen",
+    #"tools/explorer-thumbnailer",
 ]
 default-members = ["crates/resvg"]
 resolver = "2"
+
+[workspace.package]
+license = "Apache-2.0 OR MIT"

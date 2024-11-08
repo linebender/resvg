@@ -1,3 +1,6 @@
+// Copyright 2020 the Resvg Authors
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>

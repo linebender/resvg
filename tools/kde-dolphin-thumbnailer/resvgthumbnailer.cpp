@@ -1,3 +1,6 @@
+// Copyright 2019 the Resvg Authors
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
 #include "resvgthumbnailer.h"
 
 #include <QPainter>

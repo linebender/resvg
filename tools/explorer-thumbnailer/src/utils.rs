@@ -1,14 +1,17 @@
+// Copyright 2020 the Resvg Authors
+// SPDX-License-Identifier: Apache-2.0 OR MIT
+
+use crate::error::Error;
+use com::sys::S_OK;
+use resvg::{tiny_skia, usvg};
 use std::mem;
 use std::ptr;
+use usvg::fontdb;
 use winapi::ctypes::c_void;
 use winapi::shared::minwindef::ULONG;
 use winapi::shared::windef::{HBITMAP, HDC};
 use winapi::um::objidlbase::{LPSTREAM, STATSTG};
-use winapi::um::wingdi::{BI_RGB, BITMAPINFO, BITMAPINFOHEADER, DIB_RGB_COLORS, CreateDIBSection};
-use com::sys::S_OK;
-use resvg::{usvg, tiny_skia};
-use usvg::fontdb;
-use crate::error::Error;
+use winapi::um::wingdi::{CreateDIBSection, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS};
 
 pub unsafe fn tree_from_istream(pstream: LPSTREAM) -> Result<usvg::Tree, Error> {
     let mut stat: STATSTG = Default::default();
@@ -44,7 +47,8 @@ pub fn render_thumbnail(tree: &Option<usvg::Tree>, cx: u32) -> Result<tiny_skia:
         tree.size().to_int_size().scale_to_width(cx)
     } else {
         tree.size().to_int_size().scale_to_height(cx)
-    }.ok_or(Error::RenderError)?;
+    }
+    .ok_or(Error::RenderError)?;
 
     let transform = tiny_skia::Transform::from_scale(
         size.width() as f32 / tree.size().width() as f32,
@@ -69,17 +73,17 @@ pub unsafe fn img_to_hbitmap(img: &tiny_skia::Pixmap) -> Result<HBITMAP, Error> 
 
     let hbitmap = CreateDIBSection(hdc, &bmi, DIB_RGB_COLORS, &mut ppv_bits, ptr::null_mut(), 0);
     if hbitmap as *const c_void == ptr::null() {
-        return Err(Error::CreateDIBSectionError)
+        return Err(Error::CreateDIBSectionError);
     }
 
     let mut i = 0;
     let ppv_bits = ppv_bits as *mut u8;
     for px in img.pixels() {
         let px = px.demultiply();
-        ptr::write(ppv_bits.offset(i+0), px.blue());
-        ptr::write(ppv_bits.offset(i+1), px.green());
-        ptr::write(ppv_bits.offset(i+2), px.red());
-        ptr::write(ppv_bits.offset(i+3), px.alpha());
+        ptr::write(ppv_bits.offset(i + 0), px.blue());
+        ptr::write(ppv_bits.offset(i + 1), px.green());
+        ptr::write(ppv_bits.offset(i + 2), px.red());
+        ptr::write(ppv_bits.offset(i + 3), px.alpha());
         i += 4;
     }
     Ok(hbitmap)

@@ -132,7 +132,19 @@ It's definitely the smallest option out there.
 
 ## License
 
-`resvg` project is licensed under the [MPLv2.0](https://www.mozilla.org/en-US/MPL/).
+Licensed under either of
+
+- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or <http://www.apache.org/licenses/LICENSE-2.0>)
+- MIT license ([LICENSE-MIT](LICENSE-MIT) or <http://opensource.org/licenses/MIT>)
+
+at your option.
+
+## Contribution
+
+Contributions are welcome by pull request.
+The [Rust code of conduct] applies.
+
+Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in the work by you, as defined in the Apache-2.0 license, shall be licensed as above, without any additional terms or conditions.
 
 [usvg]: https://github.com/RazrFalcon/resvg/tree/master/crates/usvg
 [rustybuzz]: https://github.com/RazrFalcon/rustybuzz
@@ -142,3 +154,4 @@ It's definitely the smallest option out there.
 [simplecss]: https://github.com/RazrFalcon/simplecss
 [fontdb]: https://github.com/RazrFalcon/fontdb
 [pico-args]: https://github.com/RazrFalcon/pico-args
+[Rust Code of Conduct]: https://www.rust-lang.org/policies/code-of-conduct

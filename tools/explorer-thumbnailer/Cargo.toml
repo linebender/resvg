@@ -1,12 +1,13 @@
 [package]
 name = "explorer-thumbnailer"
 version = "0.44.0"
-authors = ["gentoo90 <gentoo90@gmail.com>"]
-license = "MPL-2.0"
+license.workspace = true
 edition = "2021"
 publish = false
 
-[workspace]
+# TODO: Remove this workspace.package section when this package is part of the repo's workspace.
+[workspace.package]
+license = "Apache-2.0 OR MIT"
 
 [dependencies]
 com = "0.2"
