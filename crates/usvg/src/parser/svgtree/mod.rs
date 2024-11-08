@@ -205,14 +205,16 @@ pub struct Attribute<'input> {
     pub name: AId,
     /// Attribute's value.
     pub value: roxmltree::StringStorage<'input>,
+    /// Attribute's importance
+    pub important: bool
 }
 
 impl std::fmt::Debug for Attribute<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
         write!(
             f,
-            "Attribute {{ name: {:?}, value: {} }}",
-            self.name, self.value
+            "Attribute {{ name: {:?}, value: {}, important: {} }}",
+            self.name, self.value, self.important
         )
     }
 }

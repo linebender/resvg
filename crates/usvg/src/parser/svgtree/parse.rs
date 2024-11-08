@@ -49,8 +49,8 @@ impl<'input> Document<'input> {
         new_child_id
     }
 
-    fn append_attribute(&mut self, name: AId, value: roxmltree::StringStorage<'input>) {
-        self.attrs.push(Attribute { name, value });
+    fn append_attribute(&mut self, name: AId, value: roxmltree::StringStorage<'input>, important: bool) {
+        self.attrs.push(Attribute { name, value, important });
     }
 }
 
@@ -251,10 +251,10 @@ pub(crate) fn parse_svg_element<'input>(
             continue;
         }
 
-        append_attribute(parent_id, tag_name, aid, attr.value_storage().clone(), doc);
+        append_attribute(parent_id, tag_name, aid, attr.value_storage().clone(), false, doc);
     }
 
-    let mut insert_attribute = |aid, value: &str| {
+    let mut insert_attribute = |aid, value: &str, important: bool| {
         // Check that attribute already exists.
         let idx = doc.attrs[attrs_start_idx..]
             .iter_mut()
@@ -266,15 +266,23 @@ pub(crate) fn parse_svg_element<'input>(
             tag_name,
             aid,
             roxmltree::StringStorage::new_owned(value),
+            important,
             doc,
         );
 
         // Check that attribute was actually added, because it could be skipped.
         if added {
             if let Some(idx) = idx {
-                // Swap the last attribute with an existing one.
                 let last_idx = doc.attrs.len() - 1;
-                doc.attrs.swap(attrs_start_idx + idx, last_idx);
+                let existing_idx = attrs_start_idx + idx;
+
+                // Swap the last attribute with an existing one. However, if the currently existing
+                // attribute is important and the new one not, we don't want to overwrite it, since
+                // the important one takes precedence.
+                if !(doc.attrs[existing_idx].important && !doc.attrs[last_idx].important) {
+                    doc.attrs.swap(existing_idx, last_idx);
+                }
+
                 // Remove last.
                 doc.attrs.pop();
             }
@@ -283,41 +291,44 @@ pub(crate) fn parse_svg_element<'input>(
 
     let mut write_declaration = |declaration: &Declaration| {
         // TODO: perform XML attribute normalization
+        let imp = declaration.important;
+        let val = declaration.value;
+
         if declaration.name == "marker" {
-            insert_attribute(AId::MarkerStart, declaration.value);
-            insert_attribute(AId::MarkerMid, declaration.value);
-            insert_attribute(AId::MarkerEnd, declaration.value);
+            insert_attribute(AId::MarkerStart, val, imp);
+            insert_attribute(AId::MarkerMid, val, imp);
+            insert_attribute(AId::MarkerEnd, val, imp);
         } else if declaration.name == "font" {
-            if let Ok(shorthand) = FontShorthand::from_str(declaration.value) {
+            if let Ok(shorthand) = FontShorthand::from_str(val) {
                 // First we need to reset all values to their default.
-                insert_attribute(AId::FontStyle, "normal");
-                insert_attribute(AId::FontVariant, "normal");
-                insert_attribute(AId::FontWeight, "normal");
-                insert_attribute(AId::FontStretch, "normal");
-                insert_attribute(AId::LineHeight, "normal");
-                insert_attribute(AId::FontSizeAdjust, "none");
-                insert_attribute(AId::FontKerning, "auto");
-                insert_attribute(AId::FontVariantCaps, "normal");
-                insert_attribute(AId::FontVariantLigatures, "normal");
-                insert_attribute(AId::FontVariantNumeric, "normal");
-                insert_attribute(AId::FontVariantEastAsian, "normal");
-                insert_attribute(AId::FontVariantPosition, "normal");
+                insert_attribute(AId::FontStyle, "normal", imp);
+                insert_attribute(AId::FontVariant, "normal", imp);
+                insert_attribute(AId::FontWeight, "normal", imp);
+                insert_attribute(AId::FontStretch, "normal", imp);
+                insert_attribute(AId::LineHeight, "normal", imp);
+                insert_attribute(AId::FontSizeAdjust, "none", imp);
+                insert_attribute(AId::FontKerning, "auto", imp);
+                insert_attribute(AId::FontVariantCaps, "normal", imp);
+                insert_attribute(AId::FontVariantLigatures, "normal", imp);
+                insert_attribute(AId::FontVariantNumeric, "normal", imp);
+                insert_attribute(AId::FontVariantEastAsian, "normal", imp);
+                insert_attribute(AId::FontVariantPosition, "normal", imp);
 
                 // Then, we set the properties that have been declared.
                 shorthand
                     .font_stretch
-                    .map(|s| insert_attribute(AId::FontStretch, s));
+                    .map(|s| insert_attribute(AId::FontStretch, s, imp));
                 shorthand
                     .font_weight
-                    .map(|s| insert_attribute(AId::FontWeight, s));
+                    .map(|s| insert_attribute(AId::FontWeight, s, imp));
                 shorthand
                     .font_variant
-                    .map(|s| insert_attribute(AId::FontVariant, s));
+                    .map(|s| insert_attribute(AId::FontVariant, s, imp));
                 shorthand
                     .font_style
-                    .map(|s| insert_attribute(AId::FontStyle, s));
-                insert_attribute(AId::FontSize, shorthand.font_size);
-                insert_attribute(AId::FontFamily, shorthand.font_family);
+                    .map(|s| insert_attribute(AId::FontStyle, s, imp));
+                insert_attribute(AId::FontSize, shorthand.font_size, imp);
+                insert_attribute(AId::FontFamily, shorthand.font_family, imp);
             } else {
                 log::warn!(
                     "Failed to parse {} value: '{}'",
@@ -328,7 +339,7 @@ pub(crate) fn parse_svg_element<'input>(
         } else if let Some(aid) = AId::from_str(declaration.name) {
             // Parse only the presentation attributes.
             if aid.is_presentation() {
-                insert_attribute(aid, declaration.value);
+                insert_attribute(aid, val, imp);
             }
         }
     };
@@ -369,6 +380,7 @@ fn append_attribute<'input>(
     tag_name: EId,
     aid: AId,
     value: roxmltree::StringStorage<'input>,
+    important: bool,
     doc: &mut Document<'input>,
 ) -> bool {
     match aid {
@@ -389,7 +401,7 @@ fn append_attribute<'input>(
         return resolve_inherit(parent_id, aid, doc);
     }
 
-    doc.append_attribute(aid, value);
+    doc.append_attribute(aid, value, important);
     true
 }
 
@@ -412,6 +424,7 @@ fn resolve_inherit(parent_id: NodeId, aid: AId, doc: &mut Document) -> bool {
                 doc.attrs.push(Attribute {
                     name: aid,
                     value: attr.value,
+                    important: attr.important
                 });
 
                 return true;
@@ -429,6 +442,7 @@ fn resolve_inherit(parent_id: NodeId, aid: AId, doc: &mut Document) -> bool {
             doc.attrs.push(Attribute {
                 name: aid,
                 value: attr.value,
+                important: attr.important
             });
 
             return true;
@@ -483,7 +497,7 @@ fn resolve_inherit(parent_id: NodeId, aid: AId, doc: &mut Document) -> bool {
         _ => return false,
     };
 
-    doc.append_attribute(aid, roxmltree::StringStorage::Borrowed(value));
+    doc.append_attribute(aid, roxmltree::StringStorage::Borrowed(value), false);
     true
 }
 
