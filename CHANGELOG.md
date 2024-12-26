@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 This changelog also contains important changes in dependencies.
 
 ## [Unreleased]
+
+## [0.45.0] - 2024-12-12
 ### Added
 - Added support for the `background-color` attribute.
 - Add support for additional `image-rendering` attributes.
@@ -1245,7 +1247,8 @@ This changelog also contains important changes in dependencies.
 ### Fixed
 - `font-size` attribute inheritance during `use` resolving.
 
-[Unreleased]: https://github.com/linebender/resvg/compare/v0.44.0...HEAD
+[Unreleased]: https://github.com/linebender/resvg/compare/v0.45.0...HEAD
+[0.45.0]: https://github.com/linebender/resvg/compare/v0.44.0...v0.45.0
 [0.44.0]: https://github.com/linebender/resvg/compare/v0.43.0...v0.44.0
 [0.43.0]: https://github.com/linebender/resvg/compare/v0.42.0...v0.43.0
 [0.42.0]: https://github.com/linebender/resvg/compare/v0.41.0...v0.42.0
