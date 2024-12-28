@@ -86,9 +86,7 @@ pub(crate) fn convert(
         mask = convert(link, state, object_bbox, cache);
 
         // Linked `mask` must be valid.
-        if mask.is_none() {
-            return None;
-        }
+        mask.as_ref()?;
     }
 
     let kind = if node.attribute(AId::MaskType) == Some("alpha") {
