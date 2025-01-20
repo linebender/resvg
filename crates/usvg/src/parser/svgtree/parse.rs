@@ -344,18 +344,18 @@ pub(crate) fn parse_svg_element<'input>(
                 insert_attribute(AId::FontVariantPosition, "normal", imp);
 
                 // Then, we set the properties that have been declared.
-                shorthand
-                    .font_stretch
-                    .map(|s| insert_attribute(AId::FontStretch, s, imp));
-                shorthand
-                    .font_weight
-                    .map(|s| insert_attribute(AId::FontWeight, s, imp));
-                shorthand
-                    .font_variant
-                    .map(|s| insert_attribute(AId::FontVariant, s, imp));
-                shorthand
-                    .font_style
-                    .map(|s| insert_attribute(AId::FontStyle, s, imp));
+                if let Some(s) = shorthand.font_stretch {
+                    insert_attribute(AId::FontStretch, s, imp)
+                }
+                if let Some(s) = shorthand.font_weight {
+                    insert_attribute(AId::FontWeight, s, imp)
+                }
+                if let Some(s) = shorthand.font_variant {
+                    insert_attribute(AId::FontVariant, s, imp)
+                }
+                if let Some(s) = shorthand.font_style {
+                    insert_attribute(AId::FontStyle, s, imp)
+                }
                 insert_attribute(AId::FontSize, shorthand.font_size, imp);
                 insert_attribute(AId::FontFamily, shorthand.font_family, imp);
             } else {

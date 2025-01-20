@@ -19,16 +19,14 @@ pub(crate) fn parse_svg_text_element<'input>(
 
     let space = if doc.get(parent_id).has_attribute(AId::Space) {
         get_xmlspace(doc, parent_id, XmlSpace::Default)
+    } else if let Some(node) = doc
+        .get(parent_id)
+        .ancestors()
+        .find(|n| n.has_attribute(AId::Space))
+    {
+        get_xmlspace(doc, node.id, XmlSpace::Default)
     } else {
-        if let Some(node) = doc
-            .get(parent_id)
-            .ancestors()
-            .find(|n| n.has_attribute(AId::Space))
-        {
-            get_xmlspace(doc, node.id, XmlSpace::Default)
-        } else {
-            XmlSpace::Default
-        }
+        XmlSpace::Default
     };
 
     parse_svg_text_element_impl(parent, parent_id, style_sheet, space, doc)?;
@@ -260,27 +258,19 @@ fn trim_text_nodes(text_elem_id: NodeId, xmlspace: XmlSpace, doc: &mut Document)
             //
             // See text-tspan-02-b.svg for details.
             if depth1 < depth2 {
-                if c3 == Some(b' ') {
-                    if xmlspace2 == XmlSpace::Default {
-                        if let NodeKind::Text(ref mut text) = doc.nodes[node2_id.get_usize()].kind {
-                            text.remove_first_space();
-                        }
+                if c3 == Some(b' ') && xmlspace2 == XmlSpace::Default {
+                    if let NodeKind::Text(ref mut text) = doc.nodes[node2_id.get_usize()].kind {
+                        text.remove_first_space();
                     }
                 }
-            } else {
-                if c2 == Some(b' ') && c2 == c3 {
-                    if xmlspace1 == XmlSpace::Default && xmlspace2 == XmlSpace::Default {
-                        if let NodeKind::Text(ref mut text) = doc.nodes[node1_id.get_usize()].kind {
-                            text.remove_last_space();
-                        }
-                    } else {
-                        if xmlspace1 == XmlSpace::Preserve && xmlspace2 == XmlSpace::Default {
-                            if let NodeKind::Text(ref mut text) =
-                                doc.nodes[node2_id.get_usize()].kind
-                            {
-                                text.remove_first_space();
-                            }
-                        }
+            } else if c2 == Some(b' ') && c2 == c3 {
+                if xmlspace1 == XmlSpace::Default && xmlspace2 == XmlSpace::Default {
+                    if let NodeKind::Text(ref mut text) = doc.nodes[node1_id.get_usize()].kind {
+                        text.remove_last_space();
+                    }
+                } else if xmlspace1 == XmlSpace::Preserve && xmlspace2 == XmlSpace::Default {
+                    if let NodeKind::Text(ref mut text) = doc.nodes[node2_id.get_usize()].kind {
+                        text.remove_first_space();
                     }
                 }
             }

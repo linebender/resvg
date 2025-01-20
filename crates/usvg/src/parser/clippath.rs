@@ -57,9 +57,7 @@ pub(crate) fn convert(
         clip_path = convert(link, state, object_bbox, cache);
 
         // Linked `clipPath` must be valid.
-        if clip_path.is_none() {
-            return None;
-        }
+        clip_path.as_ref()?;
     }
 
     let mut id = NonEmptyString::new(node.element_id().to_string())?;
