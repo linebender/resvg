@@ -331,7 +331,7 @@ fn convert_stops(grad: SvgNode) -> Vec<Stop> {
     if stops.len() >= 3 {
         let mut i = 0;
         while i < stops.len() - 2 {
-            let offset1 = stops[i + 0].offset.get();
+            let offset1 = stops[i].offset.get();
             let offset2 = stops[i + 1].offset.get();
             let offset3 = stops[i + 2].offset.get();
 
@@ -358,7 +358,7 @@ fn convert_stops(grad: SvgNode) -> Vec<Stop> {
     if stops.len() >= 2 {
         let mut i = 0;
         while i < stops.len() - 1 {
-            let offset1 = stops[i + 0].offset.get();
+            let offset1 = stops[i].offset.get();
             let offset2 = stops[i + 1].offset.get();
 
             if offset1.approx_eq_ulps(&0.0, 4) && offset2.approx_eq_ulps(&0.0, 4) {
@@ -384,14 +384,14 @@ fn convert_stops(grad: SvgNode) -> Vec<Stop> {
         let mut i = 1;
         while i < stops.len() {
             let offset1 = stops[i - 1].offset.get();
-            let offset2 = stops[i - 0].offset.get();
+            let offset2 = stops[i].offset.get();
 
             // Next offset must be smaller then previous.
             if offset1 > offset2 || offset1.approx_eq_ulps(&offset2, 4) {
                 // Make previous offset a bit smaller.
                 let new_offset = offset1 - f32::EPSILON;
                 stops[i - 1].offset = StopOffset::new_clamped(new_offset);
-                stops[i - 0].offset = StopOffset::new_clamped(offset1);
+                stops[i].offset = StopOffset::new_clamped(offset1);
             }
 
             i += 1;

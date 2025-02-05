@@ -345,10 +345,9 @@ pub(crate) fn convert_doc(svg_doc: &svgtree::Document, opt: &Options) -> Result<
                     | EId::Pattern
                     | EId::RadialGradient
                     | EId::Image
-            ) {
-                if !node.element_id().is_empty() {
-                    cache.all_ids.insert(string_hash(node.element_id()));
-                }
+            ) && !node.element_id().is_empty()
+            {
+                cache.all_ids.insert(string_hash(node.element_id()));
             }
         }
     }
@@ -736,18 +735,14 @@ pub(crate) fn convert_group(
     let mut clip_path = None;
     if let Some(link) = node.attribute::<SvgNode>(AId::ClipPath) {
         clip_path = super::clippath::convert(link, state, object_bbox, cache);
-        if clip_path.is_none() {
-            return None;
-        }
+        clip_path.as_ref()?;
     }
 
     let mut mask = None;
     if state.parent_clip_path.is_none() {
         if let Some(link) = node.attribute::<SvgNode>(AId::Mask) {
             mask = super::mask::convert(link, state, object_bbox, cache);
-            if mask.is_none() {
-                return None;
-            }
+            mask.as_ref()?;
         }
     }
 
