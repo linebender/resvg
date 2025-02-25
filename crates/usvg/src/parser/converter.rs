@@ -931,29 +931,19 @@ fn convert_path(
         None => return,
     };
 
-    match raw_paint_order.order {
-        [PaintOrderKind::Markers, _, _] => {
-            if let Some(markers_node) = marker {
-                parent.children.push(Node::Group(Box::new(markers_node)));
-            }
-
+    match (raw_paint_order.order, marker) {
+        ([PaintOrderKind::Markers, _, _], Some(markers_node)) => {
+            parent.children.push(Node::Group(Box::new(markers_node)));
             parent.children.push(Node::Path(Box::new(path.clone())));
         }
-        [first, PaintOrderKind::Markers, last] => {
+        ([first, PaintOrderKind::Markers, last], Some(markers_node)) => {
             append_single_paint_path(first, &path, parent);
-
-            if let Some(markers_node) = marker {
-                parent.children.push(Node::Group(Box::new(markers_node)));
-            }
-
+            parent.children.push(Node::Group(Box::new(markers_node)));
             append_single_paint_path(last, &path, parent);
         }
-        [_, _, PaintOrderKind::Markers] => {
+        ([_, _, PaintOrderKind::Markers], Some(markers_node)) => {
             parent.children.push(Node::Path(Box::new(path.clone())));
-
-            if let Some(markers_node) = marker {
-                parent.children.push(Node::Group(Box::new(markers_node)));
-            }
+            parent.children.push(Node::Group(Box::new(markers_node)));
         }
         _ => parent.children.push(Node::Path(Box::new(path.clone()))),
     }
