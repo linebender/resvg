@@ -203,3 +203,8 @@ fn preserve_text_with_complex_text_decoration() {
 fn preserve_text_with_nested_baseline_shift() {
     resave_with_text("preserve-text-with-nested-baseline-shift");
 }
+
+#[test]
+fn optimize_paths_without_markers() {
+    resave("optimize-paths-without-markers");
+}
