@@ -35,6 +35,7 @@ This release has an MSRV of 1.65 for `usvg` and 1.67.1 for `resvg` and the C API
 - `fontdb` and `rustybuzz` have been updated.
 - Updated other dependencies.
 - (svgtypes) Simplified color component rounding and bounds checking.
+- Improved handling of paths with paint order `markers` but no actual markers.
 
 ### Fixed
 - Relative unit handling when `use` references `symbol`.
