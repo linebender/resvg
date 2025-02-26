@@ -8,7 +8,7 @@ This changelog also contains important changes in dependencies.
 
 ## [Unreleased]
 
-## [0.45.0] - 2024-12-12
+## [0.45.0] - 2025-02-26
 This is the first release under the stewardship of [Linebender][], who is now responsible for maintenance of this crate.
 Many thanks to Yevhenii Reizner for the years of hard work that he has poured into this and other crates.
 
