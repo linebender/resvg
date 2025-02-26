@@ -15,12 +15,17 @@ int main(int argc, char **argv)
         abort();
     }
 
+    // Initialize resvg's library logging system
     resvg_init_log();
 
     resvg_options *opt = resvg_options_create();
     resvg_options_load_system_fonts(opt);
 
+    // Optionally, you can add some CSS to control the SVG rendering.
+    resvg_options_set_stylesheet(opt, "svg { fill: black; }");
+
     resvg_render_tree *tree;
+    // Construct a tree from the svg file and pass in some options
     int err = resvg_parse_tree_from_file(argv[1], opt, &tree);
     resvg_options_destroy(opt);
     if (err != RESVG_OK)
@@ -33,6 +38,7 @@ int main(int argc, char **argv)
     int width = (int)size.width;
     int height = (int)size.height;
 
+    // Using the dimension info, allocate enough pixels to account for the entire image
     cairo_surface_t *surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, width, height);
 
     /* resvg doesn't support stride, so cairo_surface_t should have no padding */
@@ -50,9 +56,11 @@ int main(int argc, char **argv)
         surface_data[i + 2] = r;
     }
 
+    // Save image
     cairo_surface_write_to_png(surface, argv[2]);
-    cairo_surface_destroy(surface);
 
+    // De-initialize the allocated memory
+    cairo_surface_destroy(surface);
     resvg_tree_destroy(tree);
 
     return 0;

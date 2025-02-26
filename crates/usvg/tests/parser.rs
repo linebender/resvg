@@ -16,7 +16,7 @@ fn clippath_with_invalid_child() {
 
     let tree = usvg::Tree::from_str(&svg, &usvg::Options::default()).unwrap();
     // clipPath is invalid and should be removed together with rect.
-    assert_eq!(tree.root().has_children(), false);
+    assert!(!tree.root().has_children());
 }
 
 #[test]
@@ -116,7 +116,7 @@ fn stylesheet_injection_with_important() {
         unreachable!()
     };
 
-    // All rects should be overriden, since we use `important`.
+    // All rects should be overridden, since we use `important`.
     assert_eq!(
         first.fill().unwrap().paint(),
         &usvg::Paint::Color(Color::new_rgb(255, 0, 0))

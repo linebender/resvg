@@ -174,6 +174,15 @@ void resvg_options_set_resources_dir(resvg_options *opt, const char *path);
 void resvg_options_set_dpi(resvg_options *opt, float dpi);
 
 /**
+ * @brief Provides the content of a stylesheet that will be used when resolving CSS attributes.
+ *
+ * Must be UTF-8. Can be set to NULL.
+ *
+ * Default: NULL
+ */
+void resvg_options_set_stylesheet(resvg_options *opt, const char *content);
+
+/**
  * @brief Sets the default font family.
  *
  * Will be used when no `font-family` attribute is set in the SVG.

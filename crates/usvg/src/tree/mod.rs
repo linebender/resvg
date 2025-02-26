@@ -1637,7 +1637,7 @@ impl Tree {
                 if !self
                     .linear_gradients
                     .iter()
-                    .any(|other| Arc::ptr_eq(&lg, other))
+                    .any(|other| Arc::ptr_eq(lg, other))
                 {
                     self.linear_gradients.push(lg.clone());
                 }
@@ -1646,13 +1646,13 @@ impl Tree {
                 if !self
                     .radial_gradients
                     .iter()
-                    .any(|other| Arc::ptr_eq(&rg, other))
+                    .any(|other| Arc::ptr_eq(rg, other))
                 {
                     self.radial_gradients.push(rg.clone());
                 }
             }
             Paint::Pattern(patt) => {
-                if !self.patterns.iter().any(|other| Arc::ptr_eq(&patt, other)) {
+                if !self.patterns.iter().any(|other| Arc::ptr_eq(patt, other)) {
                     self.patterns.push(patt.clone());
                 }
             }
@@ -1730,12 +1730,12 @@ impl Group {
         for node in self.children() {
             if let Node::Group(ref g) = node {
                 if let Some(ref clip) = g.clip_path {
-                    if !clip_paths.iter().any(|other| Arc::ptr_eq(&clip, other)) {
+                    if !clip_paths.iter().any(|other| Arc::ptr_eq(clip, other)) {
                         clip_paths.push(clip.clone());
                     }
 
                     if let Some(ref sub_clip) = clip.clip_path {
-                        if !clip_paths.iter().any(|other| Arc::ptr_eq(&sub_clip, other)) {
+                        if !clip_paths.iter().any(|other| Arc::ptr_eq(sub_clip, other)) {
                             clip_paths.push(sub_clip.clone());
                         }
                     }
@@ -1754,12 +1754,12 @@ impl Group {
         for node in self.children() {
             if let Node::Group(ref g) = node {
                 if let Some(ref mask) = g.mask {
-                    if !masks.iter().any(|other| Arc::ptr_eq(&mask, other)) {
+                    if !masks.iter().any(|other| Arc::ptr_eq(mask, other)) {
                         masks.push(mask.clone());
                     }
 
                     if let Some(ref sub_mask) = mask.mask {
-                        if !masks.iter().any(|other| Arc::ptr_eq(&sub_mask, other)) {
+                        if !masks.iter().any(|other| Arc::ptr_eq(sub_mask, other)) {
                             masks.push(sub_mask.clone());
                         }
                     }
@@ -1778,7 +1778,7 @@ impl Group {
         for node in self.children() {
             if let Node::Group(ref g) = node {
                 for filter in g.filters() {
-                    if !filters.iter().any(|other| Arc::ptr_eq(&filter, other)) {
+                    if !filters.iter().any(|other| Arc::ptr_eq(filter, other)) {
                         filters.push(filter.clone());
                     }
                 }

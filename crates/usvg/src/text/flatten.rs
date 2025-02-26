@@ -317,7 +317,7 @@ impl DatabaseExt for Database {
             )?;
             svg.end_element();
 
-            Tree::from_data(&svg.end_document().as_bytes(), &Options::default()).ok()
+            Tree::from_data(svg.end_document().as_bytes(), &Options::default()).ok()
         })?
     }
 }

@@ -313,7 +313,7 @@ fn main() {
     }
 
     if let Err(e) = process(args) {
-        eprintln!("Error: {}.", e.to_string());
+        eprintln!("Error: {}.", e);
         process::exit(1);
     }
 }
@@ -326,7 +326,7 @@ fn process(args: Args) -> Result<(), String> {
         let svg_from = if in_svg == "-" {
             InputFrom::Stdin
         } else if in_svg == "-c" {
-            return Err(format!("-c should be set after input"));
+            return Err("-c should be set after input".to_string());
         } else {
             InputFrom::File(in_svg)
         };
@@ -456,13 +456,13 @@ fn process(args: Args) -> Result<(), String> {
         OutputTo::Stdout => {
             io::stdout()
                 .write_all(s.as_bytes())
-                .map_err(|_| format!("failed to write to the stdout"))?;
+                .map_err(|_| "failed to write to the stdout".to_string())?;
         }
         OutputTo::File(path) => {
             let mut f =
-                File::create(path).map_err(|_| format!("failed to create the output file"))?;
+                File::create(path).map_err(|_| "failed to create the output file".to_string())?;
             f.write_all(s.as_bytes())
-                .map_err(|_| format!("failed to write to the output file"))?;
+                .map_err(|_| "failed to write to the output file".to_string())?;
         }
     }
 
@@ -476,7 +476,7 @@ fn load_stdin() -> Result<Vec<u8>, String> {
 
     handle
         .read_to_end(&mut buf)
-        .map_err(|_| format!("failed to read from stdin"))?;
+        .map_err(|_| "failed to read from stdin".to_string())?;
 
     Ok(buf)
 }

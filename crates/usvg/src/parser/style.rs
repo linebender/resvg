@@ -160,14 +160,12 @@ fn convert_paint(
         svgtypes::Paint::ContextFill => state
             .context_element
             .clone()
-            .map(|(f, _)| f)
-            .flatten()
+            .and_then(|(f, _)| f)
             .map(|f| (f.paint, f.context_element)),
         svgtypes::Paint::ContextStroke => state
             .context_element
             .clone()
-            .map(|(_, s)| s)
-            .flatten()
+            .and_then(|(_, s)| s)
             .map(|s| (s.paint, s.context_element)),
         svgtypes::Paint::CurrentColor => {
             let svg_color: svgtypes::Color = node

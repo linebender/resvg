@@ -626,14 +626,14 @@ impl Text {
     /// This process is in general lossless and should lead to correct output, with
     /// two notable exceptions:
     /// 1. For glyphs based on the `SVG` table, only glyphs that are pure SVG 1.1/2.0
-    /// are supported. Glyphs that make use of features in the OpenType specification
-    /// that are not part of the original SVG specification are not supported.
+    ///    are supported. Glyphs that make use of features in the OpenType specification
+    ///    that are not part of the original SVG specification are not supported.
     /// 2. For glyphs based on the `COLR` table, there are a certain number of features
-    /// that are not (correctly) supported, such as conical
-    /// gradients, certain gradient transforms and some blend modes. But this shouldn't
-    /// cause any issues in 95% of the cases, as most of those are edge cases.
-    /// If the two above are not acceptable, then you will need to implement your own
-    /// glyph rendering logic based on the layouted glyphs (see the `layouted` method).
+    ///    that are not (correctly) supported, such as conical
+    ///    gradients, certain gradient transforms and some blend modes. But this shouldn't
+    ///    cause any issues in 95% of the cases, as most of those are edge cases.
+    ///    If the two above are not acceptable, then you will need to implement your own
+    ///    glyph rendering logic based on the layouted glyphs (see the `layouted` method).
     pub fn flattened(&self) -> &Group {
         &self.flattened
     }

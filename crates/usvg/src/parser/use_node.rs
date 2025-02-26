@@ -186,7 +186,7 @@ pub(crate) fn convert_svg(
             vb
         } else {
             // No `viewBox` attribute? Then use `x`, `y`, `width` and `height` instead.
-            let (mut w, mut h) = use_node_size(node, &state);
+            let (mut w, mut h) = use_node_size(node, state);
 
             // If attributes `width` and/or `height` are provided on the `use` element,
             // then these values will override the corresponding attributes

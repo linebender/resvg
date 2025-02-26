@@ -328,37 +328,35 @@ fn get_image_data_format(data: &[u8]) -> Option<ImageFormat> {
 /// Unlike `Tree::from_*` methods, this one will also remove all `image` elements
 /// from the loaded SVG, as required by the spec.
 pub(crate) fn load_sub_svg(data: &[u8], opt: &Options) -> Option<ImageKind> {
-    let mut sub_opt = Options::default();
-    sub_opt.resources_dir = None;
-    sub_opt.dpi = opt.dpi;
-    sub_opt.font_size = opt.font_size;
-    sub_opt.languages = opt.languages.clone();
-    sub_opt.shape_rendering = opt.shape_rendering;
-    sub_opt.text_rendering = opt.text_rendering;
-    sub_opt.image_rendering = opt.image_rendering;
-    sub_opt.default_size = opt.default_size;
-
-    // The referenced SVG image cannot have any 'image' elements by itself.
-    // Not only recursive. Any. Don't know why.
-    sub_opt.image_href_resolver = ImageHrefResolver {
-        resolve_data: Box::new(|_, _, _| None),
-        resolve_string: Box::new(|_, _| None),
-    };
-
-    #[cfg(feature = "text")]
-    {
+    let sub_opt = Options {
+        resources_dir: None,
+        dpi: opt.dpi,
+        font_size: opt.font_size,
+        languages: opt.languages.clone(),
+        shape_rendering: opt.shape_rendering,
+        text_rendering: opt.text_rendering,
+        image_rendering: opt.image_rendering,
+        default_size: opt.default_size,
+        // The referenced SVG image cannot have any 'image' elements by itself.
+        // Not only recursive. Any. Don't know why.
+        image_href_resolver: ImageHrefResolver {
+            resolve_data: Box::new(|_, _, _| None),
+            resolve_string: Box::new(|_, _| None),
+        },
         // In the referenced SVG, we start with the unmodified user-provided
         // fontdb, not the one from the cache.
-        sub_opt.fontdb = opt.fontdb.clone();
-
+        #[cfg(feature = "text")]
+        fontdb: opt.fontdb.clone(),
         // Can't clone the resolver, so we create a new one that forwards to it.
-        sub_opt.font_resolver = crate::FontResolver {
+        #[cfg(feature = "text")]
+        font_resolver: crate::FontResolver {
             select_font: Box::new(|font, db| (opt.font_resolver.select_font)(font, db)),
             select_fallback: Box::new(|c, used_fonts, db| {
                 (opt.font_resolver.select_fallback)(c, used_fonts, db)
             }),
-        };
-    }
+        },
+        ..Options::default()
+    };
 
     let tree = Tree::from_data(data, &sub_opt);
     let tree = match tree {

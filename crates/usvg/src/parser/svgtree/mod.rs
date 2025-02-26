@@ -155,7 +155,7 @@ pub(crate) struct NodeId(NonZeroU32);
 impl NodeId {
     #[inline]
     fn new(id: u32) -> Self {
-        debug_assert!(id < core::u32::MAX);
+        debug_assert!(id < u32::MAX);
 
         // We are using `NonZeroU32` to reduce overhead of `Option<NodeId>`.
         NodeId(NonZeroU32::new(id + 1).unwrap())
@@ -176,7 +176,7 @@ impl From<usize> for NodeId {
     #[inline]
     fn from(id: usize) -> Self {
         // We already checked that `id` is limited by u32::MAX.
-        debug_assert!(id <= core::u32::MAX as usize);
+        debug_assert!(id <= u32::MAX as usize);
         NodeId::new(id as u32)
     }
 }

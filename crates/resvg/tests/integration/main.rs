@@ -3,7 +3,6 @@
 
 use once_cell::sync::Lazy;
 use rgb::{FromSlice, RGBA8};
-use std::path::Path;
 use std::process::Command;
 use std::sync::Arc;
 use usvg::fontdb;
@@ -34,14 +33,16 @@ pub fn render(name: &str) -> usize {
     let svg_path = format!("tests/{}.svg", name);
     let png_path = format!("tests/{}.png", name);
 
-    let mut opt = usvg::Options::default();
-    opt.resources_dir = Some(
-        std::path::PathBuf::from(&svg_path)
-            .parent()
-            .unwrap()
-            .to_owned(),
-    );
-    opt.fontdb = GLOBAL_FONTDB.clone();
+    let opt = usvg::Options {
+        resources_dir: Some(
+            std::path::PathBuf::from(&svg_path)
+                .parent()
+                .unwrap()
+                .to_owned(),
+        ),
+        fontdb: GLOBAL_FONTDB.clone(),
+        ..usvg::Options::default()
+    };
 
     let tree = {
         let svg_data = std::fs::read(&svg_path).unwrap();
@@ -99,8 +100,10 @@ pub fn render_extra_with_scale(name: &str, scale: f32) -> usize {
     let svg_path = format!("tests/{}.svg", name);
     let png_path = format!("tests/{}.png", name);
 
-    let mut opt = usvg::Options::default();
-    opt.fontdb = GLOBAL_FONTDB.clone();
+    let opt = usvg::Options {
+        fontdb: GLOBAL_FONTDB.clone(),
+        ..usvg::Options::default()
+    };
 
     let tree = {
         let svg_data = std::fs::read(&svg_path).unwrap();
@@ -149,8 +152,10 @@ pub fn render_node(name: &str, id: &str) -> usize {
     let svg_path = format!("tests/{}.svg", name);
     let png_path = format!("tests/{}.png", name);
 
-    let mut opt = usvg::Options::default();
-    opt.fontdb = GLOBAL_FONTDB.clone();
+    let opt = usvg::Options {
+        fontdb: GLOBAL_FONTDB.clone(),
+        ..usvg::Options::default()
+    };
 
     let tree = {
         let svg_data = std::fs::read(&svg_path).unwrap();

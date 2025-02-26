@@ -9,16 +9,37 @@ This changelog also contains important changes in dependencies.
 ## [Unreleased]
 
 ## [0.45.0] - 2024-12-12
+This is the first release under the stewardship of [Linebender][], who is now responsible for maintenance of this crate.
+Many thanks to Yevhenii Reizner for the years of hard work that he has poured into this and other crates.
+
+Please note that the license of this project changed from `MPL-2.0` to `Apache-2.0 OR MIT`.
+See [resvg#838](https://github.com/linebender/resvg/issues/838) for more information.
+
+This release has an MSRV of 1.65 for `usvg` and 1.67.1 for `resvg` and the C API.
+
 ### Added
-- Added support for the `background-color` attribute.
-- Add support for additional `image-rendering` attributes.
+- Support for the `background-color` attribute.
+- Support for additional `image-rendering` attributes.
+- Support for the `!important` CSS flag.
+- Support for Luma JPEG images.
+- (c-api) `resvg_options_set_stylesheet`.
+  Thanks to [@michabay05][].
+- (svgtypes) Support for floating point hue in `hsl()` and `hsla()`.
 
 ### Changed
 - License to `Apache-2.0 OR MIT`.
   See [resvg#838](https://github.com/linebender/resvg/issues/838) for more information.
+- Updated WebP decoder for bug fixes and improved performance.
+  Thanks to [@Shnatsel][].
+- MSRV of resvg and c-api bumped to 1.67.1.
+- `fontdb` and `rustybuzz` have been updated.
+- Updated other dependencies.
+- (svgtypes) Simplified color component rounding and bounds checking.
 
 ### Fixed
-- Fix relative units handling when `use` references `symbol`.
+- Relative unit handling when `use` references `symbol`.
+- (svgtypes) Rounding of hues in HSL to RGB conversion.
+- (svgtypes) Rounding of alpha.
 
 ## [0.44.0] - 2024-09-28
 ### Added
@@ -1067,7 +1088,7 @@ This changelog also contains important changes in dependencies.
 - `letter-spacing` on cursive scripts (like Arabic).
 - (rctree) Prevent stack overflow on a huge, deeply nested SVG.
 - (c-api) `resvg_is_image_empty` was always returning `false`.
-- (resvg) Panic when `filter` with `objectBoudningBox` was set on an empty group.
+- (resvg) Panic when `filter` with `objectBoundingBox` was set on an empty group.
 - (usvg) `mask` with `objectBoundingBox` resolving.
 - (usvg) `pattern`'s `viewBox` attribute resolving via `href`.
 - (roxmltree) Namespace resolving.
@@ -1128,7 +1149,7 @@ This changelog also contains important changes in dependencies.
 ### Fixed
 - Object bounding box calculation.
 - Pattern scaling.
-- Nested `objectBoundigBox` support.
+- Nested `objectBoundingBox` support.
 - (usvg) `color` on `use` resolving.
 - (usvg) `offset` attribute resolving inside the `stop` element.
 - (usvg) Ungrouping of groups with non-inheritable attributes.
@@ -1246,6 +1267,10 @@ This changelog also contains important changes in dependencies.
 
 ### Fixed
 - `font-size` attribute inheritance during `use` resolving.
+
+[Linebender]: https://github.com/linebender
+[@michabay05]: https://github.com/michabay05
+[@Shnatsel]: https://github.com/Shnatsel
 
 [Unreleased]: https://github.com/linebender/resvg/compare/v0.45.0...HEAD
 [0.45.0]: https://github.com/linebender/resvg/compare/v0.44.0...v0.45.0

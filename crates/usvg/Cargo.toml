@@ -22,7 +22,7 @@ base64 = "0.22" # for embedded images
 log = "0.4"
 pico-args = { version = "0.5", features = ["eq-separator"] }
 strict-num = "0.1.1"
-svgtypes = "0.15.2"
+svgtypes = "0.15.3"
 tiny-skia-path = "0.11.4"
 xmlwriter = "0.1"
 

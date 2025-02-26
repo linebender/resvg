@@ -38,11 +38,13 @@ fn resave_impl(name: &str, id_prefix: Option<String>, preserve_text: bool) {
         };
         usvg::Tree::from_str(&input_svg, &opt).unwrap()
     };
-    let mut xml_opt = usvg::WriteOptions::default();
-    xml_opt.id_prefix = id_prefix;
-    xml_opt.preserve_text = preserve_text;
-    xml_opt.coordinates_precision = 4; // Reduce noise and file size.
-    xml_opt.transforms_precision = 4;
+    let xml_opt = usvg::WriteOptions {
+        id_prefix,
+        preserve_text,
+        coordinates_precision: 4, // Reduce noise and file size.
+        transforms_precision: 4,
+        ..usvg::WriteOptions::default()
+    };
     let output_svg = tree.to_string(&xml_opt);
 
     // std::fs::write(

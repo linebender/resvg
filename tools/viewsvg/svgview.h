@@ -38,7 +38,7 @@ class SvgView : public QWidget
     Q_OBJECT
 
 public:
-    enum class Backgound
+    enum class Background
     {
         None,
         White,
@@ -51,7 +51,7 @@ public:
     static void init();
 
     void setFitToView(bool flag);
-    void setBackgound(Backgound backgound);
+    void setBackground(Background background);
     void setDrawImageBorder(bool flag);
 
     void loadData(const QByteArray &data);
@@ -84,7 +84,7 @@ private:
     QString m_path;
     float m_dpiRatio = 1.0;
     bool m_isFitToView = true;
-    Backgound m_backgound = Backgound::CheckBoard;
+    Background m_background = Background::CheckBoard;
     bool m_isDrawImageBorder = false;
     bool m_isHasImage = false;
     QImage m_img;
