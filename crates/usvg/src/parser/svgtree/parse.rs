@@ -136,8 +136,9 @@ pub(crate) fn parse_tag_name(node: roxmltree::Node) -> Option<EId> {
         return None;
     }
 
-    if node.tag_name().namespace() != Some(SVG_NS) {
-        return None;
+    match node.tag_name().namespace() {
+        None | Some(SVG_NS) => {}
+        _ => return None,
     }
 
     EId::from_str(node.tag_name().name())
