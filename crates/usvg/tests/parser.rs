@@ -490,3 +490,15 @@ fn path_transform_in_svg() {
         usvg::Transform::from_translate(100.0, 150.0)
     );
 }
+
+#[test]
+fn svg_without_xmlns() {
+    let svg = "
+    <svg viewBox='0 0 100 100'>
+        <rect x='0' y='0' width='10' height='10'/>
+    </svg>
+    ";
+
+    let tree = usvg::Tree::from_str(&svg, &usvg::Options::default()).unwrap();
+    assert_eq!(tree.size(), usvg::Size::from_wh(100.0, 100.0).unwrap());
+}
