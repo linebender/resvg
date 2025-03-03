@@ -70,12 +70,10 @@ impl ViewBox {
                 } else {
                     sx
                 }
+            } else if sx > sy {
+                sy
             } else {
-                if sx > sy {
-                    sy
-                } else {
-                    sx
-                }
+                sx
             };
 
             (s, s)
