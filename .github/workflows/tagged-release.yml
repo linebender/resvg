@@ -23,7 +23,6 @@ jobs:
           tag_name: ${{ github.ref }}
           name: ${{ github.ref_name }}
           body: |
-            - `viewsvg` is a simple application that showcases *resvg* capabilities
             - `resvg-0.*.0.tar.xz` is a sources archive with vendored Rust dependencies
             - `resvg-explorer-extension.exe` is an SVG thumbnailer for Windows Explorer
 
