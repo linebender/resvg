@@ -7,6 +7,7 @@ on:
 env:
   CARGO_TERM_COLOR: always
 
+
 jobs:
   create-release:
     name: Create Release
