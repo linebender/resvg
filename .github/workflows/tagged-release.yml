@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - "*"
+
 env:
   CARGO_TERM_COLOR: always
 
@@ -26,7 +27,7 @@ jobs:
             - `resvg-0.*.0.tar.xz` is a sources archive with vendored Rust dependencies
             - `resvg-explorer-extension.exe` is an SVG thumbnailer for Windows Explorer
 
-            Check [CHANGELOG](https://github.com/LaurenzV/resvg/blob/${{ github.ref }}/CHANGELOG.md).
+            Check [CHANGELOG](https://github.com/linebender/resvg/blob/${{ github.ref }}/CHANGELOG.md).
           draft: false
           prerelease: false
     outputs:
@@ -66,7 +67,7 @@ jobs:
         run: |
           VERSION=${{ steps.get_version.outputs.version-without-v }}
           echo $VERSION
-          git clone https://github.com/LaurenzV/resvg resvg-$VERSION
+          git clone https://github.com/linebender/resvg resvg-$VERSION
           cd resvg-"$VERSION"
           mkdir -p .cargo
           cargo vendor > .cargo/config
