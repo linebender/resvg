@@ -1,8 +1,8 @@
 [Setup]
 AppName="resvg Explorer Extension"
-AppVersion="0.45.0"
-VersionInfoVersion="0.0.45.0"
-AppVerName="resvg Explorer Extension 0.45.0"
+AppVersion="0.45.1"
+VersionInfoVersion="0.0.45.1"
+AppVerName="resvg Explorer Extension 0.45.1"
 AppPublisher="The Resvg Authors"
 AppPublisherURL=https://github.com/linebender/resvg
 DefaultDirName="{pf}\resvg Explorer Extension"

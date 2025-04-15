@@ -1,6 +1,6 @@
 [package]
 name = "usvg"
-version = "0.45.0"
+version = "0.45.1"
 keywords = ["svg"]
 license.workspace = true
 edition = "2021"

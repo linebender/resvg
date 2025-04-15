@@ -1,6 +1,6 @@
 [package]
 name = "resvg-capi"
-version = "0.45.0"
+version = "0.45.1"
 keywords = ["svg", "render", "raster", "c-api"]
 license.workspace = true
 edition = "2021"

@@ -15,8 +15,8 @@
 
 #define RESVG_MAJOR_VERSION 0
 #define RESVG_MINOR_VERSION 45
-#define RESVG_PATCH_VERSION 0
-#define RESVG_VERSION "0.45.0"
+#define RESVG_PATCH_VERSION 1
+#define RESVG_VERSION "0.45.1"
 
 /**
  * @brief List of possible errors.

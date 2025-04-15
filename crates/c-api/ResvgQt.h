@@ -12,8 +12,8 @@
 
 #define RESVG_QT_MAJOR_VERSION 0
 #define RESVG_QT_MINOR_VERSION 45
-#define RESVG_QT_PATCH_VERSION 0
-#define RESVG_QT_VERSION "0.45.0"
+#define RESVG_QT_PATCH_VERSION 1
+#define RESVG_QT_VERSION "0.45.1"
 
 #include <cmath>
 

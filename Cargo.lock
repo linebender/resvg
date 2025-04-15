@@ -447,7 +447,7 @@ dependencies = [
 
 [[package]]
 name = "resvg"
-version = "0.45.0"
+version = "0.45.1"
 dependencies = [
  "gif",
  "image-webp",
@@ -464,7 +464,7 @@ dependencies = [
 
 [[package]]
 name = "resvg-capi"
-version = "0.45.0"
+version = "0.45.1"
 dependencies = [
  "log",
  "resvg",
@@ -652,7 +652,7 @@ checksum = "b1d386ff53b415b7fe27b50bb44679e2cc4660272694b7b6f3326d8480823a94"
 
 [[package]]
 name = "usvg"
-version = "0.45.0"
+version = "0.45.1"
 dependencies = [
  "base64",
  "data-url",
