@@ -3,7 +3,7 @@ name: "Tagged Release"
 on:
   push:
     tags:
-      - "*"
+      - "v*"
 
 env:
   CARGO_TERM_COLOR: always
