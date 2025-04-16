@@ -190,6 +190,7 @@ pub(crate) trait DatabaseExt {
     fn raster(&self, id: ID, glyph_id: GlyphId) -> Option<BitmapImage>;
     fn svg(&self, id: ID, glyph_id: GlyphId) -> Option<Node>;
     fn colr(&self, id: ID, glyph_id: GlyphId) -> Option<Tree>;
+    fn font<'a>(&self, id: ID, data: &'a [u8], face_index: u32) -> Option<ttf_parser::Face<'a>>;
 }
 
 pub(crate) struct BitmapImage {
@@ -205,7 +206,7 @@ impl DatabaseExt for Database {
     #[inline(never)]
     fn outline(&self, id: ID, glyph_id: GlyphId) -> Option<tiny_skia_path::Path> {
         self.with_face_data(id, |data, face_index| -> Option<tiny_skia_path::Path> {
-            let font = ttf_parser::Face::parse(data, face_index).ok()?;
+            let font = self.font(id, data, face_index)?;
 
             let mut builder = PathBuilder {
                 builder: tiny_skia_path::PathBuilder::new(),
@@ -218,7 +219,7 @@ impl DatabaseExt for Database {
 
     fn raster(&self, id: ID, glyph_id: GlyphId) -> Option<BitmapImage> {
         self.with_face_data(id, |data, face_index| -> Option<BitmapImage> {
-            let font = ttf_parser::Face::parse(data, face_index).ok()?;
+            let font = self.font(id, data, face_index)?;
             let image = font.glyph_raster_image(glyph_id, u16::MAX)?;
 
             if image.format == RasterImageFormat::PNG {
@@ -260,7 +261,7 @@ impl DatabaseExt for Database {
         // TODO: Glyph records can contain the data for multiple glyphs. We should
         // add a cache so we don't need to reparse the data every time.
         self.with_face_data(id, |data, face_index| -> Option<Node> {
-            let font = ttf_parser::Face::parse(data, face_index).ok()?;
+            let font = self.font(id, data, face_index)?;
             let image = font.glyph_svg_image(glyph_id)?;
             let tree = Tree::from_data(image.data, &Options::default()).ok()?;
 
@@ -319,5 +320,15 @@ impl DatabaseExt for Database {
 
             Tree::from_data(svg.end_document().as_bytes(), &Options::default()).ok()
         })?
+    }
+
+    fn font<'a>(&self, id: ID, data: &'a [u8], face_index: u32) -> Option<ttf_parser::Face<'a>> {
+        let face = self.face(id)?;
+        let weight = face.weight.0 as f32;
+
+        let mut font = ttf_parser::Face::parse(data, face_index).ok()?;
+        font.set_variation(ttf_parser::Tag::from_bytes(b"wght"), weight);
+
+        Some(font)
     }
 }
