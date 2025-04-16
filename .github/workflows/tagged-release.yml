@@ -11,7 +11,7 @@ env:
 jobs:
   create-release:
     name: Create Release
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - name: Create Release
         id: create_release
@@ -33,7 +33,7 @@ jobs:
 
   release-linux:
     name: Release Linux
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     needs: ["create-release"]
     steps:
       - name: Checkout
