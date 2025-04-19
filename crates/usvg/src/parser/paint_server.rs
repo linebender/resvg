@@ -178,7 +178,7 @@ fn convert_pattern(
         log::warn!(
             "Pattern '{}' has an invalid size. Skipped.",
             node.element_id()
-        )
+        );
     })?;
 
     let mut patt = Pattern {
@@ -862,7 +862,7 @@ fn process_context_paint(
                     spread_method: rg.spread_method,
                     stops: rg.stops.clone(),
                 },
-            }))
+            }));
         }
         Paint::Pattern(ref pat) => {
             let transform = pat.transform.post_concat(rev_transform);
@@ -874,7 +874,7 @@ fn process_context_paint(
                 rect: pat.rect,
                 view_box: pat.view_box,
                 root: pat.root.clone(),
-            }))
+            }));
         }
     }
 
@@ -1047,7 +1047,7 @@ impl Paint {
                         rect,
                         view_box: patt.view_box,
                         root,
-                    })
+                    });
                 }
             }
         }

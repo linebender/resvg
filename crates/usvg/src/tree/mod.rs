@@ -1417,10 +1417,10 @@ impl Path {
 
     fn subroots(&self, f: &mut dyn FnMut(&Group)) {
         if let Some(Paint::Pattern(ref patt)) = self.fill.as_ref().map(|f| &f.paint) {
-            f(patt.root())
+            f(patt.root());
         }
         if let Some(Paint::Pattern(ref patt)) = self.stroke.as_ref().map(|f| &f.paint) {
-            f(patt.root())
+            f(patt.root());
         }
     }
 }
@@ -1542,7 +1542,7 @@ impl Image {
 
     fn subroots(&self, f: &mut dyn FnMut(&Group)) {
         if let ImageKind::SVG(ref tree) = self.kind {
-            f(&tree.root)
+            f(&tree.root);
         }
     }
 }

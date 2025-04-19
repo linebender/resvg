@@ -408,12 +408,12 @@ fn convert_font(node: SvgNode, state: &converter::State) -> Font {
                 AId::FontFamily,
                 font_families,
                 state.opt.font_family
-            )
+            );
         })
         .unwrap_or_default();
 
     if families.is_empty() {
-        families.push(FontFamily::Named(state.opt.font_family.clone()))
+        families.push(FontFamily::Named(state.opt.font_family.clone()));
     }
 
     Font {

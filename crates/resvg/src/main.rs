@@ -87,7 +87,7 @@ fn process() -> Result<(), String> {
 
     if has_text_nodes {
         timed(args.perf, "FontDB", || {
-            load_fonts(&args.raw_args, args.usvg.fontdb_mut())
+            load_fonts(&args.raw_args, args.usvg.fontdb_mut());
         });
     }
 

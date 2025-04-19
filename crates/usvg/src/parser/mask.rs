@@ -52,7 +52,7 @@ pub(crate) fn convert(
     let mut mask_all = false;
     if units == Units::ObjectBoundingBox {
         if let Some(bbox) = object_bbox {
-            rect = rect.bbox_transform(bbox)
+            rect = rect.bbox_transform(bbox);
         } else {
             // When mask units are `objectBoundingBox` and bbox is zero-sized - the whole
             // element should be masked.

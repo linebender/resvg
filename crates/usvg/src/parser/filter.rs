@@ -111,28 +111,28 @@ pub(crate) fn convert(
                 cache,
             ),
             svgtypes::FilterValue::Brightness(amount) => {
-                create_base_filter_func(convert_brightness_function(amount), &mut filters, cache)
+                create_base_filter_func(convert_brightness_function(amount), &mut filters, cache);
             }
             svgtypes::FilterValue::Contrast(amount) => {
-                create_base_filter_func(convert_contrast_function(amount), &mut filters, cache)
+                create_base_filter_func(convert_contrast_function(amount), &mut filters, cache);
             }
             svgtypes::FilterValue::Grayscale(amount) => {
-                create_base_filter_func(convert_grayscale_function(amount), &mut filters, cache)
+                create_base_filter_func(convert_grayscale_function(amount), &mut filters, cache);
             }
             svgtypes::FilterValue::HueRotate(angle) => {
-                create_base_filter_func(convert_hue_rotate_function(angle), &mut filters, cache)
+                create_base_filter_func(convert_hue_rotate_function(angle), &mut filters, cache);
             }
             svgtypes::FilterValue::Invert(amount) => {
-                create_base_filter_func(convert_invert_function(amount), &mut filters, cache)
+                create_base_filter_func(convert_invert_function(amount), &mut filters, cache);
             }
             svgtypes::FilterValue::Opacity(amount) => {
-                create_base_filter_func(convert_opacity_function(amount), &mut filters, cache)
+                create_base_filter_func(convert_opacity_function(amount), &mut filters, cache);
             }
             svgtypes::FilterValue::Sepia(amount) => {
-                create_base_filter_func(convert_sepia_function(amount), &mut filters, cache)
+                create_base_filter_func(convert_sepia_function(amount), &mut filters, cache);
             }
             svgtypes::FilterValue::Saturate(amount) => {
-                create_base_filter_func(convert_saturate_function(amount), &mut filters, cache)
+                create_base_filter_func(convert_saturate_function(amount), &mut filters, cache);
             }
             svgtypes::FilterValue::Url(url) => {
                 if let Some(link) = node.document().element_by_id(url) {
@@ -218,7 +218,7 @@ fn convert_url(
             log::warn!(
                 "Filter '{}' has an invalid region. Skipped.",
                 node.element_id()
-            )
+            );
         })
         .ok_or(())?;
 
@@ -855,7 +855,7 @@ fn convert_image_inner(
     }
 
     let href = fe.try_attribute(AId::Href).log_none(|| {
-        log::warn!("The 'feImage' element lacks the 'xlink:href' attribute. Skipped.")
+        log::warn!("The 'feImage' element lacks the 'xlink:href' attribute. Skipped.");
     })?;
     let img_data = super::image::get_href_data(href, state)?;
     let actual_size = img_data.actual_size()?;
