@@ -589,7 +589,7 @@ impl Text {
     /// You can find more about it
     /// [here](https://razrfalcon.github.io/notes-on-svg-parsing/text/bbox.html).
     ///
-    /// `objectBoundingBox` in SVG terms. Meaning it doesn't affected by parent transforms.
+    /// `objectBoundingBox` in SVG terms. Meaning it isn't affected by parent transforms.
     ///
     /// Returns `None` when the `text` build feature was disabled.
     /// This is because we have to perform a text layout before calculating a bounding box.
