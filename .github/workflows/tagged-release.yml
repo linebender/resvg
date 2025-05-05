@@ -22,6 +22,7 @@ jobs:
           tag_name: ${{ github.ref }}
           name: ${{ github.ref_name }}
           body: |
+            - `viewsvg` is a simple application that showcases *resvg* capabilities
             - `resvg-0.*.0.tar.xz` is a sources archive with vendored Rust dependencies
             - `resvg-explorer-extension.exe` is an SVG thumbnailer for Windows Explorer
 
@@ -88,7 +89,7 @@ jobs:
 
   release-windows:
     name: Release Windows
-    runs-on: windows-2019
+    runs-on: windows-2022
     needs: ["create-release"]
     steps:
       - name: Checkout
@@ -126,6 +127,11 @@ jobs:
         run: |
           "%programfiles(x86)%\Inno Setup 6\iscc.exe" "installer.iss"
 
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4.2.1
+        with:
+          version: '6.8.3'
+
       # Unlike other binaries, viewsvg isn't built with crt-static
       - name: Build C API
         working-directory: crates/c-api
@@ -134,12 +140,24 @@ jobs:
       - name: Prepare Developer Command Prompt for MSVC
         uses: ilammy/msvc-dev-cmd@v1
 
+      - name: Build viewsvg
+        working-directory: tools/viewsvg
+        run: |
+          qmake6
+          nmake
+          mkdir viewsvg-bin
+          cp release/viewsvg.exe viewsvg-bin/viewsvg.exe
+          windeployqt --no-translations viewsvg-bin/viewsvg.exe
+          cd viewsvg-bin
+          7z a -tzip -mx9 viewsvg-win64.zip *
+
       - name: Collect
         run: |
           mkdir bin
           cp target/release/resvg-win64.zip bin/
           cp target/release/usvg-win64.zip bin/
           cp tools/explorer-thumbnailer/install/resvg-explorer-extension.exe bin/
+          cp tools/viewsvg/viewsvg-bin/viewsvg-win64.zip bin/
 
       - name: Upload binaries
         uses: alexellis/upload-assets@0.2.2
