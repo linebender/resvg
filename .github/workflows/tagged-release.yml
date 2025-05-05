@@ -37,7 +37,7 @@ jobs:
     needs: ["create-release"]
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Build resvg
         run: cargo build --release
@@ -92,7 +92,7 @@ jobs:
     needs: ["create-release"]
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       # Toolchain is stable-x86_64-pc-windows-msvc by default. No need to change it.
 
@@ -150,11 +150,11 @@ jobs:
 
   release-macos:
     name: Release macOS
-    runs-on: macos-13
+    runs-on: macos-15
     needs: ["create-release"]
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       # Some weird CI glitch. Make sure we have the latest Rust.
       - name: Install latest stable toolchain
@@ -177,11 +177,27 @@ jobs:
         working-directory: crates/c-api
         run: cargo build --release
 
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4.2.1
+        with:
+          version: '6.8.3'
+
+      - name: Build viewsvg
+        working-directory: tools/viewsvg
+        run: |
+          qmake6
+          make
+          macdeployqt viewsvg.app
+          rm -r viewsvg.app/Contents/Plugins/iconengines
+          rm -r viewsvg.app/Contents/Plugins/imageformats
+          7z a -tzip -mx9 viewsvg-macos-x86_64.zip viewsvg.app
+
       - name: Collect
         run: |
           mkdir bin
           cp target/release/resvg-macos-x86_64.zip bin/
           cp target/release/usvg-macos-x86_64.zip bin/
+          cp tools/viewsvg/viewsvg-macos-x86_64.zip bin/
 
       - name: Upload binaries
         uses: alexellis/upload-assets@0.2.2
