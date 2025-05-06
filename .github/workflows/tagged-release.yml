@@ -34,7 +34,7 @@ jobs:
 
   release-linux:
     name: Release Linux
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: ["create-release"]
     steps:
       - name: Checkout
@@ -54,9 +54,75 @@ jobs:
           strip -s usvg
           tar czf resvg-linux-x86_64.tar.gz resvg
           tar czf usvg-linux-x86_64.tar.gz usvg
-          mkdir ../../bin
+          mkdir -p ../../bin
           cp resvg-linux-x86_64.tar.gz ../../bin/
           cp usvg-linux-x86_64.tar.gz ../../bin/
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4.2.1
+        with:
+          version: '6.8.3'
+
+      - name: Build C API
+        working-directory: crates/c-api
+        run: cargo build --release
+
+      - name: Build viewsvg
+        working-directory: tools/viewsvg
+        run: |
+          qmake6
+          make
+
+          # Create AppDir structure
+          mkdir -p AppDir/usr/bin
+          mkdir -p AppDir/usr/lib
+          mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
+
+          # Copy viewsvg binary
+          cp viewsvg AppDir/usr/bin/
+
+          # Copy libresvg.so and set correct permissions
+          cp ../../target/release/libresvg.so AppDir/usr/lib/
+          chmod +x AppDir/usr/lib/libresvg.so
+
+          # Create a simple SVG icon as fallback
+          cat > AppDir/usr/share/icons/hicolor/256x256/apps/viewsvg.svg << EOF
+          <svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+            <rect width="256" height="256" fill="#4d4d4d"/>
+            <text x="128" y="128" font-family="sans-serif" font-size="40" fill="white" text-anchor="middle" dominant-baseline="middle">SVG</text>
+          </svg>
+          EOF
+
+      - name: Create AppImage
+        working-directory: tools/viewsvg
+        run: |
+          # Install linuxdeploy and Qt plugin
+          wget https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          wget https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage
+          chmod +x linuxdeploy-x86_64.AppImage
+          chmod +x linuxdeploy-plugin-qt-x86_64.AppImage
+
+          # Create .desktop file with icon reference
+          mkdir -p AppDir/usr/share/applications
+          cat > AppDir/usr/share/applications/viewsvg.desktop << EOF
+          [Desktop Entry]
+          Type=Application
+          Name=ViewSVG
+          Comment=Simple SVG viewer
+          Exec=viewsvg
+          Icon=viewsvg
+          Categories=Graphics;Viewer;
+          EOF
+
+          # Add library path to environment
+          export LD_LIBRARY_PATH=AppDir/usr/lib:$LD_LIBRARY_PATH
+
+          # Create AppImage with library path
+          export OUTPUT=viewsvg-x86_64.AppImage
+          ./linuxdeploy-x86_64.AppImage --appdir=AppDir --plugin=qt --output=appimage
+
+          # Compress AppImage
+          7z a -tzip -mx9 viewsvg-linux-x86_64.zip viewsvg-x86_64.AppImage
 
       - name: Get version
         id: get_version
@@ -79,6 +145,10 @@ jobs:
               --exclude="resvg-$VERSION/docs" \
               -cJf resvg-"$VERSION".tar.xz resvg-"$VERSION"
           cp resvg-"$VERSION".tar.xz bin/
+
+      - name: Collect viewsvg binary
+        run: |
+          cp tools/viewsvg/viewsvg-linux-x86_64.zip bin/
 
       - name: Upload binaries
         uses: alexellis/upload-assets@0.2.2
