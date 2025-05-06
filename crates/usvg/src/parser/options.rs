@@ -98,6 +98,11 @@ pub struct Options<'a> {
     /// A CSS stylesheet that should be injected into the SVG. Can be used to overwrite
     /// certain attributes.
     pub style_sheet: Option<String>,
+
+    /// Specifies whether to convert text nodes to paths. If true, will skip text
+    /// layout and rendering during parsing and ignores fonts. It mirrors
+    /// `preserve_text` in `usvg::writer::Options`.
+    pub preserve_text: bool,
 }
 
 impl Default for Options<'_> {
@@ -119,6 +124,7 @@ impl Default for Options<'_> {
             #[cfg(feature = "text")]
             fontdb: Arc::new(fontdb::Database::new()),
             style_sheet: None,
+            preserve_text: false,
         }
     }
 }
