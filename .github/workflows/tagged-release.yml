@@ -11,7 +11,7 @@ env:
 jobs:
   create-release:
     name: Create Release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Create Release
         id: create_release
@@ -33,11 +33,11 @@ jobs:
 
   release-linux:
     name: Release Linux
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: ["create-release"]
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Build resvg
         run: cargo build --release
@@ -53,9 +53,13 @@ jobs:
           strip -s usvg
           tar czf resvg-linux-x86_64.tar.gz resvg
           tar czf usvg-linux-x86_64.tar.gz usvg
-          mkdir ../../bin
+          mkdir -p ../../bin
           cp resvg-linux-x86_64.tar.gz ../../bin/
           cp usvg-linux-x86_64.tar.gz ../../bin/
+
+      - name: Build C API
+        working-directory: crates/c-api
+        run: cargo build --release
 
       - name: Get version
         id: get_version
@@ -88,14 +92,13 @@ jobs:
 
   release-windows:
     name: Release Windows
-    runs-on: windows-2019
+    runs-on: windows-2022
     needs: ["create-release"]
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       # Toolchain is stable-x86_64-pc-windows-msvc by default. No need to change it.
-
       - name: Build resvg
         env:
           RUSTFLAGS: -Ctarget-feature=+crt-static # make sure it's static
@@ -150,11 +153,11 @@ jobs:
 
   release-macos:
     name: Release macOS
-    runs-on: macos-13
+    runs-on: macos-15
     needs: ["create-release"]
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       # Some weird CI glitch. Make sure we have the latest Rust.
       - name: Install latest stable toolchain
