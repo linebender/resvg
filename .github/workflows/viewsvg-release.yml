@@ -1,0 +1,350 @@
+name: "ViewSVG Release"
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release tag to append binaries to (e.g. v0.30.0, leave empty for latest)'
+        required: false
+        type: string
+        default: ''
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  prepare-release:
+    name: Prepare Release Info
+    runs-on: ubuntu-24.04
+    outputs:
+      upload_url: ${{ steps.get_release.outputs.upload_url }}
+      release_tag: ${{ steps.determine_tag.outputs.release_tag }}
+      release_id: ${{ steps.get_release.outputs.release_id }}
+    steps:
+      - name: Determine release tag
+        id: determine_tag
+        run: |
+          if [[ -z "${{ github.event.inputs.release_tag }}" ]]; then
+            LATEST_RELEASE=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/latest | jq -r .tag_name)
+            echo "Using latest release: ${LATEST_RELEASE}"
+            echo "release_tag=${LATEST_RELEASE}" >> $GITHUB_OUTPUT
+          else
+            echo "Using specified release: ${{ github.event.inputs.release_tag }}"
+            echo "release_tag=${{ github.event.inputs.release_tag }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Get release
+        id: get_release
+        run: |
+          RELEASE_TAG="${{ steps.determine_tag.outputs.release_tag }}"
+          RELEASE_INFO=$(curl -s https://api.github.com/repos/${{ github.repository }}/releases/tags/${RELEASE_TAG})
+          UPLOAD_URL=$(echo $RELEASE_INFO | jq -r .upload_url)
+          RELEASE_ID=$(echo $RELEASE_INFO | jq -r .id)
+
+          if [[ "$UPLOAD_URL" == "null" ]]; then
+            echo "::error::Could not find release with tag ${RELEASE_TAG}"
+            exit 1
+          fi
+
+          echo "Found release URL: ${UPLOAD_URL}"
+          echo "upload_url=${UPLOAD_URL}" >> $GITHUB_OUTPUT
+          echo "release_id=${RELEASE_ID}" >> $GITHUB_OUTPUT
+
+  viewsvg-linux:
+    name: Build ViewSVG for Linux
+    runs-on: ubuntu-24.04
+    needs: ["prepare-release"]
+    outputs:
+      success: ${{ steps.build_success.outputs.success }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare-release.outputs.release_tag }}
+
+      - name: Build C API
+        working-directory: crates/c-api
+        run: cargo build --release
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4.2.1
+        with:
+          version: '6.8.3'
+
+      - name: Build viewsvg
+        working-directory: tools/viewsvg
+        run: |
+          qmake6
+          make
+
+          # Create AppDir structure
+          mkdir -p AppDir/usr/bin
+          mkdir -p AppDir/usr/lib
+          mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
+
+          # Copy viewsvg binary
+          cp viewsvg AppDir/usr/bin/
+
+          # Copy libresvg.so and set correct permissions
+          cp ../../target/release/libresvg.so AppDir/usr/lib/
+          chmod +x AppDir/usr/lib/libresvg.so
+
+          # Create a simple SVG icon as fallback
+          cat > AppDir/usr/share/icons/hicolor/256x256/apps/viewsvg.svg << EOF
+          <svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+            <rect width="256" height="256" fill="#4d4d4d"/>
+            <text x="128" y="128" font-family="sans-serif" font-size="40" fill="white" text-anchor="middle" dominant-baseline="middle">SVG</text>
+          </svg>
+          EOF
+
+      - name: Create AppImage
+        working-directory: tools/viewsvg
+        run: |
+          # Install linuxdeploy and Qt plugin
+          wget https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          wget https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage
+          chmod +x linuxdeploy-x86_64.AppImage
+          chmod +x linuxdeploy-plugin-qt-x86_64.AppImage
+
+          # Create .desktop file with icon reference
+          mkdir -p AppDir/usr/share/applications
+          cat > AppDir/usr/share/applications/viewsvg.desktop << EOF
+          [Desktop Entry]
+          Type=Application
+          Name=ViewSVG
+          Comment=Simple SVG viewer
+          Exec=viewsvg
+          Icon=viewsvg
+          Categories=Graphics;Viewer;
+          EOF
+
+          # Add library path to environment
+          export LD_LIBRARY_PATH=AppDir/usr/lib:$LD_LIBRARY_PATH
+
+          # Create AppImage with library path
+          export OUTPUT=viewsvg-x86_64.AppImage
+          ./linuxdeploy-x86_64.AppImage --appdir=AppDir --plugin=qt --output=appimage
+
+          # Compress AppImage
+          7z a -tzip -mx9 viewsvg-linux-x86_64.zip viewsvg-x86_64.AppImage
+
+      - name: Collect viewsvg binary
+        run: |
+          mkdir -p bin
+          cp tools/viewsvg/viewsvg-linux-x86_64.zip bin/
+
+      - name: Check for existing asset and remove if found
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RELEASE_ID="${{ needs.prepare-release.outputs.release_id }}"
+          ASSET_NAME="viewsvg-linux-x86_64.zip"
+
+          # Get list of assets
+          ASSETS=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/${RELEASE_ID}/assets")
+
+          # Find asset ID for the given name if it exists
+          ASSET_ID=$(echo "$ASSETS" | jq -r ".[] | select(.name == \"$ASSET_NAME\") | .id")
+
+          if [[ ! -z "$ASSET_ID" ]]; then
+            echo "Found existing asset with ID: $ASSET_ID, removing it..."
+            curl -s -X DELETE -H "Authorization: token $GITHUB_TOKEN" \
+              "https://api.github.com/repos/${{ github.repository }}/releases/assets/$ASSET_ID"
+          else
+            echo "No existing asset found with name: $ASSET_NAME"
+          fi
+
+      - name: Upload Linux binary to release
+        uses: shogo82148/actions-upload-release-asset@v1
+        with:
+          upload_url: ${{ needs.prepare-release.outputs.upload_url }}
+          asset_path: bin/viewsvg-linux-x86_64.zip
+          asset_name: viewsvg-linux-x86_64.zip
+          asset_content_type: application/zip
+
+      - name: Set success output
+        id: build_success
+        run: echo "success=true" >> $GITHUB_OUTPUT
+
+  viewsvg-windows:
+    name: Build ViewSVG for Windows
+    runs-on: windows-2022
+    needs: ["prepare-release"]
+    outputs:
+      success: ${{ steps.build_success.outputs.success }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare-release.outputs.release_tag }}
+
+      - name: Build C API
+        working-directory: crates/c-api
+        run: cargo build --release
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4.2.1
+        with:
+          version: '6.8.3'
+
+      - name: Prepare Developer Command Prompt for MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Build viewsvg
+        working-directory: tools/viewsvg
+        run: |
+          qmake6
+          nmake
+          mkdir viewsvg-bin
+          cp release/viewsvg.exe viewsvg-bin/viewsvg.exe
+          windeployqt --no-translations viewsvg-bin/viewsvg.exe
+          cd viewsvg-bin
+          7z a -tzip -mx9 viewsvg-win64.zip *
+
+      - name: Collect
+        run: |
+          mkdir bin
+          cp tools/viewsvg/viewsvg-bin/viewsvg-win64.zip bin/
+
+      - name: Check for existing asset and remove if found
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RELEASE_ID="${{ needs.prepare-release.outputs.release_id }}"
+          ASSET_NAME="viewsvg-win64.zip"
+
+          # Get list of assets
+          ASSETS=$(curl -s -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/${{ github.repository }}/releases/${RELEASE_ID}/assets")
+
+          # Find asset ID for the given name if it exists
+          ASSET_ID=$(echo "$ASSETS" | jq -r ".[] | select(.name == \"$ASSET_NAME\") | .id")
+
+          if [[ ! -z "$ASSET_ID" ]]; then
+            echo "Found existing asset with ID: $ASSET_ID, removing it..."
+            curl -s -X DELETE -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/${{ github.repository }}/releases/assets/$ASSET_ID"
+          else
+            echo "No existing asset found with name: $ASSET_NAME"
+          fi
+
+      - name: Upload Windows binary to release
+        uses: shogo82148/actions-upload-release-asset@v1
+        with:
+          upload_url: ${{ needs.prepare-release.outputs.upload_url }}
+          asset_path: bin/viewsvg-win64.zip
+          asset_name: viewsvg-win64.zip
+          asset_content_type: application/zip
+
+      - name: Set success output
+        id: build_success
+        shell: bash
+        run: echo "success=true" >> $GITHUB_OUTPUT
+
+  viewsvg-macos:
+    name: Build ViewSVG for macOS
+    runs-on: macos-15
+    needs: ["prepare-release"]
+    outputs:
+      success: ${{ steps.build_success.outputs.success }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare-release.outputs.release_tag }}
+
+      - name: Install latest stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build C API
+        working-directory: crates/c-api
+        run: cargo build --release
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4.2.1
+        with:
+          version: '6.8.3'
+
+      - name: Build viewsvg
+        working-directory: tools/viewsvg
+        run: |
+          qmake6
+          make
+          macdeployqt viewsvg.app
+          rm -r viewsvg.app/Contents/Plugins/iconengines
+          rm -r viewsvg.app/Contents/Plugins/imageformats
+          7z a -tzip -mx9 viewsvg-macos-x86_64.zip viewsvg.app
+
+      - name: Collect
+        run: |
+          mkdir bin
+          cp tools/viewsvg/viewsvg-macos-x86_64.zip bin/
+
+      - name: Check for existing asset and remove if found
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RELEASE_ID="${{ needs.prepare-release.outputs.release_id }}"
+          ASSET_NAME="viewsvg-macos-x86_64.zip"
+
+          # Get list of assets
+          ASSETS=$(curl -s -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/${{ github.repository }}/releases/${RELEASE_ID}/assets")
+
+          # Find asset ID for the given name if it exists
+          ASSET_ID=$(echo "$ASSETS" | jq -r ".[] | select(.name == \"$ASSET_NAME\") | .id")
+
+          if [[ ! -z "$ASSET_ID" ]]; then
+            echo "Found existing asset with ID: $ASSET_ID, removing it..."
+            curl -s -X DELETE -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/${{ github.repository }}/releases/assets/$ASSET_ID"
+          else
+            echo "No existing asset found with name: $ASSET_NAME"
+          fi
+
+      - name: Upload macOS binary to release
+        uses: shogo82148/actions-upload-release-asset@v1
+        with:
+          upload_url: ${{ needs.prepare-release.outputs.upload_url }}
+          asset_path: bin/viewsvg-macos-x86_64.zip
+          asset_name: viewsvg-macos-x86_64.zip
+          asset_content_type: application/zip
+
+      - name: Set success output
+        id: build_success
+        run: echo "success=true" >> $GITHUB_OUTPUT
+
+  update-release:
+    name: Update Release Description
+    runs-on: ubuntu-24.04
+    needs: ["prepare-release", "viewsvg-linux", "viewsvg-windows", "viewsvg-macos"]
+    if: |
+      always() && (
+        needs.viewsvg-linux.result == 'success' && needs.viewsvg-linux.outputs.success == 'true' ||
+        needs.viewsvg-windows.result == 'success' && needs.viewsvg-windows.outputs.success == 'true' ||
+        needs.viewsvg-macos.result == 'success' && needs.viewsvg-macos.outputs.success == 'true'
+      )
+    steps:
+      - name: Update release description
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RELEASE_ID="${{ needs.prepare-release.outputs.release_id }}"
+          RELEASE_INFO=$(curl -s -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/${{ github.repository }}/releases/${RELEASE_ID}")
+          CURRENT_BODY=$(echo $RELEASE_INFO | jq -r .body)
+
+          # Check if the line already exists in the body
+          if [[ "$CURRENT_BODY" != *'`viewsvg` is a simple application that showcases resvg capabilities'* ]]; then
+            # Create new body with line at beginning
+            NEW_LINE='- `viewsvg` is a simple application that showcases resvg capabilities'
+            NEW_BODY=$(echo -e "$NEW_LINE\n$CURRENT_BODY")
+
+            # Update the release body
+            curl -s -X PATCH \
+              -H "Authorization: token $GITHUB_TOKEN" \
+              -H "Accept: application/vnd.github.v3+json" \
+              -d "{\"body\": $(echo "$NEW_BODY" | jq -s -R .)}" \
+              "https://api.github.com/repos/${{ github.repository }}/releases/${RELEASE_ID}"
+
+            echo "Release description updated successfully."
+          else
+            echo "The viewsvg line already exists in the release description. No update needed."
+          fi

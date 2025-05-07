@@ -11,7 +11,7 @@ env:
 jobs:
   create-release:
     name: Create Release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Create Release
         id: create_release
@@ -22,7 +22,6 @@ jobs:
           tag_name: ${{ github.ref }}
           name: ${{ github.ref_name }}
           body: |
-            - `viewsvg` is a simple application that showcases *resvg* capabilities
             - `resvg-0.*.0.tar.xz` is a sources archive with vendored Rust dependencies
             - `resvg-explorer-extension.exe` is an SVG thumbnailer for Windows Explorer
 
@@ -58,71 +57,9 @@ jobs:
           cp resvg-linux-x86_64.tar.gz ../../bin/
           cp usvg-linux-x86_64.tar.gz ../../bin/
 
-      - name: Install Qt
-        uses: jurplel/install-qt-action@v4.2.1
-        with:
-          version: '6.8.3'
-
       - name: Build C API
         working-directory: crates/c-api
         run: cargo build --release
-
-      - name: Build viewsvg
-        working-directory: tools/viewsvg
-        run: |
-          qmake6
-          make
-
-          # Create AppDir structure
-          mkdir -p AppDir/usr/bin
-          mkdir -p AppDir/usr/lib
-          mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
-
-          # Copy viewsvg binary
-          cp viewsvg AppDir/usr/bin/
-
-          # Copy libresvg.so and set correct permissions
-          cp ../../target/release/libresvg.so AppDir/usr/lib/
-          chmod +x AppDir/usr/lib/libresvg.so
-
-          # Create a simple SVG icon as fallback
-          cat > AppDir/usr/share/icons/hicolor/256x256/apps/viewsvg.svg << EOF
-          <svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
-            <rect width="256" height="256" fill="#4d4d4d"/>
-            <text x="128" y="128" font-family="sans-serif" font-size="40" fill="white" text-anchor="middle" dominant-baseline="middle">SVG</text>
-          </svg>
-          EOF
-
-      - name: Create AppImage
-        working-directory: tools/viewsvg
-        run: |
-          # Install linuxdeploy and Qt plugin
-          wget https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
-          wget https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage
-          chmod +x linuxdeploy-x86_64.AppImage
-          chmod +x linuxdeploy-plugin-qt-x86_64.AppImage
-
-          # Create .desktop file with icon reference
-          mkdir -p AppDir/usr/share/applications
-          cat > AppDir/usr/share/applications/viewsvg.desktop << EOF
-          [Desktop Entry]
-          Type=Application
-          Name=ViewSVG
-          Comment=Simple SVG viewer
-          Exec=viewsvg
-          Icon=viewsvg
-          Categories=Graphics;Viewer;
-          EOF
-
-          # Add library path to environment
-          export LD_LIBRARY_PATH=AppDir/usr/lib:$LD_LIBRARY_PATH
-
-          # Create AppImage with library path
-          export OUTPUT=viewsvg-x86_64.AppImage
-          ./linuxdeploy-x86_64.AppImage --appdir=AppDir --plugin=qt --output=appimage
-
-          # Compress AppImage
-          7z a -tzip -mx9 viewsvg-linux-x86_64.zip viewsvg-x86_64.AppImage
 
       - name: Get version
         id: get_version
@@ -146,10 +83,6 @@ jobs:
               -cJf resvg-"$VERSION".tar.xz resvg-"$VERSION"
           cp resvg-"$VERSION".tar.xz bin/
 
-      - name: Collect viewsvg binary
-        run: |
-          cp tools/viewsvg/viewsvg-linux-x86_64.zip bin/
-
       - name: Upload binaries
         uses: alexellis/upload-assets@0.2.2
         env:
@@ -166,7 +99,6 @@ jobs:
         uses: actions/checkout@v4
 
       # Toolchain is stable-x86_64-pc-windows-msvc by default. No need to change it.
-
       - name: Build resvg
         env:
           RUSTFLAGS: -Ctarget-feature=+crt-static # make sure it's static
@@ -197,11 +129,6 @@ jobs:
         run: |
           "%programfiles(x86)%\Inno Setup 6\iscc.exe" "installer.iss"
 
-      - name: Install Qt
-        uses: jurplel/install-qt-action@v4.2.1
-        with:
-          version: '6.8.3'
-
       # Unlike other binaries, viewsvg isn't built with crt-static
       - name: Build C API
         working-directory: crates/c-api
@@ -210,24 +137,12 @@ jobs:
       - name: Prepare Developer Command Prompt for MSVC
         uses: ilammy/msvc-dev-cmd@v1
 
-      - name: Build viewsvg
-        working-directory: tools/viewsvg
-        run: |
-          qmake6
-          nmake
-          mkdir viewsvg-bin
-          cp release/viewsvg.exe viewsvg-bin/viewsvg.exe
-          windeployqt --no-translations viewsvg-bin/viewsvg.exe
-          cd viewsvg-bin
-          7z a -tzip -mx9 viewsvg-win64.zip *
-
       - name: Collect
         run: |
           mkdir bin
           cp target/release/resvg-win64.zip bin/
           cp target/release/usvg-win64.zip bin/
           cp tools/explorer-thumbnailer/install/resvg-explorer-extension.exe bin/
-          cp tools/viewsvg/viewsvg-bin/viewsvg-win64.zip bin/
 
       - name: Upload binaries
         uses: alexellis/upload-assets@0.2.2
@@ -265,27 +180,11 @@ jobs:
         working-directory: crates/c-api
         run: cargo build --release
 
-      - name: Install Qt
-        uses: jurplel/install-qt-action@v4.2.1
-        with:
-          version: '6.8.3'
-
-      - name: Build viewsvg
-        working-directory: tools/viewsvg
-        run: |
-          qmake6
-          make
-          macdeployqt viewsvg.app
-          rm -r viewsvg.app/Contents/Plugins/iconengines
-          rm -r viewsvg.app/Contents/Plugins/imageformats
-          7z a -tzip -mx9 viewsvg-macos-x86_64.zip viewsvg.app
-
       - name: Collect
         run: |
           mkdir bin
           cp target/release/resvg-macos-x86_64.zip bin/
           cp target/release/usvg-macos-x86_64.zip bin/
-          cp tools/viewsvg/viewsvg-macos-x86_64.zip bin/
 
       - name: Upload binaries
         uses: alexellis/upload-assets@0.2.2
