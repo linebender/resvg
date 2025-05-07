@@ -332,9 +332,10 @@ jobs:
           CURRENT_BODY=$(echo $RELEASE_INFO | jq -r .body)
 
           # Check if the line already exists in the body
-          if [[ "$CURRENT_BODY" != *"viewsvg is a simple application that showcases resvg capabilities"* ]]; then
-            # Append the line to the beginning of the body
-            NEW_BODY="- viewsvg is a simple application that showcases resvg capabilities $CURRENT_BODY"
+          if [[ "$CURRENT_BODY" != *'`viewsvg` is a simple application that showcases resvg capabilities'* ]]; then
+            # Create new body with line at beginning
+            NEW_LINE='- `viewsvg` is a simple application that showcases resvg capabilities'
+            NEW_BODY=$(echo -e "$NEW_LINE\n$CURRENT_BODY")
 
             # Update the release body
             curl -s -X PATCH \
