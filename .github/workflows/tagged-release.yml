@@ -53,7 +53,7 @@ jobs:
           strip -s usvg
           tar czf resvg-linux-x86_64.tar.gz resvg
           tar czf usvg-linux-x86_64.tar.gz usvg
-          mkdir -p ../../bin
+          mkdir ../../bin
           cp resvg-linux-x86_64.tar.gz ../../bin/
           cp usvg-linux-x86_64.tar.gz ../../bin/
 
