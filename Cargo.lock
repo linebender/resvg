@@ -85,7 +85,6 @@ name = "codegen"
 version = "0.1.0"
 dependencies = [
  "itertools",
- "phf",
  "phf_codegen",
 ]
 
@@ -266,15 +265,6 @@ name = "once_cell"
 version = "1.20.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "945462a4b81e43c4e3ba96bd7b49d834c6f61198356aa858733bc4acf3cbe62e"
-
-[[package]]
-name = "phf"
-version = "0.7.24"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b3da44b85f8e8dfaec21adae67f95d93244b2ecf6ad2a692320598dcc8e6dd18"
-dependencies = [
- "phf_shared",
-]
 
 [[package]]
 name = "phf_codegen"
