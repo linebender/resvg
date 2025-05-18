@@ -111,9 +111,7 @@ fn gen_map(
         map.entry(*name, &format!("{}::{}", enum_name, to_enum_name(name)));
     }
 
-    let mut map_data = Vec::new();
-    map.build(&mut map_data)?;
-    let map_data = String::from_utf8(map_data)?;
+    let map_data = map.build().to_string();
     let map_data = map_data.replace("::phf::Map", "Map");
     let map_data = map_data.replace("::phf::Slice::Static(", "");
     let map_data = map_data.replace("]),", "],");
