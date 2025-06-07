@@ -7,13 +7,13 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 #[cfg(feature = "text")]
+use crate::GlyphId;
+#[cfg(feature = "text")]
 use fontdb::Database;
 #[cfg(feature = "text")]
 use fontdb::ID;
 use svgtypes::{Length, LengthUnit as Unit, PaintOrderKind, TransformOrigin};
 use tiny_skia_path::PathBuilder;
-#[cfg(feature = "text")]
-use ttf_parser::GlyphId;
 
 use super::svgtree::{self, AId, EId, FromValue, SvgNode};
 use super::units::{self, convert_length};
