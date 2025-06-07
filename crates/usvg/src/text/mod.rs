@@ -10,10 +10,21 @@ use self::layout::DatabaseExt;
 use crate::{Cache, Font, FontStretch, FontStyle, Text};
 
 pub(crate) mod flatten;
+mod transform;
 
 mod colr;
 /// Provides access to the layout of a text node.
 pub mod layout;
+
+/// The ID of a glyph within a font
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+pub struct GlyphId(pub u16);
+
+impl From<GlyphId> for skrifa::raw::types::GlyphId {
+    fn from(value: GlyphId) -> Self {
+        Self::new(value.0 as u32)
+    }
+}
 
 /// A shorthand for [FontResolver]'s font selection function.
 ///
