@@ -7,16 +7,19 @@ use std::sync::Arc;
 
 use fontdb::{Database, ID};
 use kurbo::{ParamCurve, ParamCurveArclen, ParamCurveDeriv};
+use skrifa::instance::Location;
+use skrifa::prelude::Size;
+use skrifa::raw::TableProvider;
+use skrifa::MetadataProvider;
 use strict_num::NonZeroPositiveF32;
 use tiny_skia_path::{NonZeroRect, Transform};
-use ttf_parser::GlyphId;
 use unicode_script::UnicodeScript;
 
 use crate::tree::{BBox, IsValidLength};
 use crate::{
     AlignmentBaseline, ApproxZeroUlps, BaselineShift, DominantBaseline, Fill, FillRule, Font,
-    FontResolver, LengthAdjust, PaintOrder, Path, ShapeRendering, Stroke, Text, TextAnchor,
-    TextChunk, TextDecorationStyle, TextFlow, TextPath, TextSpan, WritingMode,
+    FontResolver, GlyphId, LengthAdjust, PaintOrder, Path, ShapeRendering, Stroke, Text,
+    TextAnchor, TextChunk, TextDecorationStyle, TextFlow, TextPath, TextSpan, WritingMode,
 };
 
 /// A glyph that has already been positioned correctly.
@@ -67,7 +70,7 @@ impl PositionedGlyph {
 
     /// Returns the transform for the glyph, assuming that a CBTD-based raster glyph
     /// is being used.
-    pub fn cbdt_transform(&self, x: f32, y: f32, pixels_per_em: f32, height: f32) -> Transform {
+    pub fn cbdt_transform(&self, x: f32, y: f32, pixels_per_em: f32) -> Transform {
         self.transform()
             .pre_concat(Transform::from_scale(
                 self.units_per_em as f32 / pixels_per_em,
@@ -76,7 +79,7 @@ impl PositionedGlyph {
             // Right now, the top-left corner of the image would be placed in
             // on the "text cursor", but we want the bottom-left corner to be there,
             // so we need to shift it up and also apply the x/y offset.
-            .pre_translate(x, -height - y)
+            .pre_translate(x, -y)
     }
 
     /// Returns the transform for the glyph, assuming that a sbix-based raster glyph
@@ -1192,43 +1195,47 @@ impl DatabaseExt for Database {
     #[inline(never)]
     fn load_font(&self, id: ID) -> Option<ResolvedFont> {
         self.with_face_data(id, |data, face_index| -> Option<ResolvedFont> {
-            let font = ttf_parser::Face::parse(data, face_index).ok()?;
+            let font = skrifa::FontRef::from_index(data, face_index).ok()?;
 
-            let units_per_em = NonZeroU16::new(font.units_per_em())?;
+            // FIXME: Set size and location
+            let location = &Location::default();
+            let coords = location.coords(); // TODO: expose effective_coords
+            let metrics = font.metrics(Size::unscaled(), location);
 
-            let ascent = font.ascender();
-            let descent = font.descender();
+            let units_per_em = NonZeroU16::new(metrics.units_per_em)?;
+            let ascent = metrics.ascent;
+            let descent = metrics.descent;
 
-            let x_height = font
-                .x_height()
-                .and_then(|x| u16::try_from(x).ok())
+            let x_height = metrics
+                .x_height
+                .and_then(|x| u16::try_from(x as i16).ok())
                 .and_then(NonZeroU16::new);
             let x_height = match x_height {
                 Some(height) => height,
                 None => {
                     // If not set - fallback to height * 45%.
                     // 45% is what Firefox uses.
-                    u16::try_from((f32::from(ascent - descent) * 0.45) as i32)
+                    u16::try_from(((ascent - descent) * 0.45) as i32)
                         .ok()
                         .and_then(NonZeroU16::new)?
                 }
             };
 
-            let line_through = font.strikeout_metrics();
+            let line_through = metrics.strikeout;
             let line_through_position = match line_through {
-                Some(metrics) => metrics.position,
+                Some(metrics) => metrics.offset as i16,
                 None => x_height.get() as i16 / 2,
             };
 
-            let (underline_position, underline_thickness) = match font.underline_metrics() {
+            let (underline_position, underline_thickness) = match metrics.underline {
                 Some(metrics) => {
-                    let thickness = u16::try_from(metrics.thickness)
+                    let thickness = u16::try_from(metrics.thickness as i16)
                         .ok()
                         .and_then(NonZeroU16::new)
-                        // `ttf_parser` guarantees that units_per_em is >= 16
+                        // `skrifa` guarantees that units_per_em is > 0
                         .unwrap_or_else(|| NonZeroU16::new(units_per_em.get() / 12).unwrap());
 
-                    (metrics.position, thickness)
+                    (metrics.offset as i16, thickness)
                 }
                 None => (
                     -(units_per_em.get() as i16) / 9,
@@ -1239,19 +1246,26 @@ impl DatabaseExt for Database {
             // 0.2 and 0.4 are generic offsets used by some applications (Inkscape/librsvg).
             let mut subscript_offset = (units_per_em.get() as f32 / 0.2).round() as i16;
             let mut superscript_offset = (units_per_em.get() as f32 / 0.4).round() as i16;
-            if let Some(metrics) = font.subscript_metrics() {
-                subscript_offset = metrics.y_offset;
-            }
 
-            if let Some(metrics) = font.superscript_metrics() {
-                superscript_offset = metrics.y_offset;
+            // TODO: Consider upstreaming into skrifa
+            if let Ok(os2) = font.os2() {
+                subscript_offset = os2.y_subscript_y_offset();
+                superscript_offset = os2.y_superscript_y_offset();
+            }
+            if let (Ok(mvar), true) = (font.mvar(), !coords.is_empty()) {
+                use skrifa::raw::tables::mvar::tags::*;
+                let metric_delta =
+                    |tag| mvar.metric_delta(tag, coords).unwrap_or_default().to_f32();
+
+                subscript_offset += metric_delta(SBYO) as i16;
+                superscript_offset += metric_delta(SPYO) as i16;
             }
 
             Some(ResolvedFont {
                 id,
                 units_per_em,
-                ascent,
-                descent,
+                ascent: ascent as i16,
+                descent: descent as i16,
                 x_height,
                 underline_position,
                 underline_thickness,
@@ -1265,8 +1279,9 @@ impl DatabaseExt for Database {
     #[inline(never)]
     fn has_char(&self, id: ID, c: char) -> bool {
         let res = self.with_face_data(id, |font_data, face_index| -> Option<bool> {
-            let font = ttf_parser::Face::parse(font_data, face_index).ok()?;
-            font.glyph_index(c)?;
+            let font = skrifa::FontRef::from_index(font_data, face_index).ok()?;
+            let char_map = skrifa::charmap::Charmap::new(&font);
+            char_map.map(c)?;
             Some(true)
         });
 
