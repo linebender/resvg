@@ -5,9 +5,8 @@ use std::mem;
 use std::sync::Arc;
 
 use fontdb::{Database, ID};
-use rustybuzz::ttf_parser;
-use rustybuzz::ttf_parser::{GlyphId, RasterImageFormat, RgbaColor};
 use tiny_skia_path::{NonZeroRect, Size, Transform};
+use ttf_parser::{GlyphId, RasterImageFormat, RgbaColor};
 use xmlwriter::XmlWriter;
 
 use crate::text::colr::GlyphPainter;

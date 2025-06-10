@@ -10,10 +10,10 @@ use std::sync::Arc;
 use fontdb::Database;
 #[cfg(feature = "text")]
 use fontdb::ID;
-#[cfg(feature = "text")]
-use rustybuzz::ttf_parser::GlyphId;
 use svgtypes::{Length, LengthUnit as Unit, PaintOrderKind, TransformOrigin};
 use tiny_skia_path::PathBuilder;
+#[cfg(feature = "text")]
+use ttf_parser::GlyphId;
 
 use super::svgtree::{self, AId, EId, FromValue, SvgNode};
 use super::units::{self, convert_length};
