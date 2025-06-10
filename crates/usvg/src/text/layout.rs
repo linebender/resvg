@@ -7,10 +7,9 @@ use std::sync::Arc;
 
 use fontdb::{Database, ID};
 use kurbo::{ParamCurve, ParamCurveArclen, ParamCurveDeriv};
-use rustybuzz::ttf_parser;
-use rustybuzz::ttf_parser::{GlyphId, Tag};
 use strict_num::NonZeroPositiveF32;
 use tiny_skia_path::{NonZeroRect, Transform};
+use ttf_parser::GlyphId;
 use unicode_script::UnicodeScript;
 
 use crate::tree::{BBox, IsValidLength};
@@ -1406,43 +1405,47 @@ fn shape_text_with_font(
     fontdb: &fontdb::Database,
 ) -> Option<Vec<Glyph>> {
     fontdb.with_face_data(font.id, |font_data, face_index| -> Option<Vec<Glyph>> {
-        let mut rb_font = rustybuzz::Face::from_slice(font_data, face_index)?;
+        use harfrust::{Feature, ShaperData, ShaperInstance, Tag, UnicodeBuffer, Variation};
 
-        // Build the list of variations to apply
-        let mut final_variations: Vec<rustybuzz::Variation> = variations
-            .iter()
-            .map(|v| rustybuzz::Variation {
-                tag: Tag::from_bytes(&v.tag),
-                value: v.value,
-            })
-            .collect();
+        let hr_font = harfrust::FontRef::from_index(font_data, face_index).ok()?;
 
-        // Automatic optical sizing: if font-optical-sizing is auto and the font has
-        // an 'opsz' axis that isn't explicitly set, auto-set it to match font size.
-        // This matches browser behavior (CSS font-optical-sizing: auto).
-        if font_optical_sizing == crate::FontOpticalSizing::Auto {
-            let has_explicit_opsz = variations.iter().any(|v| v.tag == *b"opsz");
-            if !has_explicit_opsz {
-                // Check if font has opsz axis using the already parsed rb_font
-                if let Some(axes) = rb_font.tables().fvar {
-                    let has_opsz_axis = axes
-                        .axes
-                        .into_iter()
-                        .any(|axis| axis.tag == ttf_parser::Tag::from_bytes(b"opsz"));
-                    if has_opsz_axis {
-                        final_variations.push(rustybuzz::Variation {
-                            tag: Tag::from_bytes(b"opsz"),
-                            value: font_size,
-                        });
-                    }
-                }
-            }
-        }
+        // TODO: fontations variations
+        //
+        // // Build the list of variations to apply
+        // let mut final_variations: Vec<rustybuzz::Variation> = variations
+        //     .iter()
+        //     .map(|v| rustybuzz::Variation {
+        //         tag: Tag::from_bytes(&v.tag),
+        //         value: v.value,
+        //     })
+        //     .collect();
 
-        // Apply font variations for variable fonts
-        if !final_variations.is_empty() {
-            rb_font.set_variations(&final_variations);
-        }
+        // // Automatic optical sizing: if font-optical-sizing is auto and the font has
+        // // an 'opsz' axis that isn't explicitly set, auto-set it to match font size.
+        // // This matches browser behavior (CSS font-optical-sizing: auto).
+        // if font_optical_sizing == crate::FontOpticalSizing::Auto {
+        //     let has_explicit_opsz = variations.iter().any(|v| v.tag == *b"opsz");
+        //     if !has_explicit_opsz {
+        //         // Check if font has opsz axis using the already parsed rb_font
+        //         if let Some(axes) = rb_font.tables().fvar {
+        //             let has_opsz_axis = axes
+        //                 .axes
+        //                 .into_iter()
+        //                 .any(|axis| axis.tag == ttf_parser::Tag::from_bytes(b"opsz"));
+        //             if has_opsz_axis {
+        //                 final_variations.push(rustybuzz::Variation {
+        //                     tag: Tag::from_bytes(b"opsz"),
+        //                     value: font_size,
+        //                 });
+        //             }
+        //         }
+        //     }
+        // }
+
+        // // Apply font variations for variable fonts
+        // if !final_variations.is_empty() {
+        //     rb_font.set_variations(&final_variations);
+        // }
 
         let bidi_info = unicode_bidi::BidiInfo::new(text, Some(unicode_bidi::Level::ltr()));
         let paragraph = &bidi_info.paragraphs[0];
@@ -1458,26 +1461,41 @@ fn shape_text_with_font(
             }
 
             let ltr = levels[run.start].is_ltr();
-            let hb_direction = if ltr {
-                rustybuzz::Direction::LeftToRight
+            let direction = if ltr {
+                harfrust::Direction::LeftToRight
             } else {
-                rustybuzz::Direction::RightToLeft
+                harfrust::Direction::RightToLeft
             };
 
-            let mut buffer = rustybuzz::UnicodeBuffer::new();
+            let mut buffer = UnicodeBuffer::new();
             buffer.push_str(sub_text);
-            buffer.set_direction(hb_direction);
+            buffer.set_direction(direction);
+
+            // TODO: explicitly set language?
+            buffer.guess_segment_properties();
 
             let mut features = Vec::new();
             if small_caps {
-                features.push(rustybuzz::Feature::new(Tag::from_bytes(b"smcp"), 1, ..));
+                features.push(Feature::new(Tag::new(b"smcp"), 1, ..));
             }
 
             if !apply_kerning {
-                features.push(rustybuzz::Feature::new(Tag::from_bytes(b"kern"), 0, ..));
+                features.push(Feature::new(Tag::new(b"kern"), 0, ..));
             }
 
-            let output = rustybuzz::shape(&rb_font, &features, buffer);
+            let variations: Vec<Variation> = Vec::new();
+
+            let shaper_data = ShaperData::new(&hr_font);
+            let instance_data = ShaperInstance::from_variations(&hr_font, &variations);
+            let shaper = shaper_data
+                // Initialize the builder for the given font
+                .shaper(&hr_font)
+                // Set the instance
+                .instance(Some(&instance_data))
+                // Build the shaper
+                .build();
+
+            let output = shaper.shape(buffer, &features);
 
             let positions = output.glyph_positions();
             let infos = output.glyph_infos();
