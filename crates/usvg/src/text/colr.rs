@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 use crate::parser::OptionLog;
-use rustybuzz::ttf_parser;
 
 struct Builder<'a>(&'a mut String);
 
