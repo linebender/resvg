@@ -694,7 +694,7 @@ pub extern "C" fn resvg_node_exists(tree: *const resvg_render_tree, id: *const c
     let id = match cstr_to_str(id) {
         Some(v) => v,
         None => {
-            log::warn!("Provided ID is no an UTF-8 string.");
+            log::warn!("Provided ID is not a UTF-8 string.");
             return false;
         }
     };
@@ -724,7 +724,7 @@ pub extern "C" fn resvg_get_node_transform(
     let id = match cstr_to_str(id) {
         Some(v) => v,
         None => {
-            log::warn!("Provided ID is no an UTF-8 string.");
+            log::warn!("Provided ID is not a UTF-8 string.");
             return false;
         }
     };
@@ -797,7 +797,7 @@ fn get_node_bbox(
     let id = match cstr_to_str(id) {
         Some(v) => v,
         None => {
-            log::warn!("Provided ID is no an UTF-8 string.");
+            log::warn!("Provided ID is not a UTF-8 string.");
             return false;
         }
     };
