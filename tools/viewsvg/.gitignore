@@ -1,1 +1,7 @@
 *.pro.user
+*.o
+moc_*
+viewsvg
+.*
+ui_*.h
+Makefile

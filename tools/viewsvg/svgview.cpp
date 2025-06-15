@@ -302,7 +302,7 @@ void SvgView::requestUpdate()
     m_timer.start(100, this);
 
     // Run method in the m_worker thread scope.
-    QTimer::singleShot(1, m_worker, [=](){
+    QTimer::singleShot(1, m_worker, [this, s](){
         m_worker->render(s);
     });
 }
