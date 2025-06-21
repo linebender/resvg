@@ -234,7 +234,7 @@ pub(crate) fn convert_inner(
     );
 
     let abs_transform = parent.abs_transform.pre_concat(image_ts);
-    let abs_bounding_box = rect.transform(abs_transform)?;
+    let abs_bounding_box = view_box.transform(parent.abs_transform)?;
 
     let mut g = Group::empty();
     g.id = id;
