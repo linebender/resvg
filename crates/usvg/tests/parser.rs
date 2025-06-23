@@ -504,7 +504,6 @@ fn svg_without_xmlns() {
     assert_eq!(tree.size(), usvg::Size::from_wh(100.0, 100.0).unwrap());
 }
 
-
 #[test]
 fn image_bbox_with_parent_transform() {
     let svg = "
