@@ -9,8 +9,8 @@
 
 use std::ffi::CStr;
 use std::os::raw::c_char;
-use std::slice;
 use std::panic::AssertUnwindSafe;
+use std::slice;
 
 use resvg::tiny_skia;
 use resvg::usvg;
@@ -894,7 +894,8 @@ pub extern "C" fn resvg_render(
         let mut pixmap = tiny_skia::PixmapMut::from_bytes(pixmap, width, height).unwrap();
 
         resvg::render(&tree.0, transform.to_tiny_skia(), &mut pixmap)
-    })).is_ok()
+    }))
+    .is_ok()
 }
 
 /// @brief Renders a Node by ID onto the image.
