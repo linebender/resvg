@@ -883,10 +883,7 @@ pub extern "C" fn resvg_render(
     }
 
     std::panic::catch_unwind(AssertUnwindSafe(|| {
-        let tree = unsafe {
-            assert!(!tree.is_null());
-            &*tree
-        };
+        let tree = unsafe { &*tree };
 
         let pixmap_len = width as usize * height as usize * tiny_skia::BYTES_PER_PIXEL;
         let pixmap: &mut [u8] =
