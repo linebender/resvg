@@ -524,7 +524,9 @@ public:
 
         QImage qImg(svgSize.width(), svgSize.height(), QImage::Format_ARGB32_Premultiplied);
         qImg.fill(Qt::transparent);
-        resvg_render(d->tree, ts, qImg.width(), qImg.height(), (char*)qImg.bits());
+        if (!resvg_render(d->tree, ts, qImg.width(), qImg.height(), (char*)qImg.bits())) {
+          return QImage();
+        }
 
         // resvg renders onto the RGBA canvas, while QImage is ARGB.
         // std::move is required to call inplace version of rgbSwapped().
