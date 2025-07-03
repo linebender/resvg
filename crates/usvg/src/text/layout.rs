@@ -1,7 +1,7 @@
 // Copyright 2022 the Resvg Authors
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::num::NonZeroU16;
 use std::sync::Arc;
 
@@ -905,15 +905,22 @@ fn process_chunk(
         }
 
         // Overwrite span's glyphs.
+        let mut positions = HashSet::new();
         let mut iter = tmp_glyphs.into_iter();
         while let Some(new_glyph) = iter.next() {
             if !span_contains(span, new_glyph.byte_idx) {
                 continue;
             }
 
-            let Some(idx) = glyphs.iter().position(|g| g.byte_idx == new_glyph.byte_idx) else {
+            let Some(idx) = glyphs
+                .iter()
+                .position(|g| g.byte_idx == new_glyph.byte_idx)
+                .filter(|pos| !positions.contains(pos))
+            else {
                 continue;
             };
+
+            positions.insert(idx);
 
             let prev_cluster_len = glyphs[idx].cluster_len;
             if prev_cluster_len < new_glyph.cluster_len {

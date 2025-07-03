@@ -1,0 +1,17 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <title>Ligatures handling in mixed fonts (2)</title>
+    <desc>
+        This is a very resvg-specific test to make sure we're corrently
+        handling ligatures in text with multiple fonts
+    </desc>
+
+    <path id="crosshair" d="M 20 100 L 180 100 M 100 20 L 100 180"
+          stroke="gray" stroke-width="0.5"/>
+
+    <text id="text1" x="32" y="100" font-family="Noto Sans" font-size="32">
+        <tspan>H </tspan><tspan>नमस्ते</tspan>
+    </text>
+
+    <!-- image frame -->
+    <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>
