@@ -24,7 +24,7 @@ mod turbulence;
 ///
 /// Image pixels should be stored in RGBA order.
 ///
-/// Some filters will require premultipled channels, some not.
+/// Some filters will require premultiplied channels, some not.
 /// See specific filter documentation for details.
 #[derive(Clone, Copy)]
 pub struct ImageRef<'a> {

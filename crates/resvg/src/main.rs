@@ -87,7 +87,7 @@ fn process() -> Result<(), String> {
 
     if has_text_nodes {
         timed(args.perf, "FontDB", || {
-            load_fonts(&args.raw_args, args.usvg.fontdb_mut())
+            load_fonts(&args.raw_args, args.usvg.fontdb_mut());
         });
     }
 
@@ -423,7 +423,7 @@ impl FitTo {
 
 fn list_fonts(args: &CliArgs) {
     let mut fontdb = fontdb::Database::new();
-    load_fonts(&args, &mut fontdb);
+    load_fonts(args, &mut fontdb);
 
     use fontdb::Family;
     println!("serif: {}", fontdb.family_name(&Family::Serif));
@@ -552,7 +552,7 @@ fn parse_args() -> Result<Args, String> {
 
     let style_sheet = match args.style_sheet.as_ref() {
         Some(p) => Some(
-            std::fs::read(&p)
+            std::fs::read(p)
                 .ok()
                 .and_then(|s| std::str::from_utf8(&s).ok().map(|s| s.to_string()))
                 .ok_or("failed to read stylesheet".to_string())?,

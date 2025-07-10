@@ -684,10 +684,10 @@ fn write_element(node: &Node, is_clip_path: bool, opt: &WriteOptions, xml: &mut 
 
                 match text.rendering_mode {
                     TextRendering::OptimizeSpeed => {
-                        xml.write_svg_attribute(AId::TextRendering, "optimizeSpeed")
+                        xml.write_svg_attribute(AId::TextRendering, "optimizeSpeed");
                     }
                     TextRendering::GeometricPrecision => {
-                        xml.write_svg_attribute(AId::TextRendering, "geometricPrecision")
+                        xml.write_svg_attribute(AId::TextRendering, "geometricPrecision");
                     }
                     TextRendering::OptimizeLegibility => {}
                 }
@@ -912,7 +912,7 @@ impl XmlWriterExt for XmlWriter {
 
     #[inline(never)]
     fn write_svg_attribute<V: Display + ?Sized>(&mut self, id: AId, value: &V) {
-        self.write_attribute(id.to_str(), value)
+        self.write_attribute(id.to_str(), value);
     }
 
     #[inline(never)]
@@ -941,7 +941,7 @@ impl XmlWriterExt for XmlWriter {
         let (b1, b2) = int2hex(c.blue);
 
         self.write_attribute_raw(id.to_str(), |buf| {
-            buf.extend_from_slice(&[b'#', r1, r2, g1, g2, b1, b2])
+            buf.extend_from_slice(&[b'#', r1, r2, g1, g2, b1, b2]);
         });
     }
 
@@ -1305,7 +1305,7 @@ fn write_stroke(stroke: &Option<Stroke>, opt: &WriteOptions, xml: &mut XmlWriter
         }
 
         if !stroke.dashoffset.approx_zero_ulps(4) {
-            xml.write_svg_attribute(AId::StrokeDashoffset, &stroke.dashoffset)
+            xml.write_svg_attribute(AId::StrokeDashoffset, &stroke.dashoffset);
         }
 
         if !stroke.miterlimit.is_default() {
@@ -1517,7 +1517,7 @@ fn write_span(
     }
 
     if !span.apply_kerning {
-        xml.write_attribute("style", "font-kerning:none")
+        xml.write_attribute("style", "font-kerning:none");
     }
 
     if span.dominant_baseline != DominantBaseline::Auto {

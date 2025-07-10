@@ -366,7 +366,7 @@ use crate::render;
 #[test] fn filters_filter_functions_color_adjust_functions_negative() { assert_eq!(render("tests/filters/filter-functions/color-adjust-functions-negative"), 0); }
 #[test] fn filters_filter_functions_drop_shadow_function_color_as_attribute() { assert_eq!(render("tests/filters/filter-functions/drop-shadow-function-color-as-attribute"), 0); }
 #[test] fn filters_filter_functions_drop_shadow_function_color_last() { assert_eq!(render("tests/filters/filter-functions/drop-shadow-function-color-last"), 0); }
-#[test] fn filters_filter_functions_drop_shadow_function_comma_spearated() { assert_eq!(render("tests/filters/filter-functions/drop-shadow-function-comma-spearated"), 0); }
+#[test] fn filters_filter_functions_drop_shadow_function_comma_separated() { assert_eq!(render("tests/filters/filter-functions/drop-shadow-function-comma-separated"), 0); }
 #[test] fn filters_filter_functions_drop_shadow_function_currentColor() { assert_eq!(render("tests/filters/filter-functions/drop-shadow-function-currentColor"), 0); }
 #[test] fn filters_filter_functions_drop_shadow_function_em_values() { assert_eq!(render("tests/filters/filter-functions/drop-shadow-function-em-values"), 0); }
 #[test] fn filters_filter_functions_drop_shadow_function_extra_value() { assert_eq!(render("tests/filters/filter-functions/drop-shadow-function-extra-value"), 0); }

@@ -134,17 +134,14 @@ pub enum Input {
 }
 
 /// A color interpolation mode.
+///
+/// The default is `ColorInterpolation::LinearRGB`.
 #[allow(missing_docs)]
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Debug, Default)]
 pub enum ColorInterpolation {
     SRGB,
+    #[default]
     LinearRGB,
-}
-
-impl Default for ColorInterpolation {
-    fn default() -> Self {
-        ColorInterpolation::LinearRGB
-    }
 }
 
 /// A blend filter primitive.

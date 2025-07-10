@@ -18,11 +18,13 @@ fn main() {
         1.0
     };
 
-    let mut opt = usvg::Options::default();
-    // Get file's absolute directory.
-    opt.resources_dir = std::fs::canonicalize(&args[1])
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
+    let mut opt = usvg::Options {
+        // Get file's absolute directory.
+        resources_dir: std::fs::canonicalize(&args[1])
+            .ok()
+            .and_then(|p| p.parent().map(|p| p.to_path_buf())),
+        ..usvg::Options::default()
+    };
 
     opt.fontdb_mut().load_system_fonts();
 
@@ -38,8 +40,10 @@ fn main() {
     let render_ts = tiny_skia::Transform::from_scale(zoom, zoom);
     resvg::render(&tree, render_ts, &mut pixmap.as_mut());
 
-    let mut stroke = tiny_skia::Stroke::default();
-    stroke.width = 1.0 / zoom; // prevent stroke scaling as well
+    let stroke = tiny_skia::Stroke {
+        width: 1.0 / zoom, // prevent stroke scaling as well
+        ..tiny_skia::Stroke::default()
+    };
 
     let mut paint1 = tiny_skia::Paint::default();
     paint1.set_color_rgba8(255, 0, 0, 127);

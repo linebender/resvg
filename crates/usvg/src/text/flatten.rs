@@ -272,7 +272,7 @@ impl DatabaseExt for Database {
             } else {
                 tree.node_by_id(&format!("glyph{}", glyph_id.0))
                     .log_none(|| {
-                        log::warn!("Failed to find SVG glyph node for glyph {}", glyph_id.0)
+                        log::warn!("Failed to find SVG glyph node for glyph {}", glyph_id.0);
                     })
                     .cloned()?
             };
@@ -317,7 +317,7 @@ impl DatabaseExt for Database {
             )?;
             svg.end_element();
 
-            Tree::from_data(&svg.end_document().as_bytes(), &Options::default()).ok()
+            Tree::from_data(svg.end_document().as_bytes(), &Options::default()).ok()
         })?
     }
 }

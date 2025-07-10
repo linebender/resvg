@@ -64,7 +64,7 @@ pub fn fill_path(
                 tiny_skia::FilterQuality::Bicubic,
                 fill.opacity().get(),
                 patt_ts,
-            )
+            );
         }
     }
     paint.anti_alias = path.rendering_mode().use_shape_antialiasing();
@@ -104,7 +104,7 @@ fn stroke_path(
                 tiny_skia::FilterQuality::Bicubic,
                 stroke.opacity().get(),
                 patt_ts,
-            )
+            );
         }
     }
     paint.anti_alias = path.rendering_mode().use_shape_antialiasing();
@@ -169,7 +169,7 @@ fn convert_base_gradient(
             stop.color().blue,
             alpha.to_u8(),
         );
-        points.push(tiny_skia::GradientStop::new(stop.offset().get(), color))
+        points.push(tiny_skia::GradientStop::new(stop.offset().get(), color));
     }
 
     Some((mode, points))

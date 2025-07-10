@@ -1,6 +1,6 @@
 [package]
 name = "usvg"
-version = "0.44.0"
+version = "0.45.1"
 keywords = ["svg"]
 license.workspace = true
 edition = "2021"
@@ -22,7 +22,7 @@ base64 = "0.22" # for embedded images
 log = "0.4"
 pico-args = { version = "0.5", features = ["eq-separator"] }
 strict-num = "0.1.1"
-svgtypes = "0.15.2"
+svgtypes = "0.15.3"
 tiny-skia-path = { git = "https://github.com/linebender/tiny-skia", rev = "68b198a" }
 xmlwriter = "0.1"
 

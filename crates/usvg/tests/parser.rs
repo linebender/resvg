@@ -1,6 +1,7 @@
 // Copyright 2018 the Resvg Authors
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+use tiny_skia_path::Rect;
 use usvg::Color;
 
 #[test]
@@ -16,7 +17,7 @@ fn clippath_with_invalid_child() {
 
     let tree = usvg::Tree::from_str(&svg, &usvg::Options::default()).unwrap();
     // clipPath is invalid and should be removed together with rect.
-    assert_eq!(tree.root().has_children(), false);
+    assert!(!tree.root().has_children());
 }
 
 #[test]
@@ -116,7 +117,7 @@ fn stylesheet_injection_with_important() {
         unreachable!()
     };
 
-    // All rects should be overriden, since we use `important`.
+    // All rects should be overridden, since we use `important`.
     assert_eq!(
         first.fill().unwrap().paint(),
         &usvg::Paint::Color(Color::new_rgb(255, 0, 0))
@@ -488,5 +489,47 @@ fn path_transform_in_svg() {
     assert_eq!(
         path.abs_transform(),
         usvg::Transform::from_translate(100.0, 150.0)
+    );
+}
+
+#[test]
+fn svg_without_xmlns() {
+    let svg = "
+    <svg viewBox='0 0 100 100'>
+        <rect x='0' y='0' width='10' height='10'/>
+    </svg>
+    ";
+
+    let tree = usvg::Tree::from_str(&svg, &usvg::Options::default()).unwrap();
+    assert_eq!(tree.size(), usvg::Size::from_wh(100.0, 100.0).unwrap());
+}
+
+#[test]
+fn image_bbox_with_parent_transform() {
+    let svg = "
+    <svg viewBox='0 0 200 200' 
+         xmlns='http://www.w3.org/2000/svg'
+         xmlns:xlink='http://www.w3.org/1999/xlink'>
+        <g transform='translate(25 25)'>
+            <image id='image1' x='10' y='10' width='50' height='50' xlink:href='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAYAAABw4pVUAAABb0lEQVR4Xu3VUQ0AIAzEUOZfA87wAgkq+vGmoGlz2exz73IZAyNIpsUHEaTVQ5BYD0EEqRmI8fghgsQMxHAsRJCYgRiOhQgSMxDDsRBBYgZiOBYiSMxADMdCBIkZiOFYiCAxAzEcCxEkZiCGYyGCxAzEcCxEkJiBGI6FCBIzEMOxEEFiBmI4FiJIzEAMx0IEiRmI4ViIIDEDMRwLESRmIIZjIYLEDMRwLESQmIEYjoUIEjMQw7EQQWIGYjgWIkjMQAzHQgSJGYjhWIggMQMxHAsRJGYghmMhgsQMxHAsRJCYgRiOhQgSMxDDsRBBYgZiOBYiSMxADMdCBIkZiOFYiCAxAzEcCxEkZiCGYyGCxAzEcCxEkJiBGI6FCBIzEMOxEEFiBmI4FiJIzEAMx0IEiRmI4ViIIDEDMRwLESRmIIZjIYLEDMRwLESQmIEYjoUIEjMQw7EQQWIGYjgWIkjMQAzHQgSJGYjhWIggMQMxnAdKSlrwlejIDgAAAABJRU5ErkJggg=='/>
+        </g>
+    </svg>
+    ";
+
+    let tree = usvg::Tree::from_str(&svg, &usvg::Options::default()).unwrap();
+
+    let usvg::Node::Group(group_node1) = &tree.root().children()[0] else {
+        unreachable!()
+    };
+    let usvg::Node::Group(group_node2) = &group_node1.children()[0] else {
+        unreachable!()
+    };
+    let usvg::Node::Image(image_node) = &group_node2.children()[0] else {
+        unreachable!()
+    };
+
+    assert_eq!(
+        image_node.abs_bounding_box(),
+        Rect::from_xywh(35.0, 35.0, 50.0, 50.0).unwrap()
     );
 }

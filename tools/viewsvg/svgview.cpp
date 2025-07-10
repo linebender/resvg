@@ -130,9 +130,9 @@ void SvgView::setFitToView(bool flag)
     requestUpdate();
 }
 
-void SvgView::setBackgound(SvgView::Backgound backgound)
+void SvgView::setBackground(SvgView::Background background)
 {
-    m_backgound = backgound;
+    m_background = background;
     update();
 }
 
@@ -198,12 +198,12 @@ void SvgView::paintEvent(QPaintEvent *e)
     const auto r = contentsRect();
     p.setClipRect(r);
 
-    switch (m_backgound) {
-        case Backgound::None : break;
-        case Backgound::White : {
+    switch (m_background) {
+        case Background::None : break;
+        case Background::White : {
             p.fillRect(contentsRect(), Qt::white);
         } break;
-        case Backgound::CheckBoard : {
+        case Background::CheckBoard : {
             p.fillRect(contentsRect(), QBrush(m_checkboardImg));
         } break;
     }

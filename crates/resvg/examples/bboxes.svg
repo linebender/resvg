@@ -65,4 +65,7 @@
         <rect x="420" y="190" width="50" height="50" fill="black"/>
         <rect x="350" y="190" width="50" height="50" fill="gray"/>
     </g>
+    <text x="350" y="250">Image with transform</text>
+    <image x="20" y="40" width="60" height="30" transform="rotate(45) translate(490 -40)"
+           preserveAspectRatio="none" xlink:href="ferris.png"/>
 </svg>

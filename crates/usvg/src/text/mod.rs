@@ -196,9 +196,10 @@ impl std::fmt::Debug for FontResolver<'_> {
 }
 
 /// Convert a text into its paths. This is done in two steps:
-/// 1. We convert the text into glyphs and position them according to the rules specified in the
-/// SVG specifiation. While doing so, we also calculate the text bbox (which is not based on the
-/// outlines of a glyph, but instead the glyph metrics as well as decoration spans).
+/// 1. We convert the text into glyphs and position them according to the rules specified
+///    in the SVG specification. While doing so, we also calculate the text bbox (which
+///    is not based on the outlines of a glyph, but instead the glyph metrics as well
+///    as decoration spans).
 /// 2. We convert all of the positioned glyphs into outlines.
 pub(crate) fn convert(
     text: &mut Text,

@@ -19,7 +19,7 @@ MainWindow::MainWindow(QWidget *parent)
     ui->cmbBoxBackground->setCurrentIndex(1);
 
     ui->svgView->setFitToView(true);
-    ui->svgView->setBackgound(SvgView::Backgound::White);
+    ui->svgView->setBackground(SvgView::Background::White);
 
     connect(ui->svgView, &SvgView::loadError, this, [this](const QString &msg){
         QMessageBox::critical(this, "Error", msg);
@@ -52,7 +52,7 @@ void MainWindow::on_cmbBoxSize_activated(int index)
 
 void MainWindow::on_cmbBoxBackground_activated(int index)
 {
-    ui->svgView->setBackgound(SvgView::Backgound(index));
+    ui->svgView->setBackground(SvgView::Background(index));
 }
 
 void MainWindow::on_chBoxDrawBorder_toggled(bool checked)
