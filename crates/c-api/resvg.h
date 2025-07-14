@@ -481,8 +481,9 @@ void resvg_tree_destroy(resvg_render_tree *tree);
  * @param height Pixmap height.
  * @param pixmap Pixmap data. Should have width*height*4 size and contain
  *               premultiplied RGBA8888 pixels.
+ * @return `true` if the rendering was successful; `false` elsewhere
  */
-void resvg_render(const resvg_render_tree *tree,
+bool resvg_render(const resvg_render_tree *tree,
                   resvg_transform transform,
                   uint32_t width,
                   uint32_t height,
