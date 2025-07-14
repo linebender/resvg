@@ -557,8 +557,7 @@ dependencies = [
 [[package]]
 name = "tiny-skia"
 version = "0.11.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "83d13394d44dae3207b52a326c0c85a8bf87f1541f23b0d143811088497b09ab"
+source = "git+https://github.com/linebender/tiny-skia?rev=68b198a#68b198a7210a6bbf752b43d6bc4db62445730313"
 dependencies = [
  "arrayref",
  "arrayvec",
@@ -572,8 +571,7 @@ dependencies = [
 [[package]]
 name = "tiny-skia-path"
 version = "0.11.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9c9e7fc0c2e86a30b117d0462aa261b72b7a99b7ebd7deb3a14ceda95c5bdc93"
+source = "git+https://github.com/linebender/tiny-skia?rev=68b198a#68b198a7210a6bbf752b43d6bc4db62445730313"
 dependencies = [
  "arrayref",
  "bytemuck",
