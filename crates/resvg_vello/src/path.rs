@@ -154,9 +154,9 @@ fn convert_radial_gradient(
 ) -> Option<Gradient> {
     let kind = {
         GradientKind::Radial {
-            start_center: Point::new(gradient.cx() as f64, gradient.cy() as f64),
+            start_center: Point::new(gradient.fx() as f64, gradient.fy() as f64),
             start_radius: 0.0,
-            end_center: Point::new(gradient.fx() as f64, gradient.fy() as f64),
+            end_center: Point::new(gradient.cx() as f64, gradient.cy() as f64),
             end_radius: gradient.r().get()
         }
     };

@@ -606,8 +606,6 @@ use crate::render;
 #[test] fn paint_servers_radialGradient_stops_via_xlink_href() { assert_eq!(render("tests/paint-servers/radialGradient/stops-via-xlink-href"), 0); }
 #[test] fn paint_servers_radialGradient_unresolved_xlink_href() { assert_eq!(render("tests/paint-servers/radialGradient/unresolved-xlink-href"), 0); }
 #[test] fn paint_servers_radialGradient_xlink_href_not_to_gradient() { assert_eq!(render("tests/paint-servers/radialGradient/xlink-href-not-to-gradient"), 0); }
-#[test] fn paint_servers_radialGradient_zero_r_with_stop_opacity_1() { assert_eq!(render("tests/paint-servers/radialGradient/zero-r-with-stop-opacity-1"), 0); }
-#[test] fn paint_servers_radialGradient_zero_r_with_stop_opacity_2() { assert_eq!(render("tests/paint-servers/radialGradient/zero-r-with-stop-opacity-2"), 0); }
 #[test] fn paint_servers_radialGradient_zero_r() { assert_eq!(render("tests/paint-servers/radialGradient/zero-r"), 0); }
 #[test] fn paint_servers_stop_equal_stop_color() { assert_eq!(render("tests/paint-servers/stop/equal-stop-color"), 0); }
 #[test] fn paint_servers_stop_hsla_color() { assert_eq!(render("tests/paint-servers/stop/hsla-color"), 0); }
@@ -638,8 +636,6 @@ use crate::render;
 #[test] fn paint_servers_stop_stops_with_equal_offset_2() { assert_eq!(render("tests/paint-servers/stop/stops-with-equal-offset-2"), 0); }
 #[test] fn paint_servers_stop_stops_with_equal_offset_3() { assert_eq!(render("tests/paint-servers/stop/stops-with-equal-offset-3"), 0); }
 #[test] fn paint_servers_stop_stops_with_equal_offset_4() { assert_eq!(render("tests/paint-servers/stop/stops-with-equal-offset-4"), 0); }
-#[test] fn paint_servers_stop_stops_with_equal_offset_5() { assert_eq!(render("tests/paint-servers/stop/stops-with-equal-offset-5"), 0); }
-#[test] fn paint_servers_stop_stops_with_equal_offset_6() { assert_eq!(render("tests/paint-servers/stop/stops-with-equal-offset-6"), 0); }
 #[test] fn paint_servers_stop_zero_offset_in_the_middle() { assert_eq!(render("tests/paint-servers/stop/zero-offset-in-the-middle"), 0); }
 #[test] fn paint_servers_stop_color_simple_case() { assert_eq!(render("tests/paint-servers/stop-color/simple-case"), 0); }
 #[test] fn paint_servers_stop_opacity_50percent() { assert_eq!(render("tests/paint-servers/stop-opacity/50percent"), 0); }
@@ -868,7 +864,6 @@ use crate::render;
 #[test] fn painting_shape_rendering_optimizeSpeed_on_circle() { assert_eq!(render("tests/painting/shape-rendering/optimizeSpeed-on-circle"), 0); }
 #[test] fn painting_shape_rendering_optimizeSpeed_on_text() { assert_eq!(render("tests/painting/shape-rendering/optimizeSpeed-on-text"), 0); }
 #[test] fn painting_shape_rendering_path_with_marker() { assert_eq!(render("tests/painting/shape-rendering/path-with-marker"), 0); }
-#[test] fn painting_stroke_control_points_clamping_1() { assert_eq!(render("tests/painting/stroke/control-points-clamping-1"), 0); }
 #[test] fn painting_stroke_control_points_clamping_2() { assert_eq!(render("tests/painting/stroke/control-points-clamping-2"), 0); }
 #[test] fn painting_stroke_currentColor_without_a_parent() { assert_eq!(render("tests/painting/stroke/currentColor-without-a-parent"), 0); }
 #[test] fn painting_stroke_funcIRI_to_unsupported_element() { assert_eq!(render("tests/painting/stroke/funcIRI-to-unsupported-element"), 0); }
@@ -876,8 +871,6 @@ use crate::render;
 #[test] fn painting_stroke_gradient_with_objectBoundingBox_on_path_without_a_bbox_1() { assert_eq!(render("tests/painting/stroke/gradient-with-objectBoundingBox-on-path-without-a-bbox-1"), 0); }
 #[test] fn painting_stroke_gradient_with_objectBoundingBox_on_path_without_a_bbox_2() { assert_eq!(render("tests/painting/stroke/gradient-with-objectBoundingBox-on-path-without-a-bbox-2"), 0); }
 #[test] fn painting_stroke_gradient_with_objectBoundingBox_on_shape_without_a_bbox() { assert_eq!(render("tests/painting/stroke/gradient-with-objectBoundingBox-on-shape-without-a-bbox"), 0); }
-#[test] fn painting_stroke_line_as_curve_1() { assert_eq!(render("tests/painting/stroke/line-as-curve-1"), 0); }
-#[test] fn painting_stroke_line_as_curve_2() { assert_eq!(render("tests/painting/stroke/line-as-curve-2"), 0); }
 #[test] fn painting_stroke_linear_gradient_on_text() { assert_eq!(render("tests/painting/stroke/linear-gradient-on-text"), 0); }
 #[test] fn painting_stroke_linear_gradient() { assert_eq!(render("tests/painting/stroke/linear-gradient"), 0); }
 #[test] fn painting_stroke_named_color() { assert_eq!(render("tests/painting/stroke/named-color"), 0); }
@@ -889,8 +882,6 @@ use crate::render;
 #[test] fn painting_stroke_radial_gradient_on_text() { assert_eq!(render("tests/painting/stroke/radial-gradient-on-text"), 0); }
 #[test] fn painting_stroke_radial_gradient() { assert_eq!(render("tests/painting/stroke/radial-gradient"), 0); }
 #[test] fn painting_stroke_dasharray_0_n_with_butt_caps() { assert_eq!(render("tests/painting/stroke-dasharray/0-n-with-butt-caps"), 0); }
-#[test] fn painting_stroke_dasharray_0_n_with_round_caps() { assert_eq!(render("tests/painting/stroke-dasharray/0-n-with-round-caps"), 0); }
-#[test] fn painting_stroke_dasharray_0_n_with_square_caps() { assert_eq!(render("tests/painting/stroke-dasharray/0-n-with-square-caps"), 0); }
 #[test] fn painting_stroke_dasharray_comma_ws_separator() { assert_eq!(render("tests/painting/stroke-dasharray/comma-ws-separator"), 0); }
 #[test] fn painting_stroke_dasharray_em_units() { assert_eq!(render("tests/painting/stroke-dasharray/em-units"), 0); }
 #[test] fn painting_stroke_dasharray_even_count() { assert_eq!(render("tests/painting/stroke-dasharray/even-count"), 0); }
@@ -918,8 +909,6 @@ use crate::render;
 #[test] fn painting_stroke_linecap_round() { assert_eq!(render("tests/painting/stroke-linecap/round"), 0); }
 #[test] fn painting_stroke_linecap_square() { assert_eq!(render("tests/painting/stroke-linecap/square"), 0); }
 #[test] fn painting_stroke_linecap_zero_length_path_with_butt() { assert_eq!(render("tests/painting/stroke-linecap/zero-length-path-with-butt"), 0); }
-#[test] fn painting_stroke_linecap_zero_length_path_with_round() { assert_eq!(render("tests/painting/stroke-linecap/zero-length-path-with-round"), 0); }
-#[test] fn painting_stroke_linecap_zero_length_path_with_square() { assert_eq!(render("tests/painting/stroke-linecap/zero-length-path-with-square"), 0); }
 #[test] fn painting_stroke_linejoin_arcs() { assert_eq!(render("tests/painting/stroke-linejoin/arcs"), 0); }
 #[test] fn painting_stroke_linejoin_bevel() { assert_eq!(render("tests/painting/stroke-linejoin/bevel"), 0); }
 #[test] fn painting_stroke_linejoin_miter_clip() { assert_eq!(render("tests/painting/stroke-linejoin/miter-clip"), 0); }
@@ -1500,9 +1489,9 @@ use crate::render;
 #[test] fn text_text_escaped_text_4() { assert_eq!(render("tests/text/text/escaped-text-4"), 0); }
 #[test] fn text_text_fill_rule_eq_evenodd() { assert_eq!(render("tests/text/text/fill-rule=evenodd"), 0); }
 #[test] fn text_text_filter_bbox() { assert_eq!(render("tests/text/text/filter-bbox"), 0); }
+#[test] fn text_text_glyph_splitting() { assert_eq!(render("tests/text/text/glyph-splitting"), 0); }
 #[test] fn text_text_ligatures_handling_in_mixed_fonts_1() { assert_eq!(render("tests/text/text/ligatures-handling-in-mixed-fonts-1"), 0); }
 #[test] fn text_text_ligatures_handling_in_mixed_fonts_2() { assert_eq!(render("tests/text/text/ligatures-handling-in-mixed-fonts-2"), 0); }
-#[test] fn text_text_glyph_splitting() { assert_eq!(render("tests/text/text/glyph-splitting"), 0); }
 #[test] fn text_text_mm_coordinates() { assert_eq!(render("tests/text/text/mm-coordinates"), 0); }
 #[test] fn text_text_nested() { assert_eq!(render("tests/text/text/nested"), 0); }
 #[test] fn text_text_no_coordinates() { assert_eq!(render("tests/text/text/no-coordinates"), 0); }

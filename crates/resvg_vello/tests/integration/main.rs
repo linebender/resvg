@@ -86,6 +86,10 @@ pub fn render(name: &str) -> usize {
         if diff_pixels > 0 {
             eprintln!("{name}");
             diff_image.save(DIFFS_PATH.clone().join(format!("{}.png", diff_name(name)))).unwrap();
+            
+            if option_env!("REPLACE").is_some() {
+                std::fs::write(&png_path, pix_png).unwrap();
+            }
         }
 
         diff_pixels as usize
