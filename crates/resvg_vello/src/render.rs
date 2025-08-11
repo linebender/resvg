@@ -42,8 +42,7 @@ pub fn render_node(
             );
         }
         usvg::Node::Image(ref image) => {
-            unimplemented!();
-            // crate::image::render(image, transform, pixmap);
+            crate::image::render(image, transform, pixmap);
         }
         usvg::Node::Text(ref text) => {
             render_group(text.flattened(), ctx, transform, pixmap);

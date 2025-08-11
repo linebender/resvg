@@ -15,6 +15,7 @@ gif = { version = "0.13", optional = true }
 image-webp = { version = "0.2.0", optional = true }
 log = "0.4"
 pico-args = { version = "0.5", features = ["eq-separator"] }
+bytemuck = "1.23"
 rgb = "0.8"
 svgtypes = "0.15.3"
 vello_cpu = { path = "../../../vello/sparse_strips/vello_cpu", default-features = false, features = ["png", "std"]}

@@ -1,23 +1,26 @@
 // Copyright 2018 the Resvg Authors
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+use vello_cpu::kurbo::Affine;
+use vello_cpu::RenderContext;
+
 pub fn render(
     image: &usvg::Image,
-    transform: tiny_skia::Transform,
-    pixmap: &mut tiny_skia::PixmapMut,
+    transform: Affine,
+    rctx: &mut RenderContext,
 ) {
     if !image.is_visible() {
         return;
     }
 
-    render_inner(image.kind(), transform, image.rendering_mode(), pixmap);
+    render_inner(image.kind(), transform, image.rendering_mode(), rctx);
 }
 
 pub fn render_inner(
     image_kind: &usvg::ImageKind,
-    transform: tiny_skia::Transform,
+    transform: Affine,
     #[allow(unused_variables)] rendering_mode: usvg::ImageRendering,
-    pixmap: &mut tiny_skia::PixmapMut,
+    pixmap: &mut RenderContext,
 ) {
     match image_kind {
         usvg::ImageKind::SVG(ref tree) => {
@@ -36,29 +39,26 @@ pub fn render_inner(
 
 fn render_vector(
     tree: &usvg::Tree,
-    transform: tiny_skia::Transform,
-    pixmap: &mut tiny_skia::PixmapMut,
+    transform: Affine,
+    rctx: &mut RenderContext,
 ) -> Option<()> {
-    let mut sub_pixmap = tiny_skia::Pixmap::new(pixmap.width(), pixmap.height()).unwrap();
-    crate::render(tree, transform, &mut sub_pixmap.as_mut());
-    pixmap.draw_pixmap(
-        0,
-        0,
-        sub_pixmap.as_ref(),
-        &tiny_skia::PixmapPaint::default(),
-        tiny_skia::Transform::default(),
-        None,
-    );
+    rctx.push_layer(None, None, None, None);
+    crate::render(tree, transform, rctx);
+    rctx.pop_layer();
 
     Some(())
 }
 
 #[cfg(feature = "raster-images")]
 mod raster_images {
+    use std::sync::Arc;
+    use vello_cpu::kurbo::{Affine, Rect};
+    use vello_cpu::{peniko, Image, ImageSource, PaintType, Pixmap, RenderContext};
+    use vello_cpu::peniko::ImageQuality;
     use crate::OptionLog;
-    use usvg::ImageRendering;
+    use usvg::{tiny_skia_path, ImageRendering};
 
-    fn decode_raster(image: &usvg::ImageKind) -> Option<tiny_skia::Pixmap> {
+    fn decode_raster(image: &usvg::ImageKind) -> Option<Pixmap> {
         match image {
             usvg::ImageKind::SVG(_) => None,
             usvg::ImageKind::JPEG(ref data) => {
@@ -76,11 +76,11 @@ mod raster_images {
         }
     }
 
-    fn decode_png(data: &[u8]) -> Option<tiny_skia::Pixmap> {
-        tiny_skia::Pixmap::decode_png(data).ok()
+    fn decode_png(data: &[u8]) -> Option<Pixmap> {
+        Pixmap::from_png(data).ok()
     }
 
-    fn decode_jpeg(data: &[u8]) -> Option<tiny_skia::Pixmap> {
+    fn decode_jpeg(data: &[u8]) -> Option<Pixmap> {
         use zune_jpeg::zune_core::colorspace::ColorSpace;
         use zune_jpeg::zune_core::options::DecoderOptions;
 
@@ -89,7 +89,7 @@ mod raster_images {
         decoder.decode_headers().ok()?;
         let output_cs = decoder.get_output_colorspace()?;
 
-        let img_data = {
+        let mut img_data = {
             let data = decoder.decode().ok()?;
             match output_cs {
                 ColorSpace::RGBA => data,
@@ -106,107 +106,85 @@ mod raster_images {
         };
 
         let info = decoder.info()?;
+        
+        premultiply(&mut img_data);
 
-        let size = tiny_skia::IntSize::from_wh(info.width as u32, info.height as u32)?;
-        tiny_skia::Pixmap::from_vec(img_data, size)
+        let size = tiny_skia_path::IntSize::from_wh(info.width as u32, info.height as u32)?;
+        Some(Pixmap::from_parts(bytemuck::cast_vec(img_data), size.width() as u16, size.height() as u16))
     }
+    
+    // TODO: Don't clone buffer for gif/webp (see resvg impl)
 
-    fn decode_gif(data: &[u8]) -> Option<tiny_skia::Pixmap> {
+    fn decode_gif(data: &[u8]) -> Option<Pixmap> {
         let mut decoder = gif::DecodeOptions::new();
         decoder.set_color_output(gif::ColorOutput::RGBA);
         let mut decoder = decoder.read_info(data).ok()?;
         let first_frame = decoder.read_next_frame().ok()??;
+        
+        let mut data = first_frame.buffer.to_vec();
+        premultiply(&mut data);
 
-        let size = tiny_skia::IntSize::from_wh(
-            u32::from(first_frame.width),
-            u32::from(first_frame.height),
-        )?;
-
-        let (w, h) = size.dimensions();
-        let mut pixmap = tiny_skia::Pixmap::new(w, h)?;
-        rgba_to_pixmap(&first_frame.buffer, &mut pixmap);
-        Some(pixmap)
+        Some(Pixmap::from_parts(bytemuck::cast_vec(data), first_frame.width, first_frame.height))
     }
 
-    fn decode_webp(data: &[u8]) -> Option<tiny_skia::Pixmap> {
+    fn decode_webp(data: &[u8]) -> Option<Pixmap> {
         let mut decoder = image_webp::WebPDecoder::new(std::io::Cursor::new(data)).ok()?;
         let mut first_frame = vec![0; decoder.output_buffer_size()?];
         decoder.read_image(&mut first_frame).ok()?;
 
         let (w, h) = decoder.dimensions();
-        let mut pixmap = tiny_skia::Pixmap::new(w, h)?;
 
-        if decoder.has_alpha() {
-            rgba_to_pixmap(&first_frame, &mut pixmap);
+        let mut data = if decoder.has_alpha() {
+            first_frame
         } else {
-            rgb_to_pixmap(&first_frame, &mut pixmap);
-        }
+            first_frame.chunks_exact(3).flat_map(|p| [p[0], p[1], p[2], 255]).collect()
+        };
 
-        Some(pixmap)
+        premultiply(&mut data);
+
+        Some(Pixmap::from_parts(bytemuck::cast_vec(data), w as u16, h as u16))
     }
-
-    fn rgb_to_pixmap(data: &[u8], pixmap: &mut tiny_skia::Pixmap) {
-        use rgb::FromSlice;
-
-        let mut i = 0;
-        let dst = pixmap.data_mut();
-        for p in data.as_rgb() {
-            dst[i + 0] = p.r;
-            dst[i + 1] = p.g;
-            dst[i + 2] = p.b;
-            dst[i + 3] = 255;
-
-            i += tiny_skia::BYTES_PER_PIXEL;
-        }
-    }
-
-    fn rgba_to_pixmap(data: &[u8], pixmap: &mut tiny_skia::Pixmap) {
-        use rgb::FromSlice;
-
-        let mut i = 0;
-        let dst = pixmap.data_mut();
-        for p in data.as_rgba() {
-            let a = p.a as f64 / 255.0;
-            dst[i + 0] = (p.r as f64 * a + 0.5) as u8;
-            dst[i + 1] = (p.g as f64 * a + 0.5) as u8;
-            dst[i + 2] = (p.b as f64 * a + 0.5) as u8;
-            dst[i + 3] = p.a;
-
-            i += tiny_skia::BYTES_PER_PIXEL;
+    
+    fn premultiply(data: &mut [u8]) {
+        for p in data.chunks_mut(4) {
+            let a = p[3] as u16;
+            
+            p[0] = ((p[0] as u16 * a) / 255) as u8;
+            p[1] = ((p[1] as u16 * a) / 255) as u8;
+            p[2] = ((p[2] as u16 * a) / 255) as u8;
         }
     }
 
     pub(crate) fn render_raster(
         image: &usvg::ImageKind,
-        transform: tiny_skia::Transform,
-        rendering_mode: usvg::ImageRendering,
-        pixmap: &mut tiny_skia::PixmapMut,
+        transform: Affine,
+        rendering_mode: ImageRendering,
+        rctx: &mut RenderContext,
     ) -> Option<()> {
-        let raster = decode_raster(image)?;
+        let pixmap = decode_raster(image)?;
 
-        let rect = tiny_skia::Size::from_wh(raster.width() as f32, raster.height() as f32)?
-            .to_rect(0.0, 0.0)?;
+        let rect = Rect::new(0.0, 0.0, pixmap.width() as f64, pixmap.height() as f64);
 
         let quality = match rendering_mode {
-            ImageRendering::OptimizeQuality => tiny_skia::FilterQuality::Bicubic,
-            ImageRendering::OptimizeSpeed => tiny_skia::FilterQuality::Nearest,
-            ImageRendering::Smooth => tiny_skia::FilterQuality::Bilinear,
-            ImageRendering::HighQuality => tiny_skia::FilterQuality::Bicubic,
-            ImageRendering::CrispEdges => tiny_skia::FilterQuality::Nearest,
-            ImageRendering::Pixelated => tiny_skia::FilterQuality::Nearest,
+            ImageRendering::OptimizeQuality => ImageQuality::High,
+            ImageRendering::OptimizeSpeed => ImageQuality::Low,
+            ImageRendering::Smooth => ImageQuality::Medium,
+            ImageRendering::HighQuality => ImageQuality::High,
+            ImageRendering::CrispEdges => ImageQuality::Low,
+            ImageRendering::Pixelated => ImageQuality::Medium,
         };
 
-        let pattern = tiny_skia::Pattern::new(
-            raster.as_ref(),
-            tiny_skia::SpreadMode::Pad,
+        let image = Image {
+            source: ImageSource::Pixmap(Arc::new(pixmap)),
+            x_extend: peniko::Extend::Pad,
+            y_extend: peniko::Extend::Pad,
             quality,
-            1.0,
-            tiny_skia::Transform::default(),
-        );
-        let mut paint = tiny_skia::Paint::default();
-        paint.shader = pattern;
-
-        pixmap.fill_rect(rect, &paint, transform, None);
+        };
+        
+        rctx.set_paint(image);
+        rctx.set_transform(transform);
+        rctx.set_paint_transform(Affine::IDENTITY);
+        rctx.fill_rect(&rect);
 
         Some(())
     }

@@ -574,6 +574,7 @@ dependencies = [
 name = "resvg_vello"
 version = "0.0.1"
 dependencies = [
+ "bytemuck",
  "gif",
  "image",
  "image-webp",

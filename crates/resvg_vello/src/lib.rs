@@ -23,7 +23,7 @@ use usvg::tiny_skia_path;
 // mod clip;
 // mod filter;
 mod util;
-// mod image;
+mod image;
 // mod mask;
 mod path;
 mod render;
