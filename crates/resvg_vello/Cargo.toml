@@ -17,8 +17,9 @@ log = "0.4"
 pico-args = { version = "0.5", features = ["eq-separator"] }
 rgb = "0.8"
 svgtypes = "0.15.3"
-vello_cpu = { path = "../../../vello/sparse_strips/vello_cpu"}
+vello_cpu = { path = "../../../vello/sparse_strips/vello_cpu", default-features = false, features = ["png", "std"]}
 usvg = { path = "../usvg", version = "0.45.1", default-features = false }
+smallvec = "1.15"
 zune-jpeg = { version = "0.4", optional = true }
 
 [dev-dependencies]

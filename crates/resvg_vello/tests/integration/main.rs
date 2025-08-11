@@ -8,6 +8,8 @@ use rgb::{FromSlice, RGBA8};
 use std::process::Command;
 use std::sync::Arc;
 use image::{Rgba, RgbaImage};
+use vello_cpu::{Pixmap, RenderContext, RenderMode};
+use vello_cpu::kurbo::Affine;
 use usvg::fontdb;
 
 #[rustfmt::skip]
@@ -64,30 +66,26 @@ pub fn render(name: &str) -> usize {
         .to_int_size()
         .scale_to_width(IMAGE_SIZE)
         .unwrap();
-    let mut pixmap = tiny_skia::Pixmap::new(size.width(), size.height()).unwrap();
-    let render_ts = tiny_skia::Transform::from_scale(
-        size.width() as f32 / tree.size().width() as f32,
-        size.height() as f32 / tree.size().height() as f32,
+    let mut ctx = RenderContext::new(size.width() as u16, size.height() as u16);
+    let mut pixmap = Pixmap::new(size.width() as u16, size.height() as u16);
+    
+    let render_ts = Affine::scale_non_uniform(
+        size.width() as f64 / tree.size().width() as f64,
+        size.height() as f64 / tree.size().height() as f64,
     );
-    resvg_vello::render(&tree, render_ts, &mut pixmap.as_mut());
+    resvg_vello::render(&tree, render_ts, &mut ctx);
+    ctx.flush();
+    ctx.render_to_pixmap(&mut pixmap, RenderMode::OptimizeQuality);
+    
+    let pix_png = pixmap.into_png().unwrap();
 
-    // if option_env!("REPLACE").is_some() {
-    //     pixmap.save_png(&png_path).unwrap();
-    //     // Command::new("oxipng")
-    //     //     .args(["-o".to_owned(), "6".to_owned(), "-Z".to_owned(), png_path])
-    //     //     .output()
-    //     //     .unwrap();
-    //     panic!("new reference image created");
-    // }
-
-    let actual_image  = image::load_from_memory(&pixmap.encode_png().unwrap()).unwrap().to_rgba8();
+    let actual_image  = image::load_from_memory(&pix_png).unwrap().to_rgba8();
     let expected_image = image::load_from_memory(&std::fs::read(&png_path).unwrap()).unwrap().to_rgba8();
 
     if let Some((diff_image, diff_pixels)) = get_diff(&expected_image, &actual_image, 0) {
         if diff_pixels > 0 {
+            eprintln!("{name}");
             diff_image.save(DIFFS_PATH.clone().join(format!("{}.png", diff_name(name)))).unwrap();
-            pixmap.save_png(&png_path).unwrap();
-            panic!("new reference image created");
         }
 
         diff_pixels as usize
@@ -121,12 +119,20 @@ pub fn render_extra_with_scale(name: &str, scale: f32) -> usize {
     };
 
     let size = tree.size().to_int_size().scale_by(scale).unwrap();
-    let mut pixmap = tiny_skia::Pixmap::new(size.width(), size.height()).unwrap();
 
-    let render_ts = tiny_skia::Transform::from_scale(scale, scale);
-    resvg_vello::render(&tree, render_ts, &mut pixmap.as_mut());
+    let mut ctx = RenderContext::new(size.width() as u16, size.height() as u16);
+    let mut pixmap = Pixmap::new(size.width() as u16, size.height() as u16);
 
-    let actual_image  = image::load_from_memory(&pixmap.encode_png().unwrap()).unwrap().to_rgba8();
+    let render_ts = Affine::scale(scale as f64);
+    resvg_vello::render(&tree, render_ts, &mut ctx);
+
+    ctx.flush();
+    ctx.render_to_pixmap(&mut pixmap, RenderMode::OptimizeQuality);
+
+    let pix_png = pixmap.into_png().unwrap();
+
+
+    let actual_image  = image::load_from_memory(&pix_png).unwrap().to_rgba8();
     let expected_image = image::load_from_memory(&std::fs::read(&png_path).unwrap()).unwrap().to_rgba8();
 
     if let Some((diff_image, diff_pixels)) = get_diff(&expected_image, &actual_image, 0) {
@@ -158,10 +164,18 @@ pub fn render_node(name: &str, id: &str) -> usize {
 
     let node = tree.node_by_id(id).unwrap();
     let size = node.abs_layer_bounding_box().unwrap().size().to_int_size();
-    let mut pixmap = tiny_skia::Pixmap::new(size.width(), size.height()).unwrap();
-    resvg_vello::render_node(node, tiny_skia::Transform::identity(), &mut pixmap.as_mut());
+    
+    let mut ctx = RenderContext::new(size.width() as u16, size.height() as u16);
+    let mut pixmap = Pixmap::new(size.width() as u16, size.height() as u16);
+    
+    resvg_vello::render_node(node, Affine::IDENTITY, &mut ctx);
 
-    let actual_image  = image::load_from_memory(&pixmap.encode_png().unwrap()).unwrap().to_rgba8();
+    ctx.flush();
+    ctx.render_to_pixmap(&mut pixmap, RenderMode::OptimizeQuality);
+
+    let pix_png = pixmap.into_png().unwrap();
+
+    let actual_image  = image::load_from_memory(&pix_png).unwrap().to_rgba8();
     let expected_image = image::load_from_memory(&std::fs::read(&png_path).unwrap()).unwrap().to_rgba8();
     
     if let Some((diff_image, diff_pixels)) = get_diff(&expected_image, &actual_image, 0) {

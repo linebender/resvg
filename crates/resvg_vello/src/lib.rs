@@ -14,14 +14,17 @@
 #![allow(clippy::upper_case_acronyms)]
 #![allow(clippy::wrong_self_convention)]
 
-pub use tiny_skia;
+pub use vello_cpu;
+use vello_cpu::kurbo::{Affine, Vec2};
+use vello_cpu::RenderContext;
 pub use usvg;
+use usvg::tiny_skia_path;
 
-mod clip;
-mod filter;
-mod geom;
-mod image;
-mod mask;
+// mod clip;
+// mod filter;
+mod util;
+// mod image;
+// mod mask;
 mod path;
 mod render;
 
@@ -33,11 +36,11 @@ mod render;
 /// The produced content is in the sRGB color space.
 pub fn render(
     tree: &usvg::Tree,
-    transform: tiny_skia::Transform,
-    pixmap: &mut tiny_skia::PixmapMut,
+    transform: Affine,
+    rctx: &mut RenderContext,
 ) {
-    let target_size = tiny_skia::IntSize::from_wh(pixmap.width(), pixmap.height()).unwrap();
-    let max_bbox = tiny_skia::IntRect::from_xywh(
+    let target_size = tiny_skia_path::IntSize::from_wh(rctx.width() as u32, rctx.height() as u32).unwrap();
+    let max_bbox = tiny_skia_path::IntRect::from_xywh(
         -(target_size.width() as i32) * 2,
         -(target_size.height() as i32) * 2,
         target_size.width() * 5,
@@ -46,7 +49,9 @@ pub fn render(
     .unwrap();
 
     let ctx = render::Context { max_bbox };
-    render::render_nodes(tree.root(), &ctx, transform, pixmap);
+    render::render_nodes(tree.root(), &ctx, transform, rctx);
+    
+    rctx.flush();
 }
 
 /// Renders a node onto the pixmap.
@@ -61,13 +66,13 @@ pub fn render(
 /// The produced content is in the sRGB color space.
 pub fn render_node(
     node: &usvg::Node,
-    mut transform: tiny_skia::Transform,
-    pixmap: &mut tiny_skia::PixmapMut,
+    mut transform: Affine,
+    rctx: &mut RenderContext,
 ) -> Option<()> {
     let bbox = node.abs_layer_bounding_box()?;
 
-    let target_size = tiny_skia::IntSize::from_wh(pixmap.width(), pixmap.height()).unwrap();
-    let max_bbox = tiny_skia::IntRect::from_xywh(
+    let target_size = tiny_skia_path::IntSize::from_wh(rctx.width() as u32, rctx.height() as u32).unwrap();
+    let max_bbox = tiny_skia_path::IntRect::from_xywh(
         -(target_size.width() as i32) * 2,
         -(target_size.height() as i32) * 2,
         target_size.width() * 5,
@@ -75,10 +80,12 @@ pub fn render_node(
     )
     .unwrap();
 
-    transform = transform.pre_translate(-bbox.x(), -bbox.y());
+    transform = transform.pre_translate(Vec2::new(-bbox.x() as f64, -bbox.y() as f64));
 
     let ctx = render::Context { max_bbox };
-    render::render_node(node, &ctx, transform, pixmap);
+    render::render_node(node, &ctx, transform, rctx);
+
+    rctx.flush();
 
     Some(())
 }

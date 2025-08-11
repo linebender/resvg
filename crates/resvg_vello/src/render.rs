@@ -1,17 +1,21 @@
 // Copyright 2018 the Resvg Authors
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use crate::OptionLog;
+use vello_cpu::kurbo::{Affine, Vec2};
+use vello_cpu::peniko::{BlendMode, Compose, Mix};
+use vello_cpu::RenderContext;
+use usvg::tiny_skia_path;
+use crate::util::{convert_affine, convert_transform};
 
 pub struct Context {
-    pub max_bbox: tiny_skia::IntRect,
+    pub max_bbox: tiny_skia_path::IntRect,
 }
 
 pub fn render_nodes(
     parent: &usvg::Group,
     ctx: &Context,
-    transform: tiny_skia::Transform,
-    pixmap: &mut tiny_skia::PixmapMut,
+    transform: Affine,
+    pixmap: &mut RenderContext,
 ) {
     for node in parent.children() {
         render_node(node, ctx, transform, pixmap);
@@ -21,8 +25,8 @@ pub fn render_nodes(
 pub fn render_node(
     node: &usvg::Node,
     ctx: &Context,
-    transform: tiny_skia::Transform,
-    pixmap: &mut tiny_skia::PixmapMut,
+    transform: Affine,
+    pixmap: &mut RenderContext,
 ) {
     match node {
         usvg::Node::Group(ref group) => {
@@ -31,14 +35,15 @@ pub fn render_node(
         usvg::Node::Path(ref path) => {
             crate::path::render(
                 path,
-                tiny_skia::BlendMode::SourceOver,
+                BlendMode::new(Mix::Normal, Compose::SrcOver),
                 ctx,
                 transform,
                 pixmap,
             );
         }
         usvg::Node::Image(ref image) => {
-            crate::image::render(image, transform, pixmap);
+            unimplemented!();
+            // crate::image::render(image, transform, pixmap);
         }
         usvg::Node::Text(ref text) => {
             render_group(text.flattened(), ctx, transform, pixmap);
@@ -49,111 +54,65 @@ pub fn render_node(
 fn render_group(
     group: &usvg::Group,
     ctx: &Context,
-    transform: tiny_skia::Transform,
-    pixmap: &mut tiny_skia::PixmapMut,
+    transform: Affine,
+    rctx: &mut RenderContext,
 ) -> Option<()> {
-    let transform = transform.pre_concat(group.transform());
+    let transform = transform * convert_transform(group.transform());
 
     if !group.should_isolate() {
-        render_nodes(group, ctx, transform, pixmap);
+        render_nodes(group, ctx, transform, rctx);
         return Some(());
     }
 
-    let bbox = group.layer_bounding_box().transform(transform)?;
+    rctx.push_layer(None, None, Some(group.opacity().get()), None);
 
-    let mut ibbox = if group.filters().is_empty() {
-        // Convert group bbox into an integer one, expanding each side outwards by 2px
-        // to make sure that anti-aliased pixels would not be clipped.
-        tiny_skia::IntRect::from_xywh(
-            bbox.x().floor() as i32 - 2,
-            bbox.y().floor() as i32 - 2,
-            bbox.width().ceil() as u32 + 4,
-            bbox.height().ceil() as u32 + 4,
-        )?
-    } else {
-        // The bounding box for groups with filters is special and should not be expanded by 2px,
-        // because it's already acting as a clipping region.
-        let bbox = bbox.to_int_rect();
-        // Make sure our filter region is not bigger than 4x the canvas size.
-        // This is required mainly to prevent huge filter regions that would tank the performance.
-        // It should not affect the final result in any way.
-        crate::geom::fit_to_rect(bbox, ctx.max_bbox)?
-    };
-
-    // Make sure our layer is not bigger than 4x the canvas size.
-    // This is required to prevent huge layers.
-    if group.filters().is_empty() {
-        ibbox = crate::geom::fit_to_rect(ibbox, ctx.max_bbox)?;
-    }
-
-    let shift_ts = {
-        // Original shift.
-        let mut dx = bbox.x();
-        let mut dy = bbox.y();
-
-        // Account for subpixel positioned layers.
-        dx -= bbox.x() - ibbox.x() as f32;
-        dy -= bbox.y() - ibbox.y() as f32;
-
-        tiny_skia::Transform::from_translate(-dx, -dy)
-    };
-
-    let transform = shift_ts.pre_concat(transform);
-
-    let mut sub_pixmap = tiny_skia::Pixmap::new(ibbox.width(), ibbox.height())
-        .log_none(|| log::warn!("Failed to allocate a group layer for: {:?}.", ibbox))?;
-
-    render_nodes(group, ctx, transform, &mut sub_pixmap.as_mut());
+    render_nodes(group, ctx, transform, rctx);
+    
+    rctx.pop_layer();
 
     if !group.filters().is_empty() {
-        for filter in group.filters() {
-            crate::filter::apply(filter, transform, &mut sub_pixmap);
-        }
+        unimplemented!();
+        // for filter in group.filters() {
+        //     crate::filter::apply(filter, transform, &mut sub_pixmap);
+        // }
     }
 
     if let Some(clip_path) = group.clip_path() {
-        crate::clip::apply(clip_path, transform, &mut sub_pixmap);
+        unimplemented!();
+        // crate::clip::apply(clip_path, transform, &mut sub_pixmap);
     }
 
     if let Some(mask) = group.mask() {
-        crate::mask::apply(mask, ctx, transform, &mut sub_pixmap);
+        unimplemented!();
+        // crate::mask::apply(mask, ctx, transform, &mut sub_pixmap);
     }
-
-    let paint = tiny_skia::PixmapPaint {
-        opacity: group.opacity().get(),
-        blend_mode: convert_blend_mode(group.blend_mode()),
-        quality: tiny_skia::FilterQuality::Nearest,
-    };
-
-    pixmap.draw_pixmap(
-        ibbox.x(),
-        ibbox.y(),
-        sub_pixmap.as_ref(),
-        &paint,
-        tiny_skia::Transform::identity(),
-        None,
-    );
+    
+    if group.blend_mode() != usvg::BlendMode::Normal {
+        unimplemented!();
+    }
 
     Some(())
 }
 
-pub fn convert_blend_mode(mode: usvg::BlendMode) -> tiny_skia::BlendMode {
-    match mode {
-        usvg::BlendMode::Normal => tiny_skia::BlendMode::SourceOver,
-        usvg::BlendMode::Multiply => tiny_skia::BlendMode::Multiply,
-        usvg::BlendMode::Screen => tiny_skia::BlendMode::Screen,
-        usvg::BlendMode::Overlay => tiny_skia::BlendMode::Overlay,
-        usvg::BlendMode::Darken => tiny_skia::BlendMode::Darken,
-        usvg::BlendMode::Lighten => tiny_skia::BlendMode::Lighten,
-        usvg::BlendMode::ColorDodge => tiny_skia::BlendMode::ColorDodge,
-        usvg::BlendMode::ColorBurn => tiny_skia::BlendMode::ColorBurn,
-        usvg::BlendMode::HardLight => tiny_skia::BlendMode::HardLight,
-        usvg::BlendMode::SoftLight => tiny_skia::BlendMode::SoftLight,
-        usvg::BlendMode::Difference => tiny_skia::BlendMode::Difference,
-        usvg::BlendMode::Exclusion => tiny_skia::BlendMode::Exclusion,
-        usvg::BlendMode::Hue => tiny_skia::BlendMode::Hue,
-        usvg::BlendMode::Saturation => tiny_skia::BlendMode::Saturation,
-        usvg::BlendMode::Color => tiny_skia::BlendMode::Color,
-        usvg::BlendMode::Luminosity => tiny_skia::BlendMode::Luminosity,
-    }
+pub fn convert_blend_mode(mode: usvg::BlendMode) -> BlendMode {
+    let mix = match mode {
+        usvg::BlendMode::Normal => Mix::Normal,
+        usvg::BlendMode::Multiply => Mix::Multiply,
+        usvg::BlendMode::Screen => Mix::Screen,
+        usvg::BlendMode::Overlay => Mix::Overlay,
+        usvg::BlendMode::Darken => Mix::Darken,
+        usvg::BlendMode::Lighten => Mix::Lighten,
+        usvg::BlendMode::ColorDodge => Mix::ColorDodge,
+        usvg::BlendMode::ColorBurn => Mix::ColorBurn,
+        usvg::BlendMode::HardLight => Mix::HardLight,
+        usvg::BlendMode::SoftLight => Mix::SoftLight,
+        usvg::BlendMode::Difference => Mix::Difference,
+        usvg::BlendMode::Exclusion => Mix::Exclusion,
+        usvg::BlendMode::Hue => Mix::Hue,
+        usvg::BlendMode::Saturation => Mix::Saturation,
+        usvg::BlendMode::Color => Mix::Color,
+        usvg::BlendMode::Luminosity => Mix::Luminosity,
+    };
+    
+    BlendMode::new(mix, Compose::SrcOver)
 }
