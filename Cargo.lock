@@ -461,6 +461,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "resvg_vello"
+version = "0.0.1"
+dependencies = [
+ "gif",
+ "image-webp",
+ "log",
+ "once_cell",
+ "pico-args",
+ "png",
+ "rgb",
+ "svgtypes",
+ "tiny-skia",
+ "usvg",
+ "zune-jpeg",
+]
+
+[[package]]
 name = "rgb"
 version = "0.8.50"
 source = "registry+https://github.com/rust-lang/crates.io-index"

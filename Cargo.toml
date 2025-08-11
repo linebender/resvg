@@ -2,6 +2,7 @@
 members = [
     "crates/c-api",
     "crates/resvg",
+    "crates/resvg_vello",
     "crates/usvg",
     "crates/usvg/codegen",
     #"tools/explorer-thumbnailer",
