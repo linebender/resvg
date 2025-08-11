@@ -1,10 +1,13 @@
 // Copyright 2020 the Resvg Authors
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+use std::cmp::max;
+use std::path::PathBuf;
 use once_cell::sync::Lazy;
 use rgb::{FromSlice, RGBA8};
 use std::process::Command;
 use std::sync::Arc;
+use image::{Rgba, RgbaImage};
 use usvg::fontdb;
 
 #[rustfmt::skip]
@@ -13,6 +16,13 @@ mod render;
 mod extra;
 
 const IMAGE_SIZE: u32 = 300;
+
+static DIFFS_PATH: std::sync::LazyLock<PathBuf> = std::sync::LazyLock::new(|| {
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/diffs");
+    let _ = std::fs::create_dir_all(&path);
+    
+    path
+});
 
 static GLOBAL_FONTDB: Lazy<Arc<fontdb::Database>> = Lazy::new(|| {
     if let Ok(()) = log::set_logger(&LOGGER) {
@@ -61,39 +71,39 @@ pub fn render(name: &str) -> usize {
     );
     resvg_vello::render(&tree, render_ts, &mut pixmap.as_mut());
 
-    if option_env!("REPLACE").is_some() {
-        pixmap.save_png(&png_path).unwrap();
-        Command::new("oxipng")
-            .args(["-o".to_owned(), "6".to_owned(), "-Z".to_owned(), png_path])
-            .output()
-            .unwrap();
-        panic!("new reference image created");
-    }
-
-    let mut rgba = pixmap.take();
-    demultiply_alpha(rgba.as_mut_slice().as_rgba_mut());
-
-    let expected_data = load_png(&png_path);
-    assert_eq!(expected_data.len(), rgba.len());
-
-    let mut pixels_d = 0;
-    for (a, b) in expected_data
-        .as_slice()
-        .as_rgba()
-        .iter()
-        .zip(rgba.as_rgba())
-    {
-        if is_pix_diff(*a, *b) {
-            pixels_d += 1;
-        }
-    }
-
-    // Save diff if needed.
-    // if pixels_d != 0 {
-    //     gen_diff(&name, &expected_data, rgba.as_slice()).unwrap();
+    // if option_env!("REPLACE").is_some() {
+    //     pixmap.save_png(&png_path).unwrap();
+    //     // Command::new("oxipng")
+    //     //     .args(["-o".to_owned(), "6".to_owned(), "-Z".to_owned(), png_path])
+    //     //     .output()
+    //     //     .unwrap();
+    //     panic!("new reference image created");
     // }
 
-    pixels_d
+    let actual_image  = image::load_from_memory(&pixmap.encode_png().unwrap()).unwrap().to_rgba8();
+    let expected_image = image::load_from_memory(&std::fs::read(&png_path).unwrap()).unwrap().to_rgba8();
+
+    if let Some((diff_image, diff_pixels)) = get_diff(&expected_image, &actual_image, 0) {
+        if diff_pixels > 0 {
+            diff_image.save(DIFFS_PATH.clone().join(format!("{}.png", diff_name(name)))).unwrap();
+            pixmap.save_png(&png_path).unwrap();
+            panic!("new reference image created");
+        }
+
+        diff_pixels as usize
+    }   else {
+        0
+    }
+}
+
+pub fn diff_name(name: &str) -> String {
+    // From the Python script
+    name.replace("tests/", "")
+        .replace('/', "_")
+        .replace('-', "_")
+        .replace('=', "_eq_")
+        .replace('.', "_")
+        .replace('#', "")
 }
 
 pub fn render_extra_with_scale(name: &str, scale: f32) -> usize {
@@ -116,32 +126,16 @@ pub fn render_extra_with_scale(name: &str, scale: f32) -> usize {
     let render_ts = tiny_skia::Transform::from_scale(scale, scale);
     resvg_vello::render(&tree, render_ts, &mut pixmap.as_mut());
 
-    // pixmap.save_png(&format!("tests/{}.png", name)).unwrap();
+    let actual_image  = image::load_from_memory(&pixmap.encode_png().unwrap()).unwrap().to_rgba8();
+    let expected_image = image::load_from_memory(&std::fs::read(&png_path).unwrap()).unwrap().to_rgba8();
 
-    let mut rgba = pixmap.take();
-    demultiply_alpha(rgba.as_mut_slice().as_rgba_mut());
+    if let Some((diff_image, diff_pixels)) = get_diff(&expected_image, &actual_image, 0) {
+        diff_image.save(DIFFS_PATH.clone().join(format!("{}.png", diff_name(name)))).unwrap();
 
-    let expected_data = load_png(&png_path);
-    assert_eq!(expected_data.len(), rgba.len());
-
-    let mut pixels_d = 0;
-    for (a, b) in expected_data
-        .as_slice()
-        .as_rgba()
-        .iter()
-        .zip(rgba.as_rgba())
-    {
-        if is_pix_diff(*a, *b) {
-            pixels_d += 1;
-        }
+        diff_pixels as usize
+    }   else {
+        0
     }
-
-    // Save diff if needed.
-    // if pixels_d != 0 {
-    //     gen_diff(&name, &expected_data, rgba.as_slice()).unwrap();
-    // }
-
-    pixels_d
 }
 
 pub fn render_extra(name: &str) -> usize {
@@ -167,121 +161,85 @@ pub fn render_node(name: &str, id: &str) -> usize {
     let mut pixmap = tiny_skia::Pixmap::new(size.width(), size.height()).unwrap();
     resvg_vello::render_node(node, tiny_skia::Transform::identity(), &mut pixmap.as_mut());
 
-    // pixmap.save_png(&format!("tests/{}.png", name)).unwrap();
-
-    let mut rgba = pixmap.take();
-    demultiply_alpha(rgba.as_mut_slice().as_rgba_mut());
-
-    let expected_data = load_png(&png_path);
-    assert_eq!(expected_data.len(), rgba.len());
-
-    let mut pixels_d = 0;
-    for (a, b) in expected_data
-        .as_slice()
-        .as_rgba()
-        .iter()
-        .zip(rgba.as_rgba())
-    {
-        if is_pix_diff(*a, *b) {
-            pixels_d += 1;
-        }
+    let actual_image  = image::load_from_memory(&pixmap.encode_png().unwrap()).unwrap().to_rgba8();
+    let expected_image = image::load_from_memory(&std::fs::read(&png_path).unwrap()).unwrap().to_rgba8();
+    
+    if let Some((diff_image, diff_pixels)) = get_diff(&expected_image, &actual_image, 0) {
+        diff_image.save(DIFFS_PATH.clone().join(format!("{}.png", diff_name(name)))).unwrap();
+        
+        diff_pixels as usize
+    }   else {
+        0
     }
-
-    // Save diff if needed.
-    // if pixels_d != 0 {
-    //     gen_diff(&name, &expected_data, rgba.as_slice()).unwrap();
-    // }
-
-    pixels_d
 }
 
-fn load_png(path: &str) -> Vec<u8> {
-    let data = std::fs::read(path).unwrap();
-    let mut decoder = png::Decoder::new(data.as_slice());
-    decoder.set_transformations(png::Transformations::normalize_to_color8());
-    let mut reader = decoder.read_info().unwrap();
-    let mut img_data = vec![0; reader.output_buffer_size()];
-    let info = reader.next_frame(&mut img_data).unwrap();
+fn get_diff(
+    expected_image: &RgbaImage,
+    actual_image: &RgbaImage,
+    diff_pixels: u32,
+) -> Option<(RgbaImage, u32)> {
+    let width = max(expected_image.width(), actual_image.width());
+    let height = max(expected_image.height(), actual_image.height());
 
-    match info.color_type {
-        png::ColorType::Rgb => {
-            panic!("RGB PNG is not supported.");
-        }
-        png::ColorType::Rgba => img_data,
-        png::ColorType::Grayscale => {
-            let mut rgba_data = Vec::with_capacity(img_data.len() * 4);
-            for gray in img_data {
-                rgba_data.push(gray);
-                rgba_data.push(gray);
-                rgba_data.push(gray);
-                rgba_data.push(255);
+    let mut diff_image = RgbaImage::new(width * 3, height);
+
+    let mut pixel_diff = 0;
+
+    for x in 0..width {
+        for y in 0..height {
+            let actual_pixel = actual_image.get_pixel_checked(x, y);
+            let expected_pixel = expected_image.get_pixel_checked(x, y);
+
+            match (actual_pixel, expected_pixel) {
+                (Some(actual), Some(expected)) => {
+                    diff_image.put_pixel(x, y, *expected);
+                    diff_image.put_pixel(x + 2 * width, y, *actual);
+                    if is_pix_diff(expected, actual, 0) {
+                        pixel_diff += 1;
+                        diff_image.put_pixel(x + width, y, Rgba([255, 0, 0, 255]));
+                    } else {
+                        diff_image.put_pixel(x + width, y, Rgba([0, 0, 0, 255]));
+                    }
+                }
+                (Some(actual), None) => {
+                    pixel_diff += 1;
+                    diff_image.put_pixel(x + 2 * width, y, *actual);
+                    diff_image.put_pixel(x + width, y, Rgba([255, 0, 0, 255]));
+                }
+                (None, Some(expected)) => {
+                    pixel_diff += 1;
+                    diff_image.put_pixel(x, y, *expected);
+                    diff_image.put_pixel(x + width, y, Rgba([255, 0, 0, 255]));
+                }
+                _ => {
+                    pixel_diff += 1;
+                    diff_image.put_pixel(x, y, Rgba([255, 0, 0, 255]));
+                    diff_image.put_pixel(x + width, y, Rgba([255, 0, 0, 255]));
+                }
             }
-
-            rgba_data
-        }
-        png::ColorType::GrayscaleAlpha => {
-            let mut rgba_data = Vec::with_capacity(img_data.len() * 2);
-            for slice in img_data.chunks(2) {
-                let gray = slice[0];
-                let alpha = slice[1];
-                rgba_data.push(gray);
-                rgba_data.push(gray);
-                rgba_data.push(gray);
-                rgba_data.push(alpha);
-            }
-
-            rgba_data
-        }
-        png::ColorType::Indexed => {
-            panic!("Indexed PNG is not supported.");
-        }
-    }
-}
-
-// TODO: remove
-fn is_pix_diff(c1: rgb::RGBA8, c2: rgb::RGBA8) -> bool {
-    (c1.r as i32 - c2.r as i32).abs() > 1
-        || (c1.g as i32 - c2.g as i32).abs() > 1
-        || (c1.b as i32 - c2.b as i32).abs() > 1
-        || (c1.a as i32 - c2.a as i32).abs() > 1
-}
-
-#[allow(dead_code)]
-fn gen_diff(name: &str, img1: &[u8], img2: &[u8]) -> Result<(), png::EncodingError> {
-    assert_eq!(img1.len(), img2.len());
-
-    let mut img3 = Vec::with_capacity((img1.len() as f32 * 0.75).round() as usize);
-    for (a, b) in img1.as_rgba().iter().zip(img2.as_rgba()) {
-        if is_pix_diff(*a, *b) {
-            img3.push(255);
-            img3.push(0);
-            img3.push(0);
-        } else {
-            img3.push(255);
-            img3.push(255);
-            img3.push(255);
         }
     }
 
-    let path = std::path::PathBuf::from(format!("../resvg/tests/{}-diff.png", name));
-    let file = std::fs::File::create(path)?;
-    let ref mut w = std::io::BufWriter::new(file);
-
-    let mut encoder = png::Encoder::new(w, IMAGE_SIZE, IMAGE_SIZE);
-    encoder.set_color(png::ColorType::Rgb);
-    encoder.set_depth(png::BitDepth::Eight);
-    let mut writer = encoder.write_header()?;
-    writer.write_image_data(&img3)
+    if pixel_diff > diff_pixels {
+        Some((diff_image, pixel_diff))
+    } else {
+        None
+    }
 }
 
-/// Demultiplies provided pixels alpha.
-fn demultiply_alpha(data: &mut [RGBA8]) {
-    for p in data {
-        let a = p.a as f64 / 255.0;
-        p.b = (p.b as f64 / a + 0.5) as u8;
-        p.g = (p.g as f64 / a + 0.5) as u8;
-        p.r = (p.r as f64 / a + 0.5) as u8;
+fn is_pix_diff(pixel1: &Rgba<u8>, pixel2: &Rgba<u8>, threshold: u8) -> bool {
+    if pixel1.0[3] == 0 && pixel2.0[3] == 0 {
+        return false;
     }
+
+    let mut different = false;
+
+    for i in 0..3 {
+        let difference = pixel1.0[i].abs_diff(pixel2.0[i]);
+        different |= difference > threshold;
+    }
+
+    different
 }
 
 /// A simple stderr logger.
