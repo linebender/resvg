@@ -1,14 +1,15 @@
 // Copyright 2019 the Resvg Authors
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+use std::sync::Arc;
 use smallvec::smallvec;
 use vello_cpu::kurbo::{Affine, Cap, Dashes, Join, Point, Stroke};
 use vello_cpu::peniko::{BlendMode, ColorStop, ColorStops, Fill, Gradient, GradientKind};
-use vello_cpu::{peniko, PaintType, RenderContext};
+use vello_cpu::{peniko, Image, ImageSource, PaintType, Pixmap, RenderContext, RenderMode, RenderSettings};
 use vello_cpu::color::{ColorSpaceTag, DynamicColor};
 use usvg::{LineCap, LineJoin};
 use crate::render::Context;
-use crate::util::{convert_color, convert_path, convert_transform, default_blend_mode};
+use crate::util::{convert_color, convert_path, convert_transform, default_blend_mode, get_scale, settings};
 
 pub fn render(
     path: &usvg::Path,
@@ -38,7 +39,7 @@ pub fn fill_path(
     path: &usvg::Path,
     override_paint: Option<(PaintType, Affine)>,
     _: BlendMode,
-    _: &Context,
+    ctx: &Context,
     transform: Affine,
     rctx: &mut RenderContext,
 ) -> Option<()> {
@@ -55,7 +56,7 @@ pub fn fill_path(
     };
 
     let (paint, paint_transform) = override_paint
-        .unwrap_or(convert_paint(fill.paint(), fill.opacity())?);
+        .unwrap_or(convert_paint(fill.paint(), ctx, transform, *rctx.render_settings(), fill.opacity())?);
     
     rctx.set_paint(paint);
     rctx.set_anti_aliasing(path.rendering_mode().use_shape_antialiasing());
@@ -70,12 +71,12 @@ pub fn fill_path(
 fn stroke_path(
     path: &usvg::Path,
     _: BlendMode,
-    _: &Context,
+    ctx: &Context,
     transform: Affine,
     rctx: &mut RenderContext,
 ) -> Option<()> {
     let stroke = path.stroke()?;
-    let (paint, paint_transform) = convert_paint(stroke.paint(), stroke.opacity())?;
+    let (paint, paint_transform) = convert_paint(stroke.paint(), ctx, transform, *rctx.render_settings(), stroke.opacity())?;
 
     rctx.set_paint(paint);
     rctx.set_anti_aliasing(path.rendering_mode().use_shape_antialiasing());
@@ -117,7 +118,7 @@ fn convert_cap(cap: LineCap) -> Cap {
     }
 }
 
-fn convert_paint(paint: &usvg::Paint, opacity: usvg::Opacity) -> Option<(PaintType, Affine)> {
+fn convert_paint(paint: &usvg::Paint, ctx: &Context, transform: Affine, render_settings: RenderSettings, opacity: usvg::Opacity) -> Option<(PaintType, Affine)> {
     let paint = match paint {
         usvg::Paint::Color(c) => {
             (PaintType::Solid(convert_color(*c, opacity.to_u8())), Affine::IDENTITY)
@@ -129,7 +130,13 @@ fn convert_paint(paint: &usvg::Paint, opacity: usvg::Opacity) -> Option<(PaintTy
             (PaintType::Gradient(convert_radial_gradient(rg, opacity)?), convert_transform(rg.transform()))
         }
         usvg::Paint::Pattern(ref pattern) => {
-            unimplemented!()
+            let (pix, transform) = render_pattern_pixmap(pattern, ctx, transform, opacity.get(), &settings(&render_settings))?;
+            (PaintType::Image(Image {
+                source: ImageSource::Pixmap(Arc::new(pix)),
+                x_extend: peniko::Extend::Repeat,
+                y_extend: peniko::Extend::Repeat,
+                quality: peniko::ImageQuality::High,
+            }), transform)
         }
     };
     
@@ -199,30 +206,47 @@ fn convert_base_gradient(
     Some(gradient)
 }
 
-// fn render_pattern_pixmap(
-//     pattern: &usvg::Pattern,
-//     ctx: &Context,
-//     transform: tiny_skia::Transform,
-// ) -> Option<(tiny_skia::Pixmap, tiny_skia::Transform)> {
-//     let (sx, sy) = {
-//         let ts2 = transform.pre_concat(pattern.transform());
-//         ts2.get_scale()
-//     };
-// 
-//     let rect = pattern.rect();
-//     let img_size = tiny_skia::IntSize::from_wh(
-//         (rect.width() * sx).round() as u32,
-//         (rect.height() * sy).round() as u32,
-//     )?;
-//     let mut pixmap = tiny_skia::Pixmap::new(img_size.width(), img_size.height())?;
-// 
-//     let transform = tiny_skia::Transform::from_scale(sx, sy);
-//     crate::render::render_nodes(pattern.root(), ctx, transform, &mut pixmap.as_mut());
-// 
-//     let mut ts = tiny_skia::Transform::default();
-//     ts = ts.pre_concat(pattern.transform());
-//     ts = ts.pre_translate(rect.x(), rect.y());
-//     ts = ts.pre_scale(1.0 / sx, 1.0 / sy);
-// 
-//     Some((pixmap, ts))
-// }
+fn render_pattern_pixmap(
+    pattern: &usvg::Pattern,
+    ctx: &Context,
+    transform: Affine,
+    opacity: f32,
+    render_settings: &RenderSettings
+) -> Option<(Pixmap, Affine)> {
+    let (sx, sy) = {
+        let ts2 = transform * convert_transform(pattern.transform());
+        get_scale(ts2)
+    };
+
+    let rect = pattern.rect();
+    let width = (rect.width() as f64 * sx).round() as u16;
+    let height = (rect.height() as f64 * sy).round() as u16;
+
+    let mut rctx = RenderContext::new_with(width, height, settings(&render_settings));
+    let mut pixmap = Pixmap::new(width, height);
+
+    let transform = Affine::scale_non_uniform(sx, sy);
+    
+    if opacity != 1.0 {
+        rctx.push_layer(
+            None, None, Some(opacity), None
+        );
+    }
+    
+    crate::render::render_nodes(pattern.root(), ctx, transform, &mut rctx);
+    
+    if opacity != 1.0 {
+        rctx.pop_layer();
+    }
+    
+    rctx.flush();
+    // TODO: Make render mode configurable
+    rctx.render_to_pixmap(&mut pixmap, RenderMode::OptimizeQuality);
+
+    let mut ts = Affine::IDENTITY;
+    ts = ts * convert_transform(pattern.transform());
+    ts = ts * Affine::translate((rect.x() as f64, rect.y() as f64));
+    ts = ts * Affine::scale_non_uniform(1.0 / sx, 1.0 / sy);
+
+    Some((pixmap, ts))
+}

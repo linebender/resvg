@@ -6,7 +6,7 @@ use vello_cpu::{Mask, PaintType, Pixmap, RenderContext, RenderMode, RenderSettin
 use vello_cpu::color::palette::css::BLACK;
 use usvg::tiny_skia_path;
 use crate::render::Context;
-use crate::util::{convert_transform, default_blend_mode};
+use crate::util::{convert_transform, default_blend_mode, settings};
 
 pub fn clip_mask(
     clip: &usvg::ClipPath,
@@ -15,7 +15,7 @@ pub fn clip_mask(
     height: u16,
     render_settings: &RenderSettings
 ) -> Mask {
-    let mut clip_ctx = RenderContext::new_with(width, height, &settings(render_settings)); 
+    let mut clip_ctx = RenderContext::new_with(width, height, settings(render_settings)); 
     let mut clip_pixmap = Pixmap::new(width, height);
 
     let mask = clip.clip_path().map(|clip| clip_mask(clip, transform, width, height, render_settings));
@@ -98,11 +98,4 @@ fn clip_group(
     rctx.pop_layer();
 
     Some(())
-}
-
-fn settings(settings: &RenderSettings) -> RenderSettings {
-    RenderSettings {
-        num_threads: 0,
-        ..*settings
-    }
 }

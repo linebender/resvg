@@ -4,6 +4,7 @@
 use vello_cpu::color::{AlphaColor, Srgb};
 use vello_cpu::kurbo::{Affine, BezPath};
 use vello_cpu::peniko::{BlendMode, Compose, Mix};
+use vello_cpu::RenderSettings;
 use usvg::{tiny_skia_path, Color};
 use usvg::tiny_skia_path::PathSegment;
 
@@ -84,4 +85,19 @@ pub(crate) fn convert_color(color: Color, opacity: u8) -> AlphaColor<Srgb> {
 
 pub(crate) fn default_blend_mode() -> BlendMode {
     BlendMode::new(Mix::Normal, Compose::SrcOver)
+}
+
+pub(crate) fn get_scale(affine: Affine) -> (f64, f64) {
+    let c = affine.as_coeffs();
+    let x_scale = (c[0] * c[0] + c[2] * c[2]).sqrt();
+    let y_scale = (c[1] * c[1] + c[3] * c[3]).sqrt();
+
+    (x_scale, y_scale)
+}
+
+pub(crate) fn settings(settings: &RenderSettings) -> RenderSettings {
+    RenderSettings {
+        num_threads: 0,
+        ..*settings
+    }
 }
