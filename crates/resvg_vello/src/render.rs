@@ -66,7 +66,7 @@ fn render_group(
     
     let mask = group.clip_path().map(|clip| clip_mask(clip, transform, rctx.width(), rctx.height(), &rctx.render_settings()));
 
-    rctx.push_layer(None, None, Some(group.opacity().get()), mask);
+    rctx.push_layer(None, Some(convert_blend_mode(group.blend_mode())), Some(group.opacity().get()), mask);
 
     render_nodes(group, ctx, transform, rctx);
     
@@ -82,10 +82,6 @@ fn render_group(
     if let Some(mask) = group.mask() {
         unimplemented!();
         // crate::mask::apply(mask, ctx, transform, &mut sub_pixmap);
-    }
-    
-    if group.blend_mode() != usvg::BlendMode::Normal {
-        unimplemented!();
     }
 
     Some(())
