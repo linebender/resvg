@@ -84,7 +84,6 @@ pub fn render(name: &str) -> usize {
 
     if let Some((diff_image, diff_pixels)) = get_diff(&expected_image, &actual_image, 0) {
         if diff_pixels > 0 {
-            eprintln!("{name}");
             diff_image.save(DIFFS_PATH.clone().join(format!("{}.png", diff_name(name)))).unwrap();
             
             if option_env!("REPLACE").is_some() {
@@ -140,7 +139,13 @@ pub fn render_extra_with_scale(name: &str, scale: f32) -> usize {
     let expected_image = image::load_from_memory(&std::fs::read(&png_path).unwrap()).unwrap().to_rgba8();
 
     if let Some((diff_image, diff_pixels)) = get_diff(&expected_image, &actual_image, 0) {
-        diff_image.save(DIFFS_PATH.clone().join(format!("{}.png", diff_name(name)))).unwrap();
+        if diff_pixels > 0 {
+            diff_image.save(DIFFS_PATH.clone().join(format!("{}.png", diff_name(name)))).unwrap();
+
+            if option_env!("REPLACE").is_some() {
+                std::fs::write(&png_path, pix_png).unwrap();
+            }
+        }
 
         diff_pixels as usize
     }   else {
