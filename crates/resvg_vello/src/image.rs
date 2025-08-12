@@ -53,7 +53,7 @@ fn render_vector(
 mod raster_images {
     use std::sync::Arc;
     use vello_cpu::kurbo::{Affine, Rect};
-    use vello_cpu::{peniko, Image, ImageSource, PaintType, Pixmap, RenderContext};
+    use vello_cpu::{peniko, Image, ImageSource, Pixmap, RenderContext};
     use vello_cpu::peniko::ImageQuality;
     use crate::OptionLog;
     use usvg::{tiny_skia_path, ImageRendering};

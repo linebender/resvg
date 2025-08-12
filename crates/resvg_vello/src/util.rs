@@ -4,7 +4,7 @@
 use vello_cpu::color::{AlphaColor, Srgb};
 use vello_cpu::kurbo::{Affine, BezPath};
 use vello_cpu::peniko::{BlendMode, Compose, Mix};
-use usvg::{tiny_skia_path, Color, Path};
+use usvg::{tiny_skia_path, Color};
 use usvg::tiny_skia_path::PathSegment;
 
 /// Fits the current rect into the specified bounds.

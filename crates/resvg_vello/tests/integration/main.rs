@@ -4,8 +4,6 @@
 use std::cmp::max;
 use std::path::PathBuf;
 use once_cell::sync::Lazy;
-use rgb::{FromSlice, RGBA8};
-use std::process::Command;
 use std::sync::Arc;
 use image::{Rgba, RgbaImage};
 use vello_cpu::{Pixmap, RenderContext, RenderMode};

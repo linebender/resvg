@@ -5,7 +5,6 @@ use vello_cpu::kurbo::Affine;
 use vello_cpu::{Mask, PaintType, Pixmap, RenderContext, RenderMode, RenderSettings};
 use vello_cpu::color::palette::css::BLACK;
 use usvg::tiny_skia_path;
-use crate::path::render;
 use crate::render::Context;
 use crate::util::{convert_transform, default_blend_mode};
 

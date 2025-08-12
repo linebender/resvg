@@ -1,12 +1,12 @@
 // Copyright 2018 the Resvg Authors
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use vello_cpu::kurbo::{Affine, Vec2};
+use vello_cpu::kurbo::Affine;
 use vello_cpu::peniko::{BlendMode, Compose, Mix};
 use vello_cpu::RenderContext;
 use usvg::tiny_skia_path;
 use crate::clip::clip_mask;
-use crate::util::{convert_affine, convert_transform, default_blend_mode};
+use crate::util::{convert_transform, default_blend_mode};
 
 pub struct Context {
     pub max_bbox: tiny_skia_path::IntRect,

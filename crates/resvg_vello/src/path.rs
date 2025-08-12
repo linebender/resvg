@@ -3,7 +3,7 @@
 
 use smallvec::smallvec;
 use vello_cpu::kurbo::{Affine, Cap, Dashes, Join, Point, Stroke};
-use vello_cpu::peniko::{BlendMode, ColorStop, ColorStops, Compose, Fill, Gradient, GradientKind, Mix};
+use vello_cpu::peniko::{BlendMode, ColorStop, ColorStops, Fill, Gradient, GradientKind};
 use vello_cpu::{peniko, PaintType, RenderContext};
 use vello_cpu::color::{ColorSpaceTag, DynamicColor};
 use usvg::{LineCap, LineJoin};
