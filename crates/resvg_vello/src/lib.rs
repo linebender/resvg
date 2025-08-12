@@ -24,7 +24,7 @@ mod clip;
 // mod filter;
 mod util;
 mod image;
-// mod mask;
+mod mask;
 mod path;
 mod render;
 

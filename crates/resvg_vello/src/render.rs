@@ -6,6 +6,7 @@ use vello_cpu::peniko::{BlendMode, Compose, Mix};
 use vello_cpu::RenderContext;
 use usvg::tiny_skia_path;
 use crate::clip::clip_mask;
+use crate::mask::get_mask;
 use crate::util::{convert_transform, default_blend_mode};
 
 pub struct Context {
@@ -64,12 +65,20 @@ fn render_group(
         return Some(());
     }
     
-    let mask = group.clip_path().map(|clip| clip_mask(clip, transform, rctx.width(), rctx.height(), &rctx.render_settings()));
-
-    rctx.push_layer(None, Some(convert_blend_mode(group.blend_mode())), Some(group.opacity().get()), mask);
-
-    render_nodes(group, ctx, transform, rctx);
+    if group.clip_path().is_some() && group.mask().is_some() {
+        unimplemented!();
+    }
     
+    let mask = if let Some(clip_path) = group.clip_path() {
+        Some(clip_mask(clip_path, transform, rctx.width(), rctx.height(), &rctx.render_settings()))
+    }   else if let Some(mask) = group.mask() {
+        Some(get_mask(mask, ctx, transform, rctx.width(), rctx.height(), &rctx.render_settings()))
+    }   else {
+        None
+    };
+    
+    rctx.push_layer(None, Some(convert_blend_mode(group.blend_mode())), Some(group.opacity().get()), mask);
+    render_nodes(group, ctx, transform, rctx);
     rctx.pop_layer();
 
     if !group.filters().is_empty() {
@@ -77,11 +86,6 @@ fn render_group(
         // for filter in group.filters() {
         //     crate::filter::apply(filter, transform, &mut sub_pixmap);
         // }
-    }
-
-    if let Some(mask) = group.mask() {
-        unimplemented!();
-        // crate::mask::apply(mask, ctx, transform, &mut sub_pixmap);
     }
 
     Some(())

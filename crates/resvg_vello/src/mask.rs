@@ -1,46 +1,37 @@
 // Copyright 2019 the Resvg Authors
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+use vello_cpu::kurbo::{Affine, Rect, Shape};
+use vello_cpu::{Mask, Pixmap, RenderContext, RenderMode, RenderSettings};
 use crate::render::Context;
 
-pub fn apply(
+pub fn get_mask(
     mask: &usvg::Mask,
     ctx: &Context,
-    transform: tiny_skia::Transform,
-    pixmap: &mut tiny_skia::Pixmap,
-) {
-    if mask.root().children().is_empty() {
-        pixmap.fill(tiny_skia::Color::TRANSPARENT);
-        return;
-    }
-
-    let mut mask_pixmap = tiny_skia::Pixmap::new(pixmap.width(), pixmap.height()).unwrap();
-
-    {
-        // TODO: only when needed
-        // Mask has to be clipped by mask.region
-        let mut alpha_mask = tiny_skia::Mask::new(pixmap.width(), pixmap.height()).unwrap();
-        alpha_mask.fill_path(
-            &tiny_skia::PathBuilder::from_rect(mask.rect().to_rect()),
-            tiny_skia::FillRule::Winding,
-            true,
-            transform,
-        );
-
-        crate::render::render_nodes(mask.root(), ctx, transform, &mut mask_pixmap.as_mut());
-
-        mask_pixmap.apply_mask(&alpha_mask);
-    }
-
-    if let Some(mask) = mask.mask() {
-        self::apply(mask, ctx, transform, pixmap);
-    }
-
-    let mask_type = match mask.kind() {
-        usvg::MaskType::Luminance => tiny_skia::MaskType::Luminance,
-        usvg::MaskType::Alpha => tiny_skia::MaskType::Alpha,
+    transform: Affine,
+    width: u16,
+    height: u16,
+    render_settings: &RenderSettings
+) -> Mask {
+    let mut mask_ctx = RenderContext::new_with(width, height, *render_settings);
+    let mut mask_pix = Pixmap::new(width, height);
+    
+    let clip_path = {
+        let r = mask.rect();
+        transform * Rect::new(r.left() as f64, r.top() as f64,  r.right() as f64, r.bottom() as f64).to_path(0.1)
     };
-
-    let mask = tiny_skia::Mask::from_pixmap(mask_pixmap.as_ref(), mask_type);
-    pixmap.apply_mask(&mask);
+    
+    let inner_mask = mask.mask().map(|inner_mask| get_mask(inner_mask, ctx, transform, width, height, render_settings));
+    
+    mask_ctx.push_layer(Some(&clip_path), None, None, inner_mask);
+    crate::render::render_nodes(mask.root(), ctx, transform, &mut mask_ctx);
+    mask_ctx.pop_layer();
+    
+    mask_ctx.flush();
+    mask_ctx.render_to_pixmap(&mut mask_pix, RenderMode::OptimizeQuality);
+    
+    match mask.kind() {
+        usvg::MaskType::Luminance => Mask::new_luminance(&mask_pix),
+        usvg::MaskType::Alpha => Mask::new_alpha(&mask_pix),
+    }
 }
