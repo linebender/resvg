@@ -8,7 +8,7 @@ use vello_cpu::{peniko, PaintType, RenderContext};
 use vello_cpu::color::{ColorSpaceTag, DynamicColor};
 use usvg::{LineCap, LineJoin};
 use crate::render::Context;
-use crate::util::{convert_color, convert_path, convert_transform};
+use crate::util::{convert_color, convert_path, convert_transform, default_blend_mode};
 
 pub fn render(
     path: &usvg::Path,
@@ -17,7 +17,7 @@ pub fn render(
     transform: Affine,
     rctx: &mut RenderContext,
 ) {
-    if blend_mode != BlendMode::new(Mix::Normal, Compose::SrcOver) {
+    if blend_mode != default_blend_mode() {
         unimplemented!();
     }
     
@@ -26,16 +26,17 @@ pub fn render(
     }
 
     if path.paint_order() == usvg::PaintOrder::FillAndStroke {
-        fill_path(path, blend_mode, ctx, transform, rctx);
+        fill_path(path, None, blend_mode, ctx, transform, rctx);
         stroke_path(path, blend_mode, ctx, transform, rctx);
     } else {
         stroke_path(path, blend_mode, ctx, transform, rctx);
-        fill_path(path, blend_mode, ctx, transform, rctx);
+        fill_path(path, None, blend_mode, ctx, transform, rctx);
     }
 }
 
 pub fn fill_path(
     path: &usvg::Path,
+    override_paint: Option<(PaintType, Affine)>,
     _: BlendMode,
     _: &Context,
     transform: Affine,
@@ -53,7 +54,8 @@ pub fn fill_path(
         usvg::FillRule::EvenOdd => Fill::EvenOdd,
     };
 
-    let (paint, paint_transform) = convert_paint(fill.paint(), fill.opacity())?;
+    let (paint, paint_transform) = override_paint
+        .unwrap_or(convert_paint(fill.paint(), fill.opacity())?);
     
     rctx.set_paint(paint);
     rctx.set_anti_aliasing(path.rendering_mode().use_shape_antialiasing());

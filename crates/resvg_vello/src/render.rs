@@ -5,7 +5,8 @@ use vello_cpu::kurbo::{Affine, Vec2};
 use vello_cpu::peniko::{BlendMode, Compose, Mix};
 use vello_cpu::RenderContext;
 use usvg::tiny_skia_path;
-use crate::util::{convert_affine, convert_transform};
+use crate::clip::clip_mask;
+use crate::util::{convert_affine, convert_transform, default_blend_mode};
 
 pub struct Context {
     pub max_bbox: tiny_skia_path::IntRect,
@@ -35,7 +36,7 @@ pub fn render_node(
         usvg::Node::Path(ref path) => {
             crate::path::render(
                 path,
-                BlendMode::new(Mix::Normal, Compose::SrcOver),
+                default_blend_mode(),
                 ctx,
                 transform,
                 pixmap,
@@ -62,8 +63,10 @@ fn render_group(
         render_nodes(group, ctx, transform, rctx);
         return Some(());
     }
+    
+    let mask = group.clip_path().map(|clip| clip_mask(clip, transform, rctx.width(), rctx.height(), &rctx.render_settings()));
 
-    rctx.push_layer(None, None, Some(group.opacity().get()), None);
+    rctx.push_layer(None, None, Some(group.opacity().get()), mask);
 
     render_nodes(group, ctx, transform, rctx);
     
@@ -74,11 +77,6 @@ fn render_group(
         // for filter in group.filters() {
         //     crate::filter::apply(filter, transform, &mut sub_pixmap);
         // }
-    }
-
-    if let Some(clip_path) = group.clip_path() {
-        unimplemented!();
-        // crate::clip::apply(clip_path, transform, &mut sub_pixmap);
     }
 
     if let Some(mask) = group.mask() {

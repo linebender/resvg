@@ -3,6 +3,7 @@
 
 use vello_cpu::color::{AlphaColor, Srgb};
 use vello_cpu::kurbo::{Affine, BezPath};
+use vello_cpu::peniko::{BlendMode, Compose, Mix};
 use usvg::{tiny_skia_path, Color, Path};
 use usvg::tiny_skia_path::PathSegment;
 
@@ -79,4 +80,8 @@ pub fn convert_affine(affine: Affine) -> usvg::Transform {
 
 pub(crate) fn convert_color(color: Color, opacity: u8) -> AlphaColor<Srgb> {
     AlphaColor::from_rgba8(color.red, color.green, color.blue, opacity)
+}
+
+pub(crate) fn default_blend_mode() -> BlendMode {
+    BlendMode::new(Mix::Normal, Compose::SrcOver)
 }

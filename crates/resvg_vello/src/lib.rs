@@ -20,7 +20,7 @@ use vello_cpu::RenderContext;
 pub use usvg;
 use usvg::tiny_skia_path;
 
-// mod clip;
+mod clip;
 // mod filter;
 mod util;
 mod image;
