@@ -393,8 +393,10 @@ fn convert_font(node: SvgNode, state: &converter::State) -> Font {
     let stretch = conv_font_stretch(node);
     let weight = resolve_font_weight(node);
 
-    let font_families = if let Some(n) = node.ancestors().find(|n| n.has_attribute(AId::FontFamily))
-    {
+    // Check the current node first, then fall back to ancestors
+    let font_families = if node.has_attribute(AId::FontFamily) {
+        node.attribute(AId::FontFamily).unwrap_or("")
+    } else if let Some(n) = node.ancestors().find(|n| n.has_attribute(AId::FontFamily)) {
         n.attribute(AId::FontFamily).unwrap_or("")
     } else {
         ""
