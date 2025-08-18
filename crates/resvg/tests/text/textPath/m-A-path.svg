@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="200">
+    <text font-size="20" fill="blue">
+        <textPath path="M50,100 A150,50 0 1,1 350,100" startOffset="0">Text directly using the path attribute</textPath>
+    </text>
+
+    <path id="curve" d="M50,150 A150,50 0 1,1 350,150" fill="none" stroke="black" stroke-width="1"/>
+    <text font-size="20" fill="red">
+        <textPath xlink:href="#curve" startOffset="0">Text using the xlink:href attribute (reference)</textPath>
+    </text>
+</svg>
