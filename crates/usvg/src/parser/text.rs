@@ -357,6 +357,23 @@ fn collect_text_chunks_impl(
 }
 
 fn resolve_text_flow(node: SvgNode, state: &converter::State) -> Option<TextFlow> {
+    // First try the path attribute (SVG 2.0 feature)
+    if let Some(path_data) = node.attribute::<&str>(AId::Path) {
+        // Parse the path data into segments
+        let mut path_segments = Vec::new();
+        for segment in svgtypes::SimplifyingPathParser::from(path_data) {
+            let segment = match segment {
+                Ok(v) => v,
+                Err(_) => return None, // Invalid path data
+            };
+            path_segments.push(segment);
+        }
+
+        // Use the helper function to create a TextFlow from the path data
+        return create_text_path_from_data(node, path_segments, state);
+    }
+
+    // Fallback to xlink:href attribute (SVG 1.1 feature)
     let linked_node = node.attribute::<SvgNode>(AId::Href)?;
     let path = super::shapes::convert(linked_node, state)?;
 
@@ -375,7 +392,7 @@ fn resolve_text_flow(node: SvgNode, state: &converter::State) -> Option<TextFlow
         // 'If a percentage is given, then the `startOffset` represents
         // a percentage distance along the entire path.'
         let path_len = path_length(&path);
-        (path_len * (start_offset.number / 100.0)) as f32
+        (path_len * (start_offset.number as f32 / 100.0)) as f32
     } else {
         node.resolve_length(AId::StartOffset, state, 0.0)
     };
@@ -770,6 +787,138 @@ fn convert_writing_mode(text_node: SvgNode) -> WritingMode {
     } else {
         WritingMode::LeftToRight
     }
+}
+
+// Define PathData type for working with path data
+type PathData = Vec<svgtypes::SimplePathSegment>;
+
+// Helper function to process path segments
+fn apply_path_segment(
+    builder: &mut tiny_skia_path::PathBuilder,
+    segment: svgtypes::SimplePathSegment,
+    prev_mp: Option<(f32, f32)>
+) -> Option<(f32, f32)> {
+    match segment {
+        svgtypes::SimplePathSegment::MoveTo { x, y } => {
+            builder.move_to(x as f32, y as f32);
+            Some((x as f32, y as f32))
+        }
+        svgtypes::SimplePathSegment::LineTo { x, y } => {
+            builder.line_to(x as f32, y as f32);
+            Some((x as f32, y as f32))
+        }
+        svgtypes::SimplePathSegment::Quadratic { x1, y1, x, y } => {
+            builder.quad_to(x1 as f32, y1 as f32, x as f32, y as f32);
+            Some((x as f32, y as f32))
+        }
+        svgtypes::SimplePathSegment::CurveTo { x1, y1, x2, y2, x, y } => {
+            builder.cubic_to(
+                x1 as f32, y1 as f32, x2 as f32, y2 as f32, x as f32, y as f32,
+            );
+            Some((x as f32, y as f32))
+        }
+        svgtypes::SimplePathSegment::ClosePath => {
+            builder.close();
+            prev_mp
+        }
+    }
+}
+
+// Helper function to create a TextFlow::Path from path data directly
+fn create_text_path_from_data(node: SvgNode, path_data: PathData, state: &converter::State) -> Option<TextFlow> {
+    // Build the path
+    let mut builder = tiny_skia_path::PathBuilder::new();
+    let mut prev_mp = None;
+    for segment in path_data.iter() {
+        if let Some(mp) = apply_path_segment(&mut builder, segment, prev_mp) {
+            prev_mp = Some(mp);
+        }
+    }
+
+    // Some valid paths can still lead to an invalid `Path`.
+    let path = match builder.finish() {
+        Some(path) => path,
+        None => return Some(TextFlow::Linear), // If path creation fails, fall back to linear
+    };
+
+    // Don't proceed with empty paths
+    if path.is_empty() {
+        return Some(TextFlow::Linear);
+    }
+
+    let path = Arc::new(path);
+
+    // Generate a unique ID for the path
+    let path_id = NonEmptyString::new(format!("textPath{}", super::string_hash(node.element_id())))?;
+
+// Ensure the path is valid before creating the TextPath
+if path.is_empty() {
+    return Some(TextFlow::Linear); // Return linear flow if path is empty
+}
+
+// Create the TextPath with valid path and return
+    // Create and return the text path
+    Some(TextFlow::Path(Arc::new(TextPath {
+        id: path_id,
+        start_offset,
+        path,
+    })))
+}
+
+fn create_text_path_from_data(
+    node: SvgNode,
+    path_data: PathData,
+    state: &converter::State,
+) -> Option<TextFlow> {
+    // Build the path
+    let mut builder = tiny_skia_path::PathBuilder::new();
+    let mut prev_mp = None;
+    for segment in path_data.iter() {
+        if let Some(mp) = converter::apply_path_segment(&mut builder, segment, prev_mp) {
+            prev_mp = Some(mp);
+        }
+    }
+
+    // Some valid paths can still lead to an invalid `Path`.
+    let path = match builder.finish() {
+        Some(path) => path,
+        None => return Some(TextFlow::Linear), // If path creation fails, fall back to linear
+    };
+
+    // Don't proceed with empty paths
+    if path.is_empty() {
+        return Some(TextFlow::Linear);
+    }
+
+
+    // Don't proceed with empty paths
+    if path.is_empty() {
+        return Some(TextFlow::Linear);
+    }
+
+    let path = Arc::new(path);
+
+    // Get start offset
+    let start_offset: Length = node
+        .attribute(AId::StartOffset)
+        .unwrap_or_else(|| Length::new(0.0, LengthUnit::Number));
+
+    // Convert percentage value into absolute.
+    let start_offset = if start_offset.unit == LengthUnit::Percent {
+        // 'If a percentage is given, then the startOffset represents
+        // a percentage distance along the entire path.'
+        let path_len = path_length(&path);
+        path_len as f32 * (start_offset.number as f32 / 100.0)
+    } else {
+        node.resolve_length(AId::StartOffset, state, 0.0)
+    };
+
+    // Create and return the text path
+    Some(TextFlow::Path(Arc::new(TextPath {
+        id: path_id,
+        start_offset,
+        path,
+    })))
 }
 
 fn path_length(path: &tiny_skia_path::Path) -> f64 {
