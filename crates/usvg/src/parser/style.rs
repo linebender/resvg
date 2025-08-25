@@ -62,7 +62,16 @@ pub(crate) fn resolve_fill(
     let mut sub_opacity = Opacity::ONE;
     let (paint, context_element) =
         if let Some(n) = node.ancestors().find(|n| n.has_attribute(AId::Fill)) {
-            convert_paint(n, AId::Fill, has_bbox, state, &mut sub_opacity, cache)?
+            let value: &str = n.attribute(AId::Fill)?;
+            convert_paint(
+                node,
+                value,
+                AId::Fill,
+                has_bbox,
+                state,
+                &mut sub_opacity,
+                cache,
+            )?
         } else {
             (Paint::Color(Color::black()), None)
         };
@@ -93,7 +102,17 @@ pub(crate) fn resolve_stroke(
     let mut sub_opacity = Opacity::ONE;
     let (paint, context_element) =
         if let Some(n) = node.ancestors().find(|n| n.has_attribute(AId::Stroke)) {
-            convert_paint(n, AId::Stroke, has_bbox, state, &mut sub_opacity, cache)?
+            let value: &str = n.attribute(AId::Stroke)?;
+
+            convert_paint(
+                node,
+                value,
+                AId::Stroke,
+                has_bbox,
+                state,
+                &mut sub_opacity,
+                cache,
+            )?
         } else {
             return None;
         };
@@ -126,13 +145,13 @@ pub(crate) fn resolve_stroke(
 
 fn convert_paint(
     node: SvgNode,
+    value: &str,
     aid: AId,
     has_bbox: bool,
     state: &converter::State,
     opacity: &mut Opacity,
     cache: &mut converter::Cache,
 ) -> Option<(Paint, Option<ContextElement>)> {
-    let value: &str = node.attribute(aid)?;
     let paint = match svgtypes::Paint::from_str(value) {
         Ok(v) => v,
         Err(_) => {

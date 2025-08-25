@@ -1,0 +1,12 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <title>`currentColor` for stroke before `color`</title>
+
+    <g stroke="currentColor" stroke-width="2">
+        <g color="green">
+            <rect id="rect1" x="20" y="20" width="160" height="160" fill="none"/>
+        </g>
+    </g>
+
+    <!-- image frame -->
+    <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>
