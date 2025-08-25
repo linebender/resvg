@@ -118,7 +118,7 @@ fn stroke_path(
 fn convert_linear_gradient(
     gradient: &usvg::LinearGradient,
     opacity: usvg::Opacity,
-) -> Option<tiny_skia::Shader> {
+) -> Option<tiny_skia::Shader<'_>> {
     let (mode, points) = convert_base_gradient(gradient, opacity)?;
 
     let shader = tiny_skia::LinearGradient::new(
@@ -135,7 +135,7 @@ fn convert_linear_gradient(
 fn convert_radial_gradient(
     gradient: &usvg::RadialGradient,
     opacity: usvg::Opacity,
-) -> Option<tiny_skia::Shader> {
+) -> Option<tiny_skia::Shader<'_>> {
     let (mode, points) = convert_base_gradient(gradient, opacity)?;
 
     let shader = tiny_skia::RadialGradient::new(
