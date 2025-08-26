@@ -3,3 +3,5 @@ target
 .DS_Store
 .vscode
 tools/build-*
+
+**/diffs
