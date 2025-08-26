@@ -149,7 +149,7 @@ pub fn render_inner(name: &str, test_mode: TestMode) -> usize {
 /// Returns `Some` if there is at least one different pixel, and `None` if the images match.
 fn get_diff(expected_image: &RgbaImage, actual_image: &RgbaImage) -> Option<(RgbaImage, usize)> {
     const DIFF_THRESHOLD: u8 = 1;
-    
+
     let width = max(expected_image.width(), actual_image.width());
     let height = max(expected_image.height(), actual_image.height());
 
@@ -161,7 +161,7 @@ fn get_diff(expected_image: &RgbaImage, actual_image: &RgbaImage) -> Option<(Rgb
         for y in 0..height {
             let actual_pixel = actual_image.get_pixel_checked(x, y);
             let expected_pixel = expected_image.get_pixel_checked(x, y);
-            
+
             match (actual_pixel, expected_pixel) {
                 (Some(actual), Some(expected)) => {
                     diff_image.put_pixel(x, y, *expected);
