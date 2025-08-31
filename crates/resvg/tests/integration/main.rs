@@ -1,10 +1,12 @@
 // Copyright 2020 the Resvg Authors
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use image::{DynamicImage, ImageBuffer, Rgba, RgbaImage};
 use once_cell::sync::Lazy;
-use rgb::{FromSlice, RGBA8};
+use png::{BitDepth, ColorType, Encoder};
+use rgb::{FromSlice, Rgba, RGBA8};
 use std::cmp::max;
+use std::fs::File;
+use std::io::BufWriter;
 use std::process::Command;
 use std::sync::Arc;
 use usvg::fontdb;
@@ -99,15 +101,16 @@ pub fn render_inner(name: &str, test_mode: TestMode) -> usize {
         }
     }
 
-    let mut rgba = pixmap.take();
-    demultiply_alpha(rgba.as_mut_slice().as_rgba_mut());
+    let actual_image = {
+        let (width, height) = (pixmap.width(), pixmap.height());
+        let mut data = pixmap.clone().take();
+        demultiply_alpha(data.as_mut_slice().as_rgba_mut());
 
-    let actual_image =
-        DynamicImage::ImageRgba8(ImageBuffer::from_raw(size.width(), size.height(), rgba).unwrap())
-            .to_rgba8();
+        TestImage::new_with(data, width, height)
+    };
 
     let make_ref_fn = || -> ! {
-        actual_image.save(&png_path).unwrap();
+        pixmap.save_png(&png_path).unwrap();
         Command::new("oxipng")
             .args([
                 "-o".to_owned(),
@@ -121,7 +124,7 @@ pub fn render_inner(name: &str, test_mode: TestMode) -> usize {
     };
 
     let reference_image = if let Ok(image_data) = std::fs::read(&png_path) {
-        image::load_from_memory(&image_data).unwrap().to_rgba8()
+        load_png(image_data)
     } else {
         if make_ref {
             make_ref_fn();
@@ -135,9 +138,7 @@ pub fn render_inner(name: &str, test_mode: TestMode) -> usize {
             make_ref_fn();
         } else {
             let _ = std::fs::create_dir_all("tests/diffs");
-            diff_image
-                .save(format!("tests/diffs/{}.png", name.replace("/", "_")))
-                .unwrap();
+            diff_image.save_png(&format!("tests/diffs/{}.png", name.replace("/", "_")));
 
             pixel_diff
         }
@@ -147,46 +148,46 @@ pub fn render_inner(name: &str, test_mode: TestMode) -> usize {
 }
 
 /// Returns `Some` if there is at least one different pixel, and `None` if the images match.
-fn get_diff(expected_image: &RgbaImage, actual_image: &RgbaImage) -> Option<(RgbaImage, usize)> {
+fn get_diff(expected_image: &TestImage, actual_image: &TestImage) -> Option<(TestImage, usize)> {
     const DIFF_THRESHOLD: u8 = 1;
 
-    let width = max(expected_image.width(), actual_image.width());
-    let height = max(expected_image.height(), actual_image.height());
+    let width = max(expected_image.width, actual_image.width);
+    let height = max(expected_image.height, actual_image.height);
 
-    let mut diff_image = RgbaImage::new(width * 3, height);
+    let mut diff_image = TestImage::new(3 * width, height);
 
     let mut pixel_diff = 0;
 
     for x in 0..width {
         for y in 0..height {
-            let actual_pixel = actual_image.get_pixel_checked(x, y);
-            let expected_pixel = expected_image.get_pixel_checked(x, y);
+            let actual_pixel = actual_image.get_pixel(x, y);
+            let expected_pixel = expected_image.get_pixel(x, y);
 
             match (actual_pixel, expected_pixel) {
                 (Some(actual), Some(expected)) => {
-                    diff_image.put_pixel(x, y, *expected);
-                    diff_image.put_pixel(x + 2 * width, y, *actual);
-                    if is_pix_diff(expected, actual, DIFF_THRESHOLD) {
+                    diff_image.set_pixel(x, y, expected);
+                    diff_image.set_pixel(x + 2 * width, y, actual);
+                    if is_pix_diff(&expected, &actual, DIFF_THRESHOLD) {
                         pixel_diff += 1;
-                        diff_image.put_pixel(x + width, y, Rgba([255, 0, 0, 255]));
+                        diff_image.set_pixel(x + width, y, Rgba::new(255, 0, 0, 255));
                     } else {
-                        diff_image.put_pixel(x + width, y, Rgba([0, 0, 0, 255]));
+                        diff_image.set_pixel(x + width, y, Rgba::new(0, 0, 0, 255));
                     }
                 }
                 (Some(actual), None) => {
                     pixel_diff += 1;
-                    diff_image.put_pixel(x + 2 * width, y, *actual);
-                    diff_image.put_pixel(x + width, y, Rgba([255, 0, 0, 255]));
+                    diff_image.set_pixel(x + 2 * width, y, actual);
+                    diff_image.set_pixel(x + width, y, Rgba::new(255, 0, 0, 255));
                 }
                 (None, Some(expected)) => {
                     pixel_diff += 1;
-                    diff_image.put_pixel(x, y, *expected);
-                    diff_image.put_pixel(x + width, y, Rgba([255, 0, 0, 255]));
+                    diff_image.set_pixel(x, y, expected);
+                    diff_image.set_pixel(x + width, y, Rgba::new(255, 0, 0, 255));
                 }
                 _ => {
                     pixel_diff += 1;
-                    diff_image.put_pixel(x, y, Rgba([255, 0, 0, 255]));
-                    diff_image.put_pixel(x + width, y, Rgba([255, 0, 0, 255]));
+                    diff_image.set_pixel(x, y, Rgba::new(255, 0, 0, 255));
+                    diff_image.set_pixel(x + width, y, Rgba::new(255, 0, 0, 255));
                 }
             }
         }
@@ -210,18 +211,115 @@ fn demultiply_alpha(data: &mut [RGBA8]) {
 }
 
 fn is_pix_diff(pixel1: &Rgba<u8>, pixel2: &Rgba<u8>, threshold: u8) -> bool {
-    if pixel1.0[3] == 0 && pixel2.0[3] == 0 {
+    if pixel1.a == 0 && pixel2.a == 0 {
         return false;
     }
 
     let mut different = false;
 
-    for i in 0..3 {
-        let difference = pixel1.0[i].abs_diff(pixel2.0[i]);
-        different |= difference > threshold;
-    }
+    different |= pixel1.r.abs_diff(pixel2.r) > threshold;
+    different |= pixel1.g.abs_diff(pixel2.g) > threshold;
+    different |= pixel1.b.abs_diff(pixel2.b) > threshold;
+    different |= pixel1.a.abs_diff(pixel2.a) > threshold;
 
     different
+}
+
+fn load_png(data: Vec<u8>) -> TestImage {
+    let mut decoder = png::Decoder::new(data.as_slice());
+    decoder.set_transformations(png::Transformations::normalize_to_color8());
+    let mut reader = decoder.read_info().unwrap();
+    let mut img_data = vec![0; reader.output_buffer_size()];
+    let info = reader.next_frame(&mut img_data).unwrap();
+
+    let data = match info.color_type {
+        png::ColorType::Rgb => {
+            panic!("RGB PNG is not supported.");
+        }
+        png::ColorType::Rgba => img_data,
+        png::ColorType::Grayscale => {
+            let mut rgba_data = Vec::with_capacity(img_data.len() * 4);
+            for gray in img_data {
+                rgba_data.push(gray);
+                rgba_data.push(gray);
+                rgba_data.push(gray);
+                rgba_data.push(255);
+            }
+
+            rgba_data
+        }
+        png::ColorType::GrayscaleAlpha => {
+            let mut rgba_data = Vec::with_capacity(img_data.len() * 2);
+            for slice in img_data.chunks(2) {
+                let gray = slice[0];
+                let alpha = slice[1];
+                rgba_data.push(gray);
+                rgba_data.push(gray);
+                rgba_data.push(gray);
+                rgba_data.push(alpha);
+            }
+
+            rgba_data
+        }
+        png::ColorType::Indexed => {
+            panic!("Indexed PNG is not supported.");
+        }
+    };
+
+    TestImage::new_with(data, info.width, info.height)
+}
+
+struct TestImage {
+    data: Vec<u8>,
+    width: u32,
+    height: u32,
+}
+
+impl TestImage {
+    fn new(width: u32, height: u32) -> Self {
+        Self {
+            data: vec![0; width as usize * height as usize * 4],
+            width,
+            height,
+        }
+    }
+
+    fn new_with(data: Vec<u8>, width: u32, height: u32) -> Self {
+        Self {
+            data,
+            width,
+            height,
+        }
+    }
+
+    fn get_pixel(&self, x: u32, y: u32) -> Option<Rgba<u8>> {
+        if x >= self.width || y >= self.height {
+            return None;
+        }
+
+        let pos = self.width as usize * (y as usize) + x as usize;
+
+        Some(self.data.as_rgba()[pos])
+    }
+
+    fn set_pixel(&mut self, x: u32, y: u32, val: Rgba<u8>) {
+        let pos = self.width as usize * (y as usize) + x as usize;
+
+        self.data.as_rgba_mut()[pos] = val;
+    }
+
+    fn save_png(&self, path: &str) {
+        let file = File::create(path).unwrap();
+        let ref mut w = BufWriter::new(file);
+
+        let mut encoder = Encoder::new(w, self.width, self.height);
+        encoder.set_color(ColorType::Rgba);
+        encoder.set_depth(BitDepth::Eight);
+
+        let mut writer = encoder.write_header().unwrap();
+        writer.write_image_data(&self.data).unwrap();
+        writer.finish().unwrap();
+    }
 }
 
 #[derive(Copy, Clone)]
