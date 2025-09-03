@@ -19,7 +19,9 @@ mod use_node;
 #[cfg(feature = "text")]
 mod text;
 
-pub use image::{ImageHrefDataResolverFn, ImageHrefResolver, ImageHrefStringResolverFn, load_sub_svg};
+pub use image::{
+    load_sub_svg, ImageHrefDataResolverFn, ImageHrefResolver, ImageHrefStringResolverFn,
+};
 pub use options::Options;
 pub(crate) use svgtree::{AId, EId};
 
