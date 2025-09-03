@@ -327,7 +327,7 @@ fn get_image_data_format(data: &[u8]) -> Option<ImageFormat> {
 ///
 /// Unlike `Tree::from_*` methods, this one will also remove all `image` elements
 /// from the loaded SVG, as required by the spec.
-pub(crate) fn load_sub_svg(data: &[u8], opt: &Options) -> Option<ImageKind> {
+pub fn load_sub_svg(data: &[u8], opt: &Options) -> Option<ImageKind> {
     let sub_opt = Options {
         resources_dir: None,
         dpi: opt.dpi,
