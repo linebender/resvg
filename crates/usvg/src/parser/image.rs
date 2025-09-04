@@ -62,13 +62,25 @@ impl ImageHrefResolver<'_> {
                 "image/png" => Some(ImageKind::PNG(data)),
                 "image/gif" => Some(ImageKind::GIF(data)),
                 "image/webp" => Some(ImageKind::WEBP(data)),
-                "image/svg+xml" => load_sub_svg(&data, opts),
+                "image/svg+xml" => match Tree::from_data_nested(&data, opts) {
+                    Ok(tree) => Some(ImageKind::SVG(tree)),
+                    Err(_) => {
+                        log::warn!("Failed to load nested SVG image.");
+                        None
+                    }
+                },
                 "text/plain" => match get_image_data_format(&data) {
                     Some(ImageFormat::JPEG) => Some(ImageKind::JPEG(data)),
                     Some(ImageFormat::PNG) => Some(ImageKind::PNG(data)),
                     Some(ImageFormat::GIF) => Some(ImageKind::GIF(data)),
                     Some(ImageFormat::WEBP) => Some(ImageKind::WEBP(data)),
-                    _ => load_sub_svg(&data, opts),
+                    _ => match Tree::from_data_nested(&data, opts) {
+                        Ok(tree) => Some(ImageKind::SVG(tree)),
+                        Err(_) => {
+                            log::warn!("Failed to load nested SVG image.");
+                            None
+                        }
+                    },
                 },
                 _ => None,
             },
@@ -100,7 +112,13 @@ impl ImageHrefResolver<'_> {
                     Some(ImageFormat::PNG) => Some(ImageKind::PNG(Arc::new(data))),
                     Some(ImageFormat::GIF) => Some(ImageKind::GIF(Arc::new(data))),
                     Some(ImageFormat::WEBP) => Some(ImageKind::WEBP(Arc::new(data))),
-                    Some(ImageFormat::SVG) => load_sub_svg(&data, opts),
+                    Some(ImageFormat::SVG) => match Tree::from_data_nested(&data, opts) {
+                        Ok(tree) => Some(ImageKind::SVG(tree)),
+                        Err(_) => {
+                            log::warn!("Failed to load nested SVG image.");
+                            None
+                        }
+                    },
                     _ => {
                         log::warn!("'{}' is not a PNG, JPEG, GIF, WebP or SVG(Z) image.", href);
                         None
@@ -321,53 +339,6 @@ fn get_image_data_format(data: &[u8]) -> Option<ImageFormat> {
         imagesize::ImageType::Webp => Some(ImageFormat::WEBP),
         _ => None,
     }
-}
-
-/// Tries to load the `ImageData` content as an SVG image.
-///
-/// Unlike `Tree::from_*` methods, this one will also remove all `image` elements
-/// from the loaded SVG, as required by the spec.
-pub fn load_sub_svg(data: &[u8], opt: &Options) -> Option<ImageKind> {
-    let sub_opt = Options {
-        resources_dir: None,
-        dpi: opt.dpi,
-        font_size: opt.font_size,
-        languages: opt.languages.clone(),
-        shape_rendering: opt.shape_rendering,
-        text_rendering: opt.text_rendering,
-        image_rendering: opt.image_rendering,
-        default_size: opt.default_size,
-        // The referenced SVG image cannot have any 'image' elements by itself.
-        // Not only recursive. Any. Don't know why.
-        image_href_resolver: ImageHrefResolver {
-            resolve_data: Box::new(|_, _, _| None),
-            resolve_string: Box::new(|_, _| None),
-        },
-        // In the referenced SVG, we start with the unmodified user-provided
-        // fontdb, not the one from the cache.
-        #[cfg(feature = "text")]
-        fontdb: opt.fontdb.clone(),
-        // Can't clone the resolver, so we create a new one that forwards to it.
-        #[cfg(feature = "text")]
-        font_resolver: crate::FontResolver {
-            select_font: Box::new(|font, db| (opt.font_resolver.select_font)(font, db)),
-            select_fallback: Box::new(|c, used_fonts, db| {
-                (opt.font_resolver.select_fallback)(c, used_fonts, db)
-            }),
-        },
-        ..Options::default()
-    };
-
-    let tree = Tree::from_data(data, &sub_opt);
-    let tree = match tree {
-        Ok(tree) => tree,
-        Err(_) => {
-            log::warn!("Failed to load subsvg image.");
-            return None;
-        }
-    };
-
-    Some(ImageKind::SVG(tree))
 }
 
 /// Fits size into a viewbox.
