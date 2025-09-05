@@ -62,25 +62,13 @@ impl ImageHrefResolver<'_> {
                 "image/png" => Some(ImageKind::PNG(data)),
                 "image/gif" => Some(ImageKind::GIF(data)),
                 "image/webp" => Some(ImageKind::WEBP(data)),
-                "image/svg+xml" => match Tree::from_data_nested(&data, opts) {
-                    Ok(tree) => Some(ImageKind::SVG(tree)),
-                    Err(_) => {
-                        log::warn!("Failed to load nested SVG image.");
-                        None
-                    }
-                },
+                "image/svg+xml" => load_sub_svg(&data, opts),
                 "text/plain" => match get_image_data_format(&data) {
                     Some(ImageFormat::JPEG) => Some(ImageKind::JPEG(data)),
                     Some(ImageFormat::PNG) => Some(ImageKind::PNG(data)),
                     Some(ImageFormat::GIF) => Some(ImageKind::GIF(data)),
                     Some(ImageFormat::WEBP) => Some(ImageKind::WEBP(data)),
-                    _ => match Tree::from_data_nested(&data, opts) {
-                        Ok(tree) => Some(ImageKind::SVG(tree)),
-                        Err(_) => {
-                            log::warn!("Failed to load nested SVG image.");
-                            None
-                        }
-                    },
+                    _ => load_sub_svg(&data, opts),
                 },
                 _ => None,
             },
@@ -112,13 +100,7 @@ impl ImageHrefResolver<'_> {
                     Some(ImageFormat::PNG) => Some(ImageKind::PNG(Arc::new(data))),
                     Some(ImageFormat::GIF) => Some(ImageKind::GIF(Arc::new(data))),
                     Some(ImageFormat::WEBP) => Some(ImageKind::WEBP(Arc::new(data))),
-                    Some(ImageFormat::SVG) => match Tree::from_data_nested(&data, opts) {
-                        Ok(tree) => Some(ImageKind::SVG(tree)),
-                        Err(_) => {
-                            log::warn!("Failed to load nested SVG image.");
-                            None
-                        }
-                    },
+                    Some(ImageFormat::SVG) => load_sub_svg(&data, opts),
                     _ => {
                         log::warn!("'{}' is not a PNG, JPEG, GIF, WebP or SVG(Z) image.", href);
                         None
@@ -338,6 +320,17 @@ fn get_image_data_format(data: &[u8]) -> Option<ImageFormat> {
         imagesize::ImageType::Png => Some(ImageFormat::PNG),
         imagesize::ImageType::Webp => Some(ImageFormat::WEBP),
         _ => None,
+    }
+}
+
+/// Tries to load the `ImageData` content as an SVG image or emits a warning and returns `None`.
+pub(crate) fn load_sub_svg(data: &[u8], opt: &Options) -> Option<ImageKind> {
+    match Tree::from_data_nested(data, opt) {
+        Ok(tree) => Some(ImageKind::SVG(tree)),
+        Err(_) => {
+            log::warn!("Failed to load nested SVG image.");
+            None
+        }
     }
 }
 
