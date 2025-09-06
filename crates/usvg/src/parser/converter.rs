@@ -8,13 +8,18 @@ use std::sync::Arc;
 
 #[cfg(feature = "text")]
 use fontdb::Database;
+use fontdb::ID;
+use rustybuzz::ttf_parser::GlyphId;
 use svgtypes::{Length, LengthUnit as Unit, PaintOrderKind, TransformOrigin};
 use tiny_skia_path::PathBuilder;
 
 use super::svgtree::{self, AId, EId, FromValue, SvgNode};
 use super::units::{self, convert_length};
 use super::{marker, Error, Options};
+#[cfg(feature = "text")]
+use crate::flatten::BitmapImage;
 use crate::parser::paint_server::process_paint;
+use crate::text::flatten::DatabaseExt;
 use crate::*;
 
 #[derive(Clone)]
@@ -41,6 +46,15 @@ pub struct Cache {
     #[cfg(feature = "text")]
     pub fontdb: Arc<Database>,
 
+    #[cfg(feature = "text")]
+    pub cache_outline: HashMap<(ID, GlyphId), Option<tiny_skia_path::Path>>,
+    #[cfg(feature = "text")]
+    pub cache_colr: HashMap<(ID, GlyphId), Option<Tree>>,
+    #[cfg(feature = "text")]
+    pub cache_svg: HashMap<(ID, GlyphId), Option<Node>>,
+    #[cfg(feature = "text")]
+    pub cache_raster: HashMap<(ID, GlyphId), Option<BitmapImage>>,
+
     pub clip_paths: HashMap<String, Arc<ClipPath>>,
     pub masks: HashMap<String, Arc<Mask>>,
     pub filters: HashMap<String, Arc<filter::Filter>>,
@@ -57,11 +71,37 @@ pub struct Cache {
     image_index: usize,
 }
 
+macro_rules! font_lookup {
+    ($method_name:ident, $cache_map:ident, $font_variant:ident, $return_type:ty) => {
+        #[cfg(feature = "text")]
+        pub(crate) fn $method_name(&mut self, font: ID, glyph: GlyphId) -> Option<$return_type> {
+            let key = (font, glyph);
+            match self.$cache_map.get(&key) {
+                Some(cache_hit) => cache_hit.clone(),
+                None => {
+                    let lookup = self.fontdb.$font_variant(font, glyph);
+                    self.$cache_map.insert(key, lookup.clone());
+                    lookup
+                }
+            }
+        }
+    };
+}
+
 impl Cache {
     pub(crate) fn new(#[cfg(feature = "text")] fontdb: Arc<Database>) -> Self {
         Self {
             #[cfg(feature = "text")]
             fontdb,
+
+            #[cfg(feature = "text")]
+            cache_outline: HashMap::new(),
+            #[cfg(feature = "text")]
+            cache_colr: HashMap::new(),
+            #[cfg(feature = "text")]
+            cache_svg: HashMap::new(),
+            #[cfg(feature = "text")]
+            cache_raster: HashMap::new(),
 
             clip_paths: HashMap::new(),
             masks: HashMap::new(),
@@ -156,6 +196,11 @@ impl Cache {
             }
         }
     }
+
+    font_lookup!(fontdb_outline, cache_outline, outline, tiny_skia_path::Path);
+    font_lookup!(fontdb_colr, cache_colr, colr, Tree);
+    font_lookup!(fontdb_svg, cache_svg, svg, Node);
+    font_lookup!(fontdb_raster, cache_raster, raster, BitmapImage);
 }
 
 // TODO: is there a simpler way?

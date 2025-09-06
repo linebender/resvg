@@ -45,7 +45,7 @@ fn push_outline_paths(
     }
 }
 
-pub(crate) fn flatten(text: &mut Text, fontdb: &fontdb::Database) -> Option<(Group, NonZeroRect)> {
+pub(crate) fn flatten(text: &mut Text, cache: &mut Cache) -> Option<(Group, NonZeroRect)> {
     let mut new_children = vec![];
 
     let rendering_mode = resolve_rendering_mode(text);
@@ -72,8 +72,14 @@ pub(crate) fn flatten(text: &mut Text, fontdb: &fontdb::Database) -> Option<(Gro
         let mut span_builder = tiny_skia_path::PathBuilder::new();
 
         for glyph in &span.positioned_glyphs {
+            if let Some(outline) = cache
+                .fontdb_outline(glyph.font, glyph.id)
+                .and_then(|p| p.transform(glyph.outline_transform()))
+            {
+                span_builder.push_path(&outline);
+            }
             // A (best-effort conversion of a) COLR glyph.
-            if let Some(tree) = fontdb.colr(glyph.font, glyph.id) {
+            else if let Some(tree) = cache.fontdb_colr(glyph.font, glyph.id) {
                 let mut group = Group {
                     transform: glyph.colr_transform(),
                     ..Group::empty()
@@ -85,7 +91,7 @@ pub(crate) fn flatten(text: &mut Text, fontdb: &fontdb::Database) -> Option<(Gro
                 new_children.push(Node::Group(Box::new(group)));
             }
             // An SVG glyph. Will return the usvg node containing the glyph descriptions.
-            else if let Some(node) = fontdb.svg(glyph.font, glyph.id) {
+            else if let Some(node) = cache.fontdb_svg(glyph.font, glyph.id) {
                 push_outline_paths(span, &mut span_builder, &mut new_children, rendering_mode);
 
                 let mut group = Group {
@@ -99,7 +105,7 @@ pub(crate) fn flatten(text: &mut Text, fontdb: &fontdb::Database) -> Option<(Gro
                 new_children.push(Node::Group(Box::new(group)));
             }
             // A bitmap glyph.
-            else if let Some(img) = fontdb.raster(glyph.font, glyph.id) {
+            else if let Some(img) = cache.fontdb_raster(glyph.font, glyph.id) {
                 push_outline_paths(span, &mut span_builder, &mut new_children, rendering_mode);
 
                 let transform = if img.is_sbix {
@@ -128,11 +134,6 @@ pub(crate) fn flatten(text: &mut Text, fontdb: &fontdb::Database) -> Option<(Gro
                 group.calculate_bounding_boxes();
 
                 new_children.push(Node::Group(Box::new(group)));
-            } else if let Some(outline) = fontdb
-                .outline(glyph.font, glyph.id)
-                .and_then(|p| p.transform(glyph.outline_transform()))
-            {
-                span_builder.push_path(&outline);
             }
         }
 
@@ -192,6 +193,7 @@ pub(crate) trait DatabaseExt {
     fn colr(&self, id: ID, glyph_id: GlyphId) -> Option<Tree>;
 }
 
+#[derive(Clone)]
 pub(crate) struct BitmapImage {
     image: Image,
     x: i16,

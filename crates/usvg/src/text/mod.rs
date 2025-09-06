@@ -7,9 +7,9 @@ use fontdb::{Database, ID};
 use svgtypes::FontFamily;
 
 use self::layout::DatabaseExt;
-use crate::{Font, FontStretch, FontStyle, Text};
+use crate::{Cache, Font, FontStretch, FontStyle, Text};
 
-mod flatten;
+pub(crate) mod flatten;
 
 mod colr;
 /// Provides access to the layout of a text node.
@@ -201,17 +201,13 @@ impl std::fmt::Debug for FontResolver<'_> {
 ///    is not based on the outlines of a glyph, but instead the glyph metrics as well
 ///    as decoration spans).
 /// 2. We convert all of the positioned glyphs into outlines.
-pub(crate) fn convert(
-    text: &mut Text,
-    resolver: &FontResolver,
-    fontdb: &mut Arc<fontdb::Database>,
-) -> Option<()> {
-    let (text_fragments, bbox) = layout::layout_text(text, resolver, fontdb)?;
+pub(crate) fn convert(text: &mut Text, resolver: &FontResolver, cache: &mut Cache) -> Option<()> {
+    let (text_fragments, bbox) = layout::layout_text(text, resolver, &mut cache.fontdb)?;
     text.layouted = text_fragments;
     text.bounding_box = bbox.to_rect();
     text.abs_bounding_box = bbox.transform(text.abs_transform)?.to_rect();
 
-    let (group, stroke_bbox) = flatten::flatten(text, fontdb)?;
+    let (group, stroke_bbox) = flatten::flatten(text, cache)?;
     text.flattened = Box::new(group);
     text.stroke_bounding_box = stroke_bbox.to_rect();
     text.abs_stroke_bounding_box = stroke_bbox.transform(text.abs_transform)?.to_rect();

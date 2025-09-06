@@ -19,6 +19,7 @@ mod use_node;
 #[cfg(feature = "text")]
 mod text;
 
+pub(crate) use converter::Cache;
 pub use image::{ImageHrefDataResolverFn, ImageHrefResolver, ImageHrefStringResolverFn};
 pub use options::Options;
 pub(crate) use svgtree::{AId, EId};
