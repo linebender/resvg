@@ -8,7 +8,9 @@ use std::sync::Arc;
 
 #[cfg(feature = "text")]
 use fontdb::Database;
+#[cfg(feature = "text")]
 use fontdb::ID;
+#[cfg(feature = "text")]
 use rustybuzz::ttf_parser::GlyphId;
 use svgtypes::{Length, LengthUnit as Unit, PaintOrderKind, TransformOrigin};
 use tiny_skia_path::PathBuilder;
@@ -19,6 +21,7 @@ use super::{marker, Error, Options};
 #[cfg(feature = "text")]
 use crate::flatten::BitmapImage;
 use crate::parser::paint_server::process_paint;
+#[cfg(feature = "text")]
 use crate::text::flatten::DatabaseExt;
 use crate::*;
 
@@ -47,13 +50,13 @@ pub struct Cache {
     pub fontdb: Arc<Database>,
 
     #[cfg(feature = "text")]
-    pub cache_outline: HashMap<(ID, GlyphId), Option<tiny_skia_path::Path>>,
+    cache_outline: HashMap<(ID, GlyphId), Option<tiny_skia_path::Path>>,
     #[cfg(feature = "text")]
-    pub cache_colr: HashMap<(ID, GlyphId), Option<Tree>>,
+    cache_colr: HashMap<(ID, GlyphId), Option<Tree>>,
     #[cfg(feature = "text")]
-    pub cache_svg: HashMap<(ID, GlyphId), Option<Node>>,
+    cache_svg: HashMap<(ID, GlyphId), Option<Node>>,
     #[cfg(feature = "text")]
-    pub cache_raster: HashMap<(ID, GlyphId), Option<BitmapImage>>,
+    cache_raster: HashMap<(ID, GlyphId), Option<BitmapImage>>,
 
     pub clip_paths: HashMap<String, Arc<ClipPath>>,
     pub masks: HashMap<String, Arc<Mask>>,
