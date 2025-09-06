@@ -72,14 +72,8 @@ pub(crate) fn flatten(text: &mut Text, cache: &mut Cache) -> Option<(Group, NonZ
         let mut span_builder = tiny_skia_path::PathBuilder::new();
 
         for glyph in &span.positioned_glyphs {
-            if let Some(outline) = cache
-                .fontdb_outline(glyph.font, glyph.id)
-                .and_then(|p| p.transform(glyph.outline_transform()))
-            {
-                span_builder.push_path(&outline);
-            }
             // A (best-effort conversion of a) COLR glyph.
-            else if let Some(tree) = cache.fontdb_colr(glyph.font, glyph.id) {
+            if let Some(tree) = cache.fontdb_colr(glyph.font, glyph.id) {
                 let mut group = Group {
                     transform: glyph.colr_transform(),
                     ..Group::empty()
@@ -134,6 +128,11 @@ pub(crate) fn flatten(text: &mut Text, cache: &mut Cache) -> Option<(Group, NonZ
                 group.calculate_bounding_boxes();
 
                 new_children.push(Node::Group(Box::new(group)));
+            } else if let Some(outline) = cache
+                .fontdb_outline(glyph.font, glyph.id)
+                .and_then(|p| p.transform(glyph.outline_transform()))
+            {
+                span_builder.push_path(&outline);
             }
         }
 
