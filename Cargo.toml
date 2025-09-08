@@ -2,6 +2,7 @@
 members = [
     "crates/c-api",
     "crates/resvg",
+    "crates/resvg_vello",
     "crates/usvg",
     "crates/usvg/codegen",
     #"tools/explorer-thumbnailer",
@@ -11,3 +12,6 @@ resolver = "2"
 
 [workspace.package]
 license = "Apache-2.0 OR MIT"
+
+[patch.crates-io]
+kurbo = { git = "https://github.com/linebender/kurbo/", rev = "1312d43"  }
