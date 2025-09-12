@@ -107,7 +107,7 @@ impl crate::Tree {
     }
 
     /// Similar to the `from_data` method, except that it ignores all `image` elements linking to
-    /// external files, as required by the SVG specification when SVG files are loaded 
+    /// external files, as required by the SVG specification when SVG files are loaded
     /// for `<image href="..." />` tags.
     pub fn from_data_nested(data: &[u8], opt: &Options) -> Result<Self, Error> {
         let nested_opt = Options {
