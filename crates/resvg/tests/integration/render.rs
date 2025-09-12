@@ -1119,6 +1119,8 @@ use crate::render;
 #[test] fn structure_image_external_webp() { assert_eq!(render("tests/structure/image/external-webp"), 0); }
 #[test] fn structure_image_float_size() { assert_eq!(render("tests/structure/image/float-size"), 0); }
 #[test] fn structure_image_image_with_float_size_scaling() { assert_eq!(render("tests/structure/image/image-with-float-size-scaling"), 0); }
+#[test] fn structure_image_nested_embedded_png() { assert_eq!(render("tests/structure/image/nested-embedded-png"), 0); }
+#[test] fn structure_image_nested_external_png() { assert_eq!(render("tests/structure/image/nested-external-png"), 0); }
 #[test] fn structure_image_no_height_non_square() { assert_eq!(render("tests/structure/image/no-height-non-square"), 0); }
 #[test] fn structure_image_no_height_on_svg() { assert_eq!(render("tests/structure/image/no-height-on-svg"), 0); }
 #[test] fn structure_image_no_height() { assert_eq!(render("tests/structure/image/no-height"), 0); }

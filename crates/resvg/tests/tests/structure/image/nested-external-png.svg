@@ -1,0 +1,7 @@
+<svg id="svg1" viewBox="0 0 200 200" 
+     xmlns="http://www.w3.org/2000/svg"
+     xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>Nested external SVG</title>
+
+    <image id="image1" x="0" y="0" width="200" height="200" xlink:href="data:image/svg+xml;base64,PHN2ZyBpZD0ic3ZnMSIgdmlld0JveD0iMCAwIDgwIDgwIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciCiAgICAgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiPgogICAgPHRpdGxlPkV4dGVybmFsIFBORzwvdGl0bGU+CgogICAgPGltYWdlIGlkPSJpbWFnZTEiIHg9IjgiIHk9IjgiIHdpZHRoPSI2NCIgaGVpZ2h0PSI2NCIgeGxpbms6aHJlZj0iLi4vLi4vLi4vcmVzb3VyY2VzL2ltYWdlLnBuZyIvPgoKICAgIDxyZWN0IGlkPSJmcmFtZSIgeD0iMSIgeT0iMSIgd2lkdGg9Ijc4IiBoZWlnaHQ9Ijc4IiBmaWxsPSJub25lIiBzdHJva2U9ImJsYWNrIi8+Cjwvc3ZnPgo="/>
+</svg>

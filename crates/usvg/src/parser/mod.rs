@@ -106,8 +106,9 @@ impl crate::Tree {
         }
     }
 
-    /// Similar to the `from_data` method, except that it removes all `image` elements,
-    /// as required by the SVG specification when SVG files are loaded for `<image href="..." />` tags.
+    /// Similar to the `from_data` method, except that it ignores all `image` elements linking to
+    /// external files, as required by the SVG specification when SVG files are loaded
+    /// for `<image href="..." />` tags.
     pub fn from_data_nested(data: &[u8], opt: &Options) -> Result<Self, Error> {
         let nested_opt = Options {
             resources_dir: None,
@@ -118,10 +119,9 @@ impl crate::Tree {
             text_rendering: opt.text_rendering,
             image_rendering: opt.image_rendering,
             default_size: opt.default_size,
-            // The referenced SVG image cannot have any 'image' elements by itself.
-            // Not only recursive. Any. Don't know why.
             image_href_resolver: ImageHrefResolver {
-                resolve_data: Box::new(|_, _, _| None),
+                resolve_data: Box::new(|a, b, c| (opt.image_href_resolver.resolve_data)(a, b, c)),
+                // External images should be ignored.
                 resolve_string: Box::new(|_, _| None),
             },
             // In the referenced SVG, we start with the unmodified user-provided
