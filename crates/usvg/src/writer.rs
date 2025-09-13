@@ -784,7 +784,12 @@ fn write_element(node: &Node, is_clip_path: bool, opt: &WriteOptions, xml: &mut 
     }
 }
 
-fn write_group_element(g: &Group, is_clip_path: bool, opt: &WriteOptions, xml: &mut XmlWriter) {
+pub(crate) fn write_group_element(
+    g: &Group,
+    is_clip_path: bool,
+    opt: &WriteOptions,
+    xml: &mut XmlWriter,
+) {
     if is_clip_path {
         // The `clipPath` element in SVG doesn't allow groups, only shapes and text.
         // The problem is that in `usvg` we can set a `clip-path` only on groups.

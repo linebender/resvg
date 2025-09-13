@@ -5,9 +5,11 @@ use std::sync::Arc;
 
 use kurbo::{ParamCurve, ParamCurveArclen};
 use svgtypes::{parse_font_families, FontFamily, Length, LengthUnit};
+use xmlwriter::XmlWriter;
 
 use super::svgtree::{AId, EId, FromValue, SvgNode};
 use super::{converter, style, OptionLog};
+use crate::writer::write_group_element;
 use crate::*;
 
 impl<'a, 'input: 'a> FromValue<'a, 'input> for TextAnchor {
@@ -143,6 +145,16 @@ pub(crate) fn convert(
     if text::convert(&mut text, &state.opt.font_resolver, cache).is_none() {
         return;
     }
+
+    let mut writer = XmlWriter::new(Default::default());
+    write_group_element(
+        &text.flattened,
+        false,
+        &WriteOptions::default(),
+        &mut writer,
+    );
+    let s = writer.end_document();
+    println!("{s}");
 
     parent.children.push(Node::Text(Box::new(text)));
 }
