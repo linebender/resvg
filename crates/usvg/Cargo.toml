@@ -30,7 +30,7 @@ xmlwriter = "0.1"
 data-url = "0.3" # for href parsing
 flate2 = { version = "1.0", default-features = false, features = ["rust_backend"] } # SVGZ decoding
 imagesize = "0.13" # raster images size detection
-kurbo = "0.11" # Bezier curves utils
+kurbo = "0.12" # Bezier curves utils
 roxmltree = "0.20"
 simplecss = "0.2"
 siphasher = "1.0" # perfect hash implementation
