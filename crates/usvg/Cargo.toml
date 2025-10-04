@@ -37,8 +37,8 @@ siphasher = "1.0" # perfect hash implementation
 
 # text
 fontdb = { version = "0.23.0", default-features = false, optional = true }
-harfrust = { version = "0.2", optional = true }
-skrifa = { version = "0.36", optional = true }
+harfrust = { version = "0.3.1", optional = true }
+skrifa = { version = "0.37", optional = true, default-features = false, features = ["std"] }
 unicode-bidi = { version = "0.3", optional = true }
 unicode-script = { version = "0.5", optional = true }
 unicode-vo = { version = "0.1", optional = true }
