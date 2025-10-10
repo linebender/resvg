@@ -112,12 +112,7 @@ pub fn render_inner(name: &str, test_mode: TestMode) -> usize {
     let make_ref_fn = || -> ! {
         pixmap.save_png(&png_path).unwrap();
         Command::new("oxipng")
-            .args([
-                "-o".to_owned(),
-                "6".to_owned(),
-                "-Z".to_owned(),
-                png_path.clone(),
-            ])
+            .args([png_path.clone()])
             .output()
             .unwrap();
         panic!("new reference image created");
