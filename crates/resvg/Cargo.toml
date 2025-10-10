@@ -23,7 +23,7 @@ rgb = "0.8"
 svgtypes = "0.15.3"
 tiny-skia = "0.11.4"
 usvg = { path = "../usvg", version = "0.45.1", default-features = false }
-zune-jpeg = { version = "0.4", optional = true }
+zune-jpeg = { version = "0.5.0", optional = true }
 
 [dev-dependencies]
 once_cell = "1.5"
