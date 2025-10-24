@@ -535,7 +535,7 @@ fn image_bbox_with_parent_transform() {
 }
 
 #[test]
-fn not_has_text_nodes() {
+fn no_text_nodes() {
     let svg = "
     <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>
         <g transform='translate(20)'>
