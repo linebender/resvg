@@ -55,8 +55,13 @@ fn resave_impl(name: &str, id_prefix: Option<String>, preserve_text: bool) {
 
     let expected_svg =
         std::fs::read_to_string(format!("tests/files/{}-expected.svg", name)).unwrap();
-    // Do not use `assert_eq` because it produces an unreadable output.
-    assert!(output_svg == expected_svg);
+
+    if output_svg != expected_svg {
+        panic!(
+            "assertion failed: output_svg == expected_svg\n\nExpected:\n{}\n\nActual:\n{}",
+            expected_svg, output_svg
+        );
+    }
 }
 
 #[test]
