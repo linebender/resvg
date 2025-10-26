@@ -11,7 +11,12 @@ This changelog also contains important changes in dependencies.
 This release has an MSRV of 1.82.0 for `usvg` and 1.67.1 for `resvg` and the C API.
 
 ### Added
+
 - Support SVGs without the xmlns attribute on the root. Thanks to [@JosefKuchar][].
+
+### Changed
+
+- Upgraded kurbo to 0.12 and svgtypes to 0.16. Thanks to [@HaHa421][].
 
 ### Removed
 
@@ -1283,6 +1288,7 @@ This release has an MSRV of 1.65 for `usvg` and 1.67.1 for `resvg` and the C API
 [@michabay05]: https://github.com/michabay05
 [@Shnatsel]: https://github.com/Shnatsel
 [@JosefKuchar]: https://github.com/JosefKuchar
+[@HaHa421]: https://github.com/HaHa421
 
 [#897]: https://github.com/linebender/resvg/pull/897
 
