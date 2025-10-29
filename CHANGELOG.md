@@ -8,10 +8,15 @@ This changelog also contains important changes in dependencies.
 
 ## [Unreleased]
 
-This release has an MSRV of 1.65 for `usvg` and 1.86.0 for `resvg` and the C API.
+This release has an MSRV of 1.82.0 for `usvg` and `resvg` and the C API.
 
 ### Added
+
 - Support SVGs without the xmlns attribute on the root. Thanks to [@JosefKuchar][].
+
+### Changed
+
+- Upgraded kurbo to 0.12 and svgtypes to 0.16. Thanks to [@HaHa421][].
 
 ### Removed
 

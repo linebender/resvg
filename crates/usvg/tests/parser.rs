@@ -533,3 +533,17 @@ fn image_bbox_with_parent_transform() {
         Rect::from_xywh(35.0, 35.0, 50.0, 50.0).unwrap()
     );
 }
+
+#[test]
+fn no_text_nodes() {
+    let svg = "
+    <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>
+        <g transform='translate(20)'>
+            <path transform='translate(10)' d='M 0 0 L 10 10'/>
+        </g>
+    </svg>
+    ";
+
+    let tree = usvg::Tree::from_str(&svg, &usvg::Options::default()).unwrap();
+    assert!(!tree.has_text_nodes());
+}

@@ -4,7 +4,7 @@ version = "0.45.1"
 keywords = ["svg"]
 license.workspace = true
 edition = "2021"
-rust-version = "1.65.0"
+rust-version = "1.82.0"
 description = "An SVG simplification library."
 categories = ["multimedia::images"]
 repository = "https://github.com/linebender/resvg"
@@ -22,7 +22,7 @@ base64 = "0.22" # for embedded images
 log = "0.4"
 pico-args = { version = "0.5", features = ["eq-separator"] }
 strict-num = "0.1.1"
-svgtypes = "0.15.3"
+svgtypes = "0.16.0"
 tiny-skia-path = "0.11.4"
 xmlwriter = "0.1"
 
@@ -30,7 +30,7 @@ xmlwriter = "0.1"
 data-url = "0.3" # for href parsing
 flate2 = { version = "1.0", default-features = false, features = ["rust_backend"] } # SVGZ decoding
 imagesize = "0.13" # raster images size detection
-kurbo = "0.11" # Bezier curves utils
+kurbo = "0.12" # Bezier curves utils
 roxmltree = "0.20"
 simplecss = "0.2"
 siphasher = "1.0" # perfect hash implementation
