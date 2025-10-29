@@ -8,7 +8,7 @@ This changelog also contains important changes in dependencies.
 
 ## [Unreleased]
 
-This release has an MSRV of 1.65 for `usvg` and 1.73.0 for `resvg` and the C API.
+This release has an MSRV of 1.65 for `usvg` and 1.86.0 for `resvg` and the C API.
 
 ### Added
 - Support SVGs without the xmlns attribute on the root. Thanks to [@JosefKuchar][].
