@@ -650,6 +650,66 @@ fn node_to_user_coordinates(
                 cache,
             );
         }
+        Node::Rectangle(ref mut rect) => {
+            let bbox = text_bbox.unwrap_or(rect.bounding_box);
+
+            process_fill(
+                &mut rect.fill,
+                rect.abs_transform,
+                context_transform,
+                context_bbox,
+                bbox,
+                cache,
+            );
+            process_stroke(
+                &mut rect.stroke,
+                rect.abs_transform,
+                context_transform,
+                context_bbox,
+                bbox,
+                cache,
+            );
+        }
+        Node::Ellipse(ref mut ellipse) => {
+            let bbox = text_bbox.unwrap_or(ellipse.bounding_box);
+
+            process_fill(
+                &mut ellipse.fill,
+                ellipse.abs_transform,
+                context_transform,
+                context_bbox,
+                bbox,
+                cache,
+            );
+            process_stroke(
+                &mut ellipse.stroke,
+                ellipse.abs_transform,
+                context_transform,
+                context_bbox,
+                bbox,
+                cache,
+            );
+        }
+        Node::Polygon(ref mut polygon) => {
+            let bbox = text_bbox.unwrap_or(polygon.bounding_box);
+
+            process_fill(
+                &mut polygon.fill,
+                polygon.abs_transform,
+                context_transform,
+                context_bbox,
+                bbox,
+                cache,
+            );
+            process_stroke(
+                &mut polygon.stroke,
+                polygon.abs_transform,
+                context_transform,
+                context_bbox,
+                bbox,
+                cache,
+            );
+        }
         Node::Image(ref mut image) => {
             if let ImageKind::SVG(ref mut tree) = image.kind {
                 update_paint_servers(&mut tree.root, context_transform, context_bbox, None, cache);

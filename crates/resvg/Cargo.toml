@@ -17,6 +17,7 @@ required-features = ["text", "system-fonts", "memmap-fonts"]
 [dependencies]
 gif = { version = "0.13", optional = true }
 image-webp = { version = "0.2.0", optional = true }
+kurbo = "0.12" # For arc conversion in shape rendering
 log = "0.4"
 pico-args = { version = "0.5", features = ["eq-separator"] }
 rgb = "0.8"

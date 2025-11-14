@@ -37,6 +37,45 @@ pub fn render_node(
                 pixmap,
             );
         }
+        // Rectangle, Ellipse, and Polygon nodes are converted to paths for rendering.
+        // This maintains compatibility with the existing rendering pipeline while preserving
+        // primitive shape information in the usvg tree structure.
+        usvg::Node::Rectangle(ref rect) => {
+            // Convert rectangle to path and render
+            if let Some(path) = crate::path::rect_to_path(rect) {
+                crate::path::render(
+                    &path,
+                    tiny_skia::BlendMode::SourceOver,
+                    ctx,
+                    transform,
+                    pixmap,
+                );
+            }
+        }
+        usvg::Node::Ellipse(ref ellipse) => {
+            // Convert ellipse to path and render
+            if let Some(path) = crate::path::ellipse_to_path(ellipse) {
+                crate::path::render(
+                    &path,
+                    tiny_skia::BlendMode::SourceOver,
+                    ctx,
+                    transform,
+                    pixmap,
+                );
+            }
+        }
+        usvg::Node::Polygon(ref polygon) => {
+            // Convert polygon to path and render
+            if let Some(path) = crate::path::polygon_to_path(polygon) {
+                crate::path::render(
+                    &path,
+                    tiny_skia::BlendMode::SourceOver,
+                    ctx,
+                    transform,
+                    pixmap,
+                );
+            }
+        }
         usvg::Node::Image(ref image) => {
             crate::image::render(image, transform, pixmap);
         }

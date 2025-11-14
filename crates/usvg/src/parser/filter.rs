@@ -842,6 +842,9 @@ fn convert_image_inner(
                     match child2 {
                         Node::Group(ref mut g2) => g2.id.clear(),
                         Node::Path(ref mut path) => path.id.clear(),
+                        Node::Rectangle(ref mut rect) => rect.id.clear(),
+                        Node::Ellipse(ref mut ellipse) => ellipse.id.clear(),
+                        Node::Polygon(ref mut polygon) => polygon.id.clear(),
                         Node::Image(ref mut image) => image.id.clear(),
                         Node::Text(ref mut text) => text.id.clear(),
                     }

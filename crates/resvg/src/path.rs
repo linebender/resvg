@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 use crate::render::Context;
+use usvg::ApproxEqUlps;
 
 pub fn render(
     path: &usvg::Path,
@@ -201,4 +202,204 @@ fn render_pattern_pixmap(
     ts = ts.pre_scale(1.0 / sx, 1.0 / sy);
 
     Some((pixmap, ts))
+}
+
+// Note: The following functions provide optional support for Rectangle, Ellipse, and Polygon nodes.
+// These shapes are converted to paths for rendering, maintaining compatibility with the existing
+// rendering pipeline while preserving primitive shape information in the usvg tree.
+
+/// Extension trait for `tiny_skia_path::PathBuilder` to add SVG arc support.
+///
+/// This trait provides an `arc_to` method that converts SVG arc commands to cubic Bézier curves.
+/// This implementation is duplicated from `usvg::parser::shapes::PathBuilderExt` because
+/// `usvg::parser::shapes` is a private module and cannot be accessed from the `resvg` crate.
+///
+/// The implementation uses the `kurbo` library to convert SVG arcs to cubic Bézier curves
+/// with a tolerance of 0.1.
+trait PathBuilderExt {
+    fn arc_to(
+        &mut self,
+        rx: f32,
+        ry: f32,
+        x_axis_rotation: f32,
+        large_arc: bool,
+        sweep: bool,
+        x: f32,
+        y: f32,
+    );
+}
+
+impl PathBuilderExt for usvg::tiny_skia_path::PathBuilder {
+    fn arc_to(
+        &mut self,
+        rx: f32,
+        ry: f32,
+        x_axis_rotation: f32,
+        large_arc: bool,
+        sweep: bool,
+        x: f32,
+        y: f32,
+    ) {
+        let prev = match self.last_point() {
+            Some(v) => v,
+            None => return,
+        };
+
+        let svg_arc = kurbo::SvgArc {
+            from: kurbo::Point::new(prev.x as f64, prev.y as f64),
+            to: kurbo::Point::new(x as f64, y as f64),
+            radii: kurbo::Vec2::new(rx as f64, ry as f64),
+            x_rotation: (x_axis_rotation as f64).to_radians(),
+            large_arc,
+            sweep,
+        };
+
+        match kurbo::Arc::from_svg_arc(&svg_arc) {
+            Some(arc) => {
+                arc.to_cubic_beziers(0.1, |p1, p2, p| {
+                    self.cubic_to(
+                        p1.x as f32,
+                        p1.y as f32,
+                        p2.x as f32,
+                        p2.y as f32,
+                        p.x as f32,
+                        p.y as f32,
+                    );
+                });
+            }
+            None => {
+                self.line_to(x, y);
+            }
+        }
+    }
+}
+
+/// Converts a Rectangle node to a Path for rendering.
+///
+/// This function converts a `Rectangle` primitive node to a `Path` node so it can be rendered
+/// using the existing path rendering pipeline. The conversion preserves all visual properties
+/// including rounded corners (rx/ry) using proper arc conversion.
+pub(crate) fn rect_to_path(rect: &usvg::Rectangle) -> Option<usvg::Path> {
+    use std::sync::Arc;
+    use usvg::tiny_skia_path::PathBuilder;
+
+    let x = rect.x();
+    let y = rect.y();
+    let width = rect.width();
+    let height = rect.height();
+    let rx = rect.rx();
+    let ry = rect.ry();
+
+    // Convert rectangle to path with proper arcs for rounded corners
+    let path_data = if rx.approx_eq_ulps(&0.0, 4) && ry.approx_eq_ulps(&0.0, 4) {
+        match usvg::Rect::from_xywh(x, y, width, height) {
+            Some(r) => PathBuilder::from_rect(r),
+            None => return None,
+        }
+    } else {
+        // For rounded rectangles, convert to path with proper arcs
+        let mut builder = PathBuilder::new();
+        builder.move_to(x + rx, y);
+        builder.line_to(x + width - rx, y);
+        builder.arc_to(rx, ry, 0.0, false, true, x + width, y + ry);
+        builder.line_to(x + width, y + height - ry);
+        builder.arc_to(rx, ry, 0.0, false, true, x + width - rx, y + height);
+        builder.line_to(x + rx, y + height);
+        builder.arc_to(rx, ry, 0.0, false, true, x, y + height - ry);
+        builder.line_to(x, y + ry);
+        builder.arc_to(rx, ry, 0.0, false, true, x + rx, y);
+        builder.close();
+        match builder.finish() {
+            Some(p) => p,
+            None => return None,
+        }
+    };
+
+    usvg::Path::new(
+        rect.id().to_string(),
+        rect.is_visible(),
+        rect.fill().cloned(),
+        rect.stroke().cloned(),
+        rect.paint_order(),
+        rect.rendering_mode(),
+        Arc::new(path_data),
+        rect.abs_transform(),
+    )
+}
+
+/// Converts an Ellipse node to a Path for rendering.
+///
+/// This function converts an `Ellipse` primitive node to a `Path` node so it can be rendered
+/// using the existing path rendering pipeline. The ellipse is converted using four arc segments
+/// to maintain visual accuracy.
+pub(crate) fn ellipse_to_path(ellipse: &usvg::Ellipse) -> Option<usvg::Path> {
+    use std::sync::Arc;
+    use usvg::tiny_skia_path::PathBuilder;
+
+    let cx = ellipse.cx();
+    let cy = ellipse.cy();
+    let rx = ellipse.rx();
+    let ry = ellipse.ry();
+
+    // Convert ellipse to path with proper arcs
+    let mut builder = PathBuilder::new();
+    builder.move_to(cx + rx, cy);
+    builder.arc_to(rx, ry, 0.0, false, true, cx, cy + ry);
+    builder.arc_to(rx, ry, 0.0, false, true, cx - rx, cy);
+    builder.arc_to(rx, ry, 0.0, false, true, cx, cy - ry);
+    builder.arc_to(rx, ry, 0.0, false, true, cx + rx, cy);
+    builder.close();
+
+    let path_data = match builder.finish() {
+        Some(p) => p,
+        None => return None,
+    };
+
+    usvg::Path::new(
+        ellipse.id().to_string(),
+        ellipse.is_visible(),
+        ellipse.fill().cloned(),
+        ellipse.stroke().cloned(),
+        ellipse.paint_order(),
+        ellipse.rendering_mode(),
+        Arc::new(path_data),
+        ellipse.abs_transform(),
+    )
+}
+
+/// Converts a Polygon node to a Path for rendering.
+///
+/// This function converts a `Polygon` primitive node to a `Path` node so it can be rendered
+/// using the existing path rendering pipeline. The polygon points are converted to a closed path.
+pub(crate) fn polygon_to_path(polygon: &usvg::Polygon) -> Option<usvg::Path> {
+    use std::sync::Arc;
+    use usvg::tiny_skia_path::PathBuilder;
+
+    let mut builder = PathBuilder::new();
+    let points = polygon.points();
+    if points.is_empty() {
+        return None;
+    }
+
+    builder.move_to(points[0].0, points[0].1);
+    for &(x, y) in &points[1..] {
+        builder.line_to(x, y);
+    }
+    builder.close();
+
+    let path_data = match builder.finish() {
+        Some(p) => p,
+        None => return None,
+    };
+
+    usvg::Path::new(
+        polygon.id().to_string(),
+        polygon.is_visible(),
+        polygon.fill().cloned(),
+        polygon.stroke().cloned(),
+        polygon.paint_order(),
+        polygon.rendering_mode(),
+        Arc::new(path_data),
+        polygon.abs_transform(),
+    )
 }

@@ -460,6 +460,7 @@ version = "0.45.1"
 dependencies = [
  "gif",
  "image-webp",
+ "kurbo",
  "log",
  "once_cell",
  "pico-args",

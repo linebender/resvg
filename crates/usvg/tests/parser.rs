@@ -45,7 +45,7 @@ fn stylesheet_injection() {
 
     let tree = usvg::Tree::from_str(&svg, &options).unwrap();
 
-    let usvg::Node::Path(ref first) = &tree.root().children()[0] else {
+    let usvg::Node::Rectangle(ref first) = &tree.root().children()[0] else {
         unreachable!()
     };
 
@@ -55,7 +55,7 @@ fn stylesheet_injection() {
         &usvg::Paint::Color(Color::new_rgb(255, 0, 0))
     );
 
-    let usvg::Node::Path(ref second) = &tree.root().children()[1] else {
+    let usvg::Node::Rectangle(ref second) = &tree.root().children()[1] else {
         unreachable!()
     };
     assert_eq!(
@@ -63,7 +63,7 @@ fn stylesheet_injection() {
         &usvg::Paint::Color(Color::new_rgb(255, 0, 0))
     );
 
-    let usvg::Node::Path(ref third) = &tree.root().children()[2] else {
+    let usvg::Node::Rectangle(ref third) = &tree.root().children()[2] else {
         unreachable!()
     };
     assert_eq!(
@@ -71,19 +71,19 @@ fn stylesheet_injection() {
         &usvg::Paint::Color(Color::new_rgb(0, 128, 0))
     );
 
-    let usvg::Node::Path(ref third) = &tree.root().children()[3] else {
+    let usvg::Node::Rectangle(ref fourth) = &tree.root().children()[3] else {
         unreachable!()
     };
     assert_eq!(
-        third.fill().unwrap().paint(),
+        fourth.fill().unwrap().paint(),
         &usvg::Paint::Color(Color::new_rgb(0, 128, 0))
     );
 
-    let usvg::Node::Path(ref third) = &tree.root().children()[3] else {
+    let usvg::Node::Rectangle(ref fifth) = &tree.root().children()[4] else {
         unreachable!()
     };
     assert_eq!(
-        third.fill().unwrap().paint(),
+        fifth.fill().unwrap().paint(),
         &usvg::Paint::Color(Color::new_rgb(0, 128, 0))
     );
 }
@@ -113,7 +113,7 @@ fn stylesheet_injection_with_important() {
 
     let tree = usvg::Tree::from_str(&svg, &options).unwrap();
 
-    let usvg::Node::Path(ref first) = &tree.root().children()[0] else {
+    let usvg::Node::Rectangle(ref first) = &tree.root().children()[0] else {
         unreachable!()
     };
 
@@ -123,7 +123,7 @@ fn stylesheet_injection_with_important() {
         &usvg::Paint::Color(Color::new_rgb(255, 0, 0))
     );
 
-    let usvg::Node::Path(ref second) = &tree.root().children()[1] else {
+    let usvg::Node::Rectangle(ref second) = &tree.root().children()[1] else {
         unreachable!()
     };
     assert_eq!(
@@ -131,7 +131,7 @@ fn stylesheet_injection_with_important() {
         &usvg::Paint::Color(Color::new_rgb(255, 0, 0))
     );
 
-    let usvg::Node::Path(ref third) = &tree.root().children()[2] else {
+    let usvg::Node::Rectangle(ref third) = &tree.root().children()[2] else {
         unreachable!()
     };
     assert_eq!(
@@ -139,19 +139,19 @@ fn stylesheet_injection_with_important() {
         &usvg::Paint::Color(Color::new_rgb(255, 0, 0))
     );
 
-    let usvg::Node::Path(ref third) = &tree.root().children()[3] else {
+    let usvg::Node::Rectangle(ref fourth) = &tree.root().children()[3] else {
         unreachable!()
     };
     assert_eq!(
-        third.fill().unwrap().paint(),
+        fourth.fill().unwrap().paint(),
         &usvg::Paint::Color(Color::new_rgb(255, 0, 0))
     );
 
-    let usvg::Node::Path(ref third) = &tree.root().children()[4] else {
+    let usvg::Node::Rectangle(ref fifth) = &tree.root().children()[4] else {
         unreachable!()
     };
     assert_eq!(
-        third.fill().unwrap().paint(),
+        fifth.fill().unwrap().paint(),
         &usvg::Paint::Color(Color::new_rgb(255, 0, 0))
     );
 }
@@ -323,7 +323,7 @@ fn path_transform_in_symbol_no_clip() {
     // <svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
     //     <g id="use1">
     //         <g transform="matrix(1 0 0 1 20 0)">
-    //             <path fill="#000000" stroke="none" d="M 0 0 L 10 0 L 10 10 L 0 10 Z"/>
+    //             <rect fill="#000000" stroke="none" x="0" y="0" width="10" height="10"/>
     //         </g>
     //     </g>
     // </svg>
@@ -352,10 +352,10 @@ fn path_transform_in_symbol_no_clip() {
         _ => unreachable!(),
     };
 
-    let path = &group2.children()[0];
-    assert!(matches!(path, usvg::Node::Path(_)));
+    let rect = &group2.children()[0];
+    assert!(matches!(rect, usvg::Node::Rectangle(_)));
     assert_eq!(
-        path.abs_transform(),
+        rect.abs_transform(),
         usvg::Transform::from_translate(20.0, 0.0)
     );
 }
@@ -422,10 +422,10 @@ fn path_transform_in_symbol_with_clip() {
         _ => unreachable!(),
     };
 
-    let path = &group3.children()[0];
-    assert!(matches!(path, usvg::Node::Path(_)));
+    let rect = &group3.children()[0];
+    assert!(matches!(rect, usvg::Node::Rectangle(_)));
     assert_eq!(
-        path.abs_transform(),
+        rect.abs_transform(),
         usvg::Transform::from_translate(20.0, 0.0)
     );
 }
@@ -446,12 +446,12 @@ fn path_transform_in_svg() {
     // <svg width="100" height="100" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
     //     <defs>
     //         <clipPath id="clipPath1">
-    //             <path fill="#000000" stroke="none" d="M 0 0 L 100 0 L 100 50 L 0 50 Z"/>
+    //             <rect fill="#000000" stroke="none" x="0" y="0" width="100" height="50"/>
     //         </clipPath>
     //     </defs>
     //     <g id="g1" transform="matrix(1 0 0 1 100 150)">
     //         <g id="svg1" clip-path="url(#clipPath1)">
-    //             <path id="rect1" fill="#000000" stroke="none" d="M 0 0 L 10 0 L 10 10 L 0 10 Z"/>
+    //             <rect id="rect1" fill="#000000" stroke="none" x="0" y="0" width="10" height="10"/>
     //         </g>
     //     </g>
     // </svg>
@@ -484,10 +484,10 @@ fn path_transform_in_svg() {
         _ => unreachable!(),
     };
 
-    let path = &group2.children()[0];
-    assert!(matches!(path, usvg::Node::Path(_)));
+    let rect = &group2.children()[0];
+    assert!(matches!(rect, usvg::Node::Rectangle(_)));
     assert_eq!(
-        path.abs_transform(),
+        rect.abs_transform(),
         usvg::Transform::from_translate(100.0, 150.0)
     );
 }

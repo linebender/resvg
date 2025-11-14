@@ -63,7 +63,7 @@ pub(crate) fn convert_path(node: SvgNode) -> Option<Arc<Path>> {
     builder.finish().map(Arc::new)
 }
 
-fn convert_rect(node: SvgNode, state: &converter::State) -> Option<Arc<Path>> {
+pub(crate) fn convert_rect(node: SvgNode, state: &converter::State) -> Option<Arc<Path>> {
     // 'width' and 'height' attributes must be positive and non-zero.
     let width = node.convert_user_length(AId::Width, state, Length::zero());
     let height = node.convert_user_length(AId::Height, state, Length::zero());
@@ -124,7 +124,7 @@ fn convert_rect(node: SvgNode, state: &converter::State) -> Option<Arc<Path>> {
     Some(Arc::new(path))
 }
 
-fn resolve_rx_ry(node: SvgNode, state: &converter::State) -> (f32, f32) {
+pub(crate) fn resolve_rx_ry(node: SvgNode, state: &converter::State) -> (f32, f32) {
     let mut rx_opt = node.attribute::<Length>(AId::Rx);
     let mut ry_opt = node.attribute::<Length>(AId::Ry);
 
@@ -176,7 +176,7 @@ fn convert_polyline(node: SvgNode) -> Option<Arc<Path>> {
     builder.finish().map(Arc::new)
 }
 
-fn convert_polygon(node: SvgNode) -> Option<Arc<Path>> {
+pub(crate) fn convert_polygon(node: SvgNode) -> Option<Arc<Path>> {
     let mut builder = points_to_path(node, "Polygon")?;
     builder.close();
     builder.finish().map(Arc::new)
@@ -235,7 +235,7 @@ fn convert_circle(node: SvgNode, state: &converter::State) -> Option<Arc<Path>> 
     ellipse_to_path(cx, cy, r, r)
 }
 
-fn convert_ellipse(node: SvgNode, state: &converter::State) -> Option<Arc<Path>> {
+pub(crate) fn convert_ellipse(node: SvgNode, state: &converter::State) -> Option<Arc<Path>> {
     let cx = node.convert_user_length(AId::Cx, state, Length::zero());
     let cy = node.convert_user_length(AId::Cy, state, Length::zero());
     let (rx, ry) = resolve_rx_ry(node, state);
@@ -270,7 +270,11 @@ fn ellipse_to_path(cx: f32, cy: f32, rx: f32, ry: f32) -> Option<Arc<Path>> {
     builder.finish().map(Arc::new)
 }
 
-trait PathBuilderExt {
+/// Extension trait for `tiny_skia_path::PathBuilder` to add SVG arc support.
+///
+/// This trait provides an `arc_to` method that converts SVG arc commands
+/// to cubic Bézier curves using the `kurbo` library.
+pub(crate) trait PathBuilderExt {
     fn arc_to(
         &mut self,
         rx: f32,

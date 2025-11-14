@@ -23,6 +23,8 @@ pub(crate) use converter::Cache;
 pub use image::{ImageHrefDataResolverFn, ImageHrefResolver, ImageHrefStringResolverFn};
 pub use options::Options;
 pub(crate) use svgtree::{AId, EId};
+// Re-export PathBuilderExt for use in writer module
+pub(crate) use shapes::PathBuilderExt;
 
 /// List of all errors.
 #[derive(Debug)]

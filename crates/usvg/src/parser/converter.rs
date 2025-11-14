@@ -600,13 +600,16 @@ fn convert_element_impl(
     parent: &mut Group,
 ) {
     match tag_name {
-        EId::Rect
-        | EId::Circle
-        | EId::Ellipse
-        | EId::Line
-        | EId::Polyline
-        | EId::Polygon
-        | EId::Path => {
+        EId::Rect => {
+            convert_rect_node(node, state, cache, parent);
+        }
+        EId::Ellipse => {
+            convert_ellipse_node(node, state, cache, parent);
+        }
+        EId::Polygon => {
+            convert_polygon_node(node, state, cache, parent);
+        }
+        EId::Circle | EId::Line | EId::Polyline | EId::Path => {
             if let Some(path) = super::shapes::convert(node, state) {
                 convert_path(node, path, state, cache, parent);
             }
@@ -682,7 +685,16 @@ fn convert_clip_path_elements_impl(
     parent: &mut Group,
 ) {
     match tag_name {
-        EId::Rect | EId::Circle | EId::Ellipse | EId::Polyline | EId::Polygon | EId::Path => {
+        EId::Rect => {
+            convert_rect_node(node, state, cache, parent);
+        }
+        EId::Ellipse => {
+            convert_ellipse_node(node, state, cache, parent);
+        }
+        EId::Polygon => {
+            convert_polygon_node(node, state, cache, parent);
+        }
+        EId::Circle | EId::Polyline | EId::Path => {
             if let Some(path) = super::shapes::convert(node, state) {
                 convert_path(node, path, state, cache, parent);
             }
@@ -995,6 +1007,498 @@ fn convert_path(
         }
         _ => parent.children.push(Node::Path(Box::new(path.clone()))),
     }
+}
+
+fn convert_rect_node(node: SvgNode, state: &State, cache: &mut Cache, parent: &mut Group) {
+    use super::shapes;
+    use svgtypes::Length;
+
+    // Extract rect attributes
+    let width = node.convert_user_length(AId::Width, state, Length::zero());
+    let height = node.convert_user_length(AId::Height, state, Length::zero());
+    if !width.is_valid_length() {
+        log::warn!(
+            "Rect '{}' has an invalid 'width' value. Skipped.",
+            node.element_id()
+        );
+        return;
+    }
+    if !height.is_valid_length() {
+        log::warn!(
+            "Rect '{}' has an invalid 'height' value. Skipped.",
+            node.element_id()
+        );
+        return;
+    }
+
+    let x = node.convert_user_length(AId::X, state, Length::zero());
+    let y = node.convert_user_length(AId::Y, state, Length::zero());
+
+    let (mut rx, mut ry) = shapes::resolve_rx_ry(node, state);
+
+    // Clamp rx/ry to the half of the width/height.
+    if rx > width / 2.0 {
+        rx = width / 2.0;
+    }
+    if ry > height / 2.0 {
+        ry = height / 2.0;
+    }
+
+    // Convert to path for stroke bounding box calculation
+    let path_for_bbox = match shapes::convert_rect(node, state) {
+        Some(p) => p,
+        None => return,
+    };
+
+    // Calculate bounding box
+    let bbox = match Rect::from_xywh(x, y, width, height) {
+        Some(b) => b,
+        None => return,
+    };
+
+    // Resolve fill, stroke, visibility, etc. (reuse logic from convert_path)
+    let has_bbox = width > 0.0 && height > 0.0;
+    let mut fill = super::style::resolve_fill(node, has_bbox, state, cache);
+    let mut stroke = super::style::resolve_stroke(node, has_bbox, state, cache);
+    let visibility: Visibility = node.find_attribute(AId::Visibility).unwrap_or_default();
+    let mut visible = visibility == Visibility::Visible;
+    let rendering_mode: ShapeRendering = node
+        .find_attribute(AId::ShapeRendering)
+        .unwrap_or(state.opt.shape_rendering);
+
+    let raw_paint_order: svgtypes::PaintOrder =
+        node.find_attribute(AId::PaintOrder).unwrap_or_default();
+    let paint_order = svg_paint_order_to_usvg(raw_paint_order);
+    let shape_transform = parent.abs_transform;
+
+    // If a shape doesn't have a fill or a stroke then it's invisible.
+    if fill.is_none() && stroke.is_none() {
+        visible = false;
+    }
+
+    // Process paint (similar to convert_path)
+    if let Some(fill) = fill.as_mut() {
+        if let Some(ContextElement::PathNode(context_transform, context_bbox)) =
+            fill.context_element
+        {
+            process_paint(
+                &mut fill.paint,
+                true,
+                context_transform,
+                context_bbox.map(|r| r.to_rect()),
+                shape_transform,
+                path_for_bbox.bounds(),
+                cache,
+            );
+            fill.context_element = None;
+        }
+    }
+
+    if let Some(stroke) = stroke.as_mut() {
+        if let Some(ContextElement::PathNode(context_transform, context_bbox)) =
+            stroke.context_element
+        {
+            process_paint(
+                &mut stroke.paint,
+                true,
+                context_transform,
+                context_bbox.map(|r| r.to_rect()),
+                shape_transform,
+                path_for_bbox.bounds(),
+                cache,
+            );
+            stroke.context_element = None;
+        }
+    }
+
+    // Calculate bounding boxes
+    let bounding_box = bbox;
+    let stroke_bounding_box =
+        Path::calculate_stroke_bbox(stroke.as_ref(), &path_for_bbox).unwrap_or(bounding_box);
+
+    let abs_bounding_box: Rect;
+    let abs_stroke_bounding_box: Rect;
+    if shape_transform.has_skew() {
+        let path2 = path_for_bbox.as_ref().clone();
+        if let Some(path2) = path2.transform(shape_transform) {
+            if let Some(bbox) = path2.compute_tight_bounds() {
+                abs_bounding_box = bbox;
+                abs_stroke_bounding_box = Path::calculate_stroke_bbox(stroke.as_ref(), &path2)
+                    .unwrap_or(abs_bounding_box);
+            } else {
+                return;
+            }
+        } else {
+            return;
+        }
+    } else {
+        abs_bounding_box = match bounding_box.transform(shape_transform) {
+            Some(b) => b,
+            None => return,
+        };
+        abs_stroke_bounding_box = match stroke_bounding_box.transform(shape_transform) {
+            Some(b) => b,
+            None => return,
+        };
+    }
+
+    // If markers are present, we need to fall back to Path node for proper marker handling.
+    // Markers require path data to determine placement and proper paint order handling.
+    // This is a limitation: shapes with markers are converted to paths rather than preserved
+    // as primitive nodes.
+    if super::marker::is_valid(node) && visible {
+        // Convert to path and use the existing convert_path logic
+        convert_path(node, path_for_bbox, state, cache, parent);
+        return;
+    }
+
+    // Nodes generated by markers must not have an ID.
+    let id = if state.parent_markers.is_empty() {
+        node.element_id().to_string()
+    } else {
+        String::new()
+    };
+
+    let rect = Rectangle {
+        id,
+        visible,
+        fill,
+        stroke,
+        paint_order,
+        rendering_mode,
+        x,
+        y,
+        width,
+        height,
+        rx,
+        ry,
+        abs_transform: shape_transform,
+        bounding_box,
+        abs_bounding_box,
+        stroke_bounding_box,
+        abs_stroke_bounding_box,
+    };
+
+    parent.children.push(Node::Rectangle(Box::new(rect)));
+}
+
+fn convert_ellipse_node(node: SvgNode, state: &State, cache: &mut Cache, parent: &mut Group) {
+    use super::shapes;
+    use svgtypes::Length;
+
+    // Extract ellipse attributes
+    let cx = node.convert_user_length(AId::Cx, state, Length::zero());
+    let cy = node.convert_user_length(AId::Cy, state, Length::zero());
+    let (rx, ry) = shapes::resolve_rx_ry(node, state);
+
+    if !rx.is_valid_length() {
+        log::warn!(
+            "Ellipse '{}' has an invalid 'rx' value. Skipped.",
+            node.element_id()
+        );
+        return;
+    }
+
+    if !ry.is_valid_length() {
+        log::warn!(
+            "Ellipse '{}' has an invalid 'ry' value. Skipped.",
+            node.element_id()
+        );
+        return;
+    }
+
+    // Convert to path for bounding box calculation
+    let path_for_bbox = match shapes::convert_ellipse(node, state) {
+        Some(p) => p,
+        None => return,
+    };
+
+    // Calculate bounding box
+    let bbox = match path_for_bbox.compute_tight_bounds() {
+        Some(b) => b,
+        None => return,
+    };
+
+    // Resolve fill, stroke, visibility, etc.
+    let has_bbox = rx > 0.0 && ry > 0.0;
+    let mut fill = super::style::resolve_fill(node, has_bbox, state, cache);
+    let mut stroke = super::style::resolve_stroke(node, has_bbox, state, cache);
+    let visibility: Visibility = node.find_attribute(AId::Visibility).unwrap_or_default();
+    let mut visible = visibility == Visibility::Visible;
+    let rendering_mode: ShapeRendering = node
+        .find_attribute(AId::ShapeRendering)
+        .unwrap_or(state.opt.shape_rendering);
+
+    let raw_paint_order: svgtypes::PaintOrder =
+        node.find_attribute(AId::PaintOrder).unwrap_or_default();
+    let paint_order = svg_paint_order_to_usvg(raw_paint_order);
+    let shape_transform = parent.abs_transform;
+
+    if fill.is_none() && stroke.is_none() {
+        visible = false;
+    }
+
+    // Process paint
+    if let Some(fill) = fill.as_mut() {
+        if let Some(ContextElement::PathNode(context_transform, context_bbox)) =
+            fill.context_element
+        {
+            process_paint(
+                &mut fill.paint,
+                true,
+                context_transform,
+                context_bbox.map(|r| r.to_rect()),
+                shape_transform,
+                path_for_bbox.bounds(),
+                cache,
+            );
+            fill.context_element = None;
+        }
+    }
+
+    if let Some(stroke) = stroke.as_mut() {
+        if let Some(ContextElement::PathNode(context_transform, context_bbox)) =
+            stroke.context_element
+        {
+            process_paint(
+                &mut stroke.paint,
+                true,
+                context_transform,
+                context_bbox.map(|r| r.to_rect()),
+                shape_transform,
+                path_for_bbox.bounds(),
+                cache,
+            );
+            stroke.context_element = None;
+        }
+    }
+
+    // Calculate bounding boxes
+    let bounding_box = bbox;
+    let stroke_bounding_box =
+        Path::calculate_stroke_bbox(stroke.as_ref(), &path_for_bbox).unwrap_or(bounding_box);
+
+    let abs_bounding_box: Rect;
+    let abs_stroke_bounding_box: Rect;
+    if shape_transform.has_skew() {
+        let path2 = path_for_bbox.as_ref().clone();
+        if let Some(path2) = path2.transform(shape_transform) {
+            if let Some(bbox) = path2.compute_tight_bounds() {
+                abs_bounding_box = bbox;
+                abs_stroke_bounding_box = Path::calculate_stroke_bbox(stroke.as_ref(), &path2)
+                    .unwrap_or(abs_bounding_box);
+            } else {
+                return;
+            }
+        } else {
+            return;
+        }
+    } else {
+        abs_bounding_box = match bounding_box.transform(shape_transform) {
+            Some(b) => b,
+            None => return,
+        };
+        abs_stroke_bounding_box = match stroke_bounding_box.transform(shape_transform) {
+            Some(b) => b,
+            None => return,
+        };
+    }
+
+    // If markers are present, we need to fall back to Path node for proper marker handling.
+    // Markers require path data to determine placement and proper paint order handling.
+    // This is a limitation: shapes with markers are converted to paths rather than preserved
+    // as primitive nodes.
+    if super::marker::is_valid(node) && visible {
+        // Convert to path and use the existing convert_path logic
+        convert_path(node, path_for_bbox, state, cache, parent);
+        return;
+    }
+
+    let id = if state.parent_markers.is_empty() {
+        node.element_id().to_string()
+    } else {
+        String::new()
+    };
+
+    let ellipse = Ellipse {
+        id,
+        visible,
+        fill,
+        stroke,
+        paint_order,
+        rendering_mode,
+        cx,
+        cy,
+        rx,
+        ry,
+        abs_transform: shape_transform,
+        bounding_box,
+        abs_bounding_box,
+        stroke_bounding_box,
+        abs_stroke_bounding_box,
+    };
+
+    parent.children.push(Node::Ellipse(Box::new(ellipse)));
+}
+
+fn convert_polygon_node(node: SvgNode, state: &State, cache: &mut Cache, parent: &mut Group) {
+    use super::shapes;
+    use svgtypes::PointsParser;
+
+    // Extract polygon points
+    let mut points = Vec::new();
+    match node.attribute::<&str>(AId::Points) {
+        Some(text) => {
+            for (x, y) in PointsParser::from(text) {
+                points.push((x as f32, y as f32));
+            }
+        }
+        _ => {
+            log::warn!(
+                "Polygon '{}' has an invalid 'points' value. Skipped.",
+                node.element_id()
+            );
+            return;
+        }
+    }
+
+    if points.len() < 2 {
+        log::warn!(
+            "Polygon '{}' has less than 2 points. Skipped.",
+            node.element_id()
+        );
+        return;
+    }
+
+    // Convert to path for bounding box calculation
+    let path_for_bbox = match shapes::convert_polygon(node) {
+        Some(p) => p,
+        None => return,
+    };
+
+    // Calculate bounding box
+    let bbox = match path_for_bbox.compute_tight_bounds() {
+        Some(b) => b,
+        None => return,
+    };
+
+    // Resolve fill, stroke, visibility, etc.
+    let has_bbox = bbox.width() > 0.0 && bbox.height() > 0.0;
+    let mut fill = super::style::resolve_fill(node, has_bbox, state, cache);
+    let mut stroke = super::style::resolve_stroke(node, has_bbox, state, cache);
+    let visibility: Visibility = node.find_attribute(AId::Visibility).unwrap_or_default();
+    let mut visible = visibility == Visibility::Visible;
+    let rendering_mode: ShapeRendering = node
+        .find_attribute(AId::ShapeRendering)
+        .unwrap_or(state.opt.shape_rendering);
+
+    let raw_paint_order: svgtypes::PaintOrder =
+        node.find_attribute(AId::PaintOrder).unwrap_or_default();
+    let paint_order = svg_paint_order_to_usvg(raw_paint_order);
+    let shape_transform = parent.abs_transform;
+
+    if fill.is_none() && stroke.is_none() {
+        visible = false;
+    }
+
+    // Process paint
+    if let Some(fill) = fill.as_mut() {
+        if let Some(ContextElement::PathNode(context_transform, context_bbox)) =
+            fill.context_element
+        {
+            process_paint(
+                &mut fill.paint,
+                true,
+                context_transform,
+                context_bbox.map(|r| r.to_rect()),
+                shape_transform,
+                path_for_bbox.bounds(),
+                cache,
+            );
+            fill.context_element = None;
+        }
+    }
+
+    if let Some(stroke) = stroke.as_mut() {
+        if let Some(ContextElement::PathNode(context_transform, context_bbox)) =
+            stroke.context_element
+        {
+            process_paint(
+                &mut stroke.paint,
+                true,
+                context_transform,
+                context_bbox.map(|r| r.to_rect()),
+                shape_transform,
+                path_for_bbox.bounds(),
+                cache,
+            );
+            stroke.context_element = None;
+        }
+    }
+
+    // Calculate bounding boxes
+    let bounding_box = bbox;
+    let stroke_bounding_box =
+        Path::calculate_stroke_bbox(stroke.as_ref(), &path_for_bbox).unwrap_or(bounding_box);
+
+    let abs_bounding_box: Rect;
+    let abs_stroke_bounding_box: Rect;
+    if shape_transform.has_skew() {
+        let path2 = path_for_bbox.as_ref().clone();
+        if let Some(path2) = path2.transform(shape_transform) {
+            if let Some(bbox) = path2.compute_tight_bounds() {
+                abs_bounding_box = bbox;
+                abs_stroke_bounding_box = Path::calculate_stroke_bbox(stroke.as_ref(), &path2)
+                    .unwrap_or(abs_bounding_box);
+            } else {
+                return;
+            }
+        } else {
+            return;
+        }
+    } else {
+        abs_bounding_box = match bounding_box.transform(shape_transform) {
+            Some(b) => b,
+            None => return,
+        };
+        abs_stroke_bounding_box = match stroke_bounding_box.transform(shape_transform) {
+            Some(b) => b,
+            None => return,
+        };
+    }
+
+    // If markers are present, we need to fall back to Path node for proper marker handling.
+    // Markers require path data to determine placement and proper paint order handling.
+    // This is a limitation: shapes with markers are converted to paths rather than preserved
+    // as primitive nodes.
+    if super::marker::is_valid(node) && visible {
+        // Convert to path and use the existing convert_path logic
+        convert_path(node, path_for_bbox, state, cache, parent);
+        return;
+    }
+
+    let id = if state.parent_markers.is_empty() {
+        node.element_id().to_string()
+    } else {
+        String::new()
+    };
+
+    let polygon = Polygon {
+        id,
+        visible,
+        fill,
+        stroke,
+        paint_order,
+        rendering_mode,
+        points,
+        abs_transform: shape_transform,
+        bounding_box,
+        abs_bounding_box,
+        stroke_bounding_box,
+        abs_stroke_bounding_box,
+    };
+
+    parent.children.push(Node::Polygon(Box::new(polygon)));
 }
 
 fn append_single_paint_path(paint_order_kind: PaintOrderKind, path: &Path, parent: &mut Group) {

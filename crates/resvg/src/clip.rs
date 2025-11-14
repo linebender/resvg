@@ -47,6 +47,41 @@ fn draw_children(
 
                 crate::path::fill_path(path, mode, &ctx, transform, pixmap);
             }
+            // Rectangle, Ellipse, and Polygon nodes are converted to paths for clipping.
+            // This maintains compatibility with the existing clipping pipeline.
+            usvg::Node::Rectangle(ref rect) => {
+                if !rect.is_visible() {
+                    continue;
+                }
+                if let Some(path) = crate::path::rect_to_path(rect) {
+                    let ctx = Context {
+                        max_bbox: tiny_skia::IntRect::from_xywh(0, 0, 1, 1).unwrap(),
+                    };
+                    crate::path::fill_path(&path, mode, &ctx, transform, pixmap);
+                }
+            }
+            usvg::Node::Ellipse(ref ellipse) => {
+                if !ellipse.is_visible() {
+                    continue;
+                }
+                if let Some(path) = crate::path::ellipse_to_path(ellipse) {
+                    let ctx = Context {
+                        max_bbox: tiny_skia::IntRect::from_xywh(0, 0, 1, 1).unwrap(),
+                    };
+                    crate::path::fill_path(&path, mode, &ctx, transform, pixmap);
+                }
+            }
+            usvg::Node::Polygon(ref polygon) => {
+                if !polygon.is_visible() {
+                    continue;
+                }
+                if let Some(path) = crate::path::polygon_to_path(polygon) {
+                    let ctx = Context {
+                        max_bbox: tiny_skia::IntRect::from_xywh(0, 0, 1, 1).unwrap(),
+                    };
+                    crate::path::fill_path(&path, mode, &ctx, transform, pixmap);
+                }
+            }
             usvg::Node::Text(ref text) => {
                 draw_children(text.flattened(), mode, transform, pixmap);
             }

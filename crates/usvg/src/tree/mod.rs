@@ -866,6 +866,9 @@ impl Mask {
 pub enum Node {
     Group(Box<Group>),
     Path(Box<Path>),
+    Rectangle(Box<Rectangle>),
+    Ellipse(Box<Ellipse>),
+    Polygon(Box<Polygon>),
     Image(Box<Image>),
     Text(Box<Text>),
 }
@@ -876,6 +879,9 @@ impl Node {
         match self {
             Node::Group(ref e) => e.id.as_str(),
             Node::Path(ref e) => e.id.as_str(),
+            Node::Rectangle(ref e) => e.id.as_str(),
+            Node::Ellipse(ref e) => e.id.as_str(),
+            Node::Polygon(ref e) => e.id.as_str(),
             Node::Image(ref e) => e.id.as_str(),
             Node::Text(ref e) => e.id.as_str(),
         }
@@ -888,6 +894,9 @@ impl Node {
         match self {
             Node::Group(ref group) => group.abs_transform(),
             Node::Path(ref path) => path.abs_transform(),
+            Node::Rectangle(ref rect) => rect.abs_transform(),
+            Node::Ellipse(ref ellipse) => ellipse.abs_transform(),
+            Node::Polygon(ref polygon) => polygon.abs_transform(),
             Node::Image(ref image) => image.abs_transform(),
             Node::Text(ref text) => text.abs_transform(),
         }
@@ -898,6 +907,9 @@ impl Node {
         match self {
             Node::Group(ref group) => group.bounding_box(),
             Node::Path(ref path) => path.bounding_box(),
+            Node::Rectangle(ref rect) => rect.bounding_box(),
+            Node::Ellipse(ref ellipse) => ellipse.bounding_box(),
+            Node::Polygon(ref polygon) => polygon.bounding_box(),
             Node::Image(ref image) => image.bounding_box(),
             Node::Text(ref text) => text.bounding_box(),
         }
@@ -908,6 +920,9 @@ impl Node {
         match self {
             Node::Group(ref group) => group.abs_bounding_box(),
             Node::Path(ref path) => path.abs_bounding_box(),
+            Node::Rectangle(ref rect) => rect.abs_bounding_box(),
+            Node::Ellipse(ref ellipse) => ellipse.abs_bounding_box(),
+            Node::Polygon(ref polygon) => polygon.abs_bounding_box(),
             Node::Image(ref image) => image.abs_bounding_box(),
             Node::Text(ref text) => text.abs_bounding_box(),
         }
@@ -918,6 +933,9 @@ impl Node {
         match self {
             Node::Group(ref group) => group.stroke_bounding_box(),
             Node::Path(ref path) => path.stroke_bounding_box(),
+            Node::Rectangle(ref rect) => rect.stroke_bounding_box(),
+            Node::Ellipse(ref ellipse) => ellipse.stroke_bounding_box(),
+            Node::Polygon(ref polygon) => polygon.stroke_bounding_box(),
             // Image cannot be stroked.
             Node::Image(ref image) => image.bounding_box(),
             Node::Text(ref text) => text.stroke_bounding_box(),
@@ -929,6 +947,9 @@ impl Node {
         match self {
             Node::Group(ref group) => group.abs_stroke_bounding_box(),
             Node::Path(ref path) => path.abs_stroke_bounding_box(),
+            Node::Rectangle(ref rect) => rect.abs_stroke_bounding_box(),
+            Node::Ellipse(ref ellipse) => ellipse.abs_stroke_bounding_box(),
+            Node::Polygon(ref polygon) => polygon.abs_stroke_bounding_box(),
             // Image cannot be stroked.
             Node::Image(ref image) => image.abs_bounding_box(),
             Node::Text(ref text) => text.abs_stroke_bounding_box(),
@@ -946,6 +967,9 @@ impl Node {
             Node::Group(ref group) => Some(group.abs_layer_bounding_box()),
             // Hor/ver path without stroke can return None. This is expected.
             Node::Path(ref path) => path.abs_bounding_box().to_non_zero_rect(),
+            Node::Rectangle(ref rect) => rect.abs_bounding_box().to_non_zero_rect(),
+            Node::Ellipse(ref ellipse) => ellipse.abs_bounding_box().to_non_zero_rect(),
+            Node::Polygon(ref polygon) => polygon.abs_bounding_box().to_non_zero_rect(),
             Node::Image(ref image) => image.abs_bounding_box().to_non_zero_rect(),
             Node::Text(ref text) => text.abs_bounding_box().to_non_zero_rect(),
         }
@@ -979,6 +1003,9 @@ impl Node {
         match self {
             Node::Group(ref group) => group.subroots(&mut f),
             Node::Path(ref path) => path.subroots(&mut f),
+            Node::Rectangle(ref rect) => rect.subroots(&mut f),
+            Node::Ellipse(ref ellipse) => ellipse.subroots(&mut f),
+            Node::Polygon(ref polygon) => polygon.subroots(&mut f),
             Node::Image(ref image) => image.subroots(&mut f),
             Node::Text(ref text) => text.subroots(&mut f),
         }
@@ -1268,7 +1295,14 @@ impl Path {
         )
     }
 
-    pub(crate) fn new(
+    /// Creates a new Path.
+    ///
+    /// This constructor is public to allow external crates (such as `resvg`) to create
+    /// `Path` nodes when converting primitive shapes (Rectangle, Ellipse, Polygon) to paths
+    /// for rendering purposes.
+    ///
+    /// Returns `None` if the path data is invalid or has zero size.
+    pub fn new(
         id: String,
         visible: bool,
         fill: Option<Fill>,
@@ -1400,7 +1434,7 @@ impl Path {
         self.abs_stroke_bounding_box
     }
 
-    fn calculate_stroke_bbox(stroke: Option<&Stroke>, path: &tiny_skia_path::Path) -> Option<Rect> {
+    pub(crate) fn calculate_stroke_bbox(stroke: Option<&Stroke>, path: &tiny_skia_path::Path) -> Option<Rect> {
         let mut stroke = stroke?.to_tiny_skia();
         // According to the spec, dash should not be accounted during bbox calculation.
         stroke.dash = None;
@@ -1413,6 +1447,394 @@ impl Path {
         }
 
         None
+    }
+
+    fn subroots(&self, f: &mut dyn FnMut(&Group)) {
+        if let Some(Paint::Pattern(ref patt)) = self.fill.as_ref().map(|f| &f.paint) {
+            f(patt.root());
+        }
+        if let Some(Paint::Pattern(ref patt)) = self.stroke.as_ref().map(|f| &f.paint) {
+            f(patt.root());
+        }
+    }
+}
+
+/// A rectangle element.
+///
+/// `rect` element in SVG.
+#[derive(Clone, Debug)]
+pub struct Rectangle {
+    pub(crate) id: String,
+    pub(crate) visible: bool,
+    pub(crate) fill: Option<Fill>,
+    pub(crate) stroke: Option<Stroke>,
+    pub(crate) paint_order: PaintOrder,
+    pub(crate) rendering_mode: ShapeRendering,
+    pub(crate) x: f32,
+    pub(crate) y: f32,
+    pub(crate) width: f32,
+    pub(crate) height: f32,
+    pub(crate) rx: f32,
+    pub(crate) ry: f32,
+    pub(crate) abs_transform: Transform,
+    pub(crate) bounding_box: Rect,
+    pub(crate) abs_bounding_box: Rect,
+    pub(crate) stroke_bounding_box: Rect,
+    pub(crate) abs_stroke_bounding_box: Rect,
+}
+
+impl Rectangle {
+    /// Element's ID.
+    ///
+    /// Taken from the SVG itself.
+    /// Isn't automatically generated.
+    /// Can be empty.
+    pub fn id(&self) -> &str {
+        &self.id
+    }
+
+    /// Element visibility.
+    pub fn is_visible(&self) -> bool {
+        self.visible
+    }
+
+    /// Fill style.
+    pub fn fill(&self) -> Option<&Fill> {
+        self.fill.as_ref()
+    }
+
+    /// Stroke style.
+    pub fn stroke(&self) -> Option<&Stroke> {
+        self.stroke.as_ref()
+    }
+
+    /// Fill and stroke paint order.
+    pub fn paint_order(&self) -> PaintOrder {
+        self.paint_order
+    }
+
+    /// Rendering mode.
+    ///
+    /// `shape-rendering` in SVG.
+    pub fn rendering_mode(&self) -> ShapeRendering {
+        self.rendering_mode
+    }
+
+    /// X coordinate.
+    ///
+    /// `x` in SVG.
+    pub fn x(&self) -> f32 {
+        self.x
+    }
+
+    /// Y coordinate.
+    ///
+    /// `y` in SVG.
+    pub fn y(&self) -> f32 {
+        self.y
+    }
+
+    /// Rectangle width.
+    ///
+    /// `width` in SVG.
+    pub fn width(&self) -> f32 {
+        self.width
+    }
+
+    /// Rectangle height.
+    ///
+    /// `height` in SVG.
+    pub fn height(&self) -> f32 {
+        self.height
+    }
+
+    /// Horizontal radius of rounded corners.
+    ///
+    /// `rx` in SVG.
+    pub fn rx(&self) -> f32 {
+        self.rx
+    }
+
+    /// Vertical radius of rounded corners.
+    ///
+    /// `ry` in SVG.
+    pub fn ry(&self) -> f32 {
+        self.ry
+    }
+
+    /// Element's absolute transform.
+    ///
+    /// Contains all ancestors transforms including elements's transform.
+    pub fn abs_transform(&self) -> Transform {
+        self.abs_transform
+    }
+
+    /// Element's object bounding box.
+    ///
+    /// `objectBoundingBox` in SVG terms. Meaning it doesn't affected by parent transforms.
+    pub fn bounding_box(&self) -> Rect {
+        self.bounding_box
+    }
+
+    /// Element's bounding box in canvas coordinates.
+    ///
+    /// `userSpaceOnUse` in SVG terms.
+    pub fn abs_bounding_box(&self) -> Rect {
+        self.abs_bounding_box
+    }
+
+    /// Element's object bounding box including stroke.
+    ///
+    /// Will have the same value as `bounding_box` when rect has no stroke.
+    pub fn stroke_bounding_box(&self) -> Rect {
+        self.stroke_bounding_box
+    }
+
+    /// Element's bounding box including stroke in canvas coordinates.
+    ///
+    /// Will have the same value as `abs_bounding_box` when rect has no stroke.
+    pub fn abs_stroke_bounding_box(&self) -> Rect {
+        self.abs_stroke_bounding_box
+    }
+
+    fn subroots(&self, f: &mut dyn FnMut(&Group)) {
+        if let Some(Paint::Pattern(ref patt)) = self.fill.as_ref().map(|f| &f.paint) {
+            f(patt.root());
+        }
+        if let Some(Paint::Pattern(ref patt)) = self.stroke.as_ref().map(|f| &f.paint) {
+            f(patt.root());
+        }
+    }
+}
+
+/// An ellipse element.
+///
+/// `ellipse` element in SVG.
+#[derive(Clone, Debug)]
+pub struct Ellipse {
+    pub(crate) id: String,
+    pub(crate) visible: bool,
+    pub(crate) fill: Option<Fill>,
+    pub(crate) stroke: Option<Stroke>,
+    pub(crate) paint_order: PaintOrder,
+    pub(crate) rendering_mode: ShapeRendering,
+    pub(crate) cx: f32,
+    pub(crate) cy: f32,
+    pub(crate) rx: f32,
+    pub(crate) ry: f32,
+    pub(crate) abs_transform: Transform,
+    pub(crate) bounding_box: Rect,
+    pub(crate) abs_bounding_box: Rect,
+    pub(crate) stroke_bounding_box: Rect,
+    pub(crate) abs_stroke_bounding_box: Rect,
+}
+
+impl Ellipse {
+    /// Element's ID.
+    ///
+    /// Taken from the SVG itself.
+    /// Isn't automatically generated.
+    /// Can be empty.
+    pub fn id(&self) -> &str {
+        &self.id
+    }
+
+    /// Element visibility.
+    pub fn is_visible(&self) -> bool {
+        self.visible
+    }
+
+    /// Fill style.
+    pub fn fill(&self) -> Option<&Fill> {
+        self.fill.as_ref()
+    }
+
+    /// Stroke style.
+    pub fn stroke(&self) -> Option<&Stroke> {
+        self.stroke.as_ref()
+    }
+
+    /// Fill and stroke paint order.
+    pub fn paint_order(&self) -> PaintOrder {
+        self.paint_order
+    }
+
+    /// Rendering mode.
+    ///
+    /// `shape-rendering` in SVG.
+    pub fn rendering_mode(&self) -> ShapeRendering {
+        self.rendering_mode
+    }
+
+    /// Center X coordinate.
+    ///
+    /// `cx` in SVG.
+    pub fn cx(&self) -> f32 {
+        self.cx
+    }
+
+    /// Center Y coordinate.
+    ///
+    /// `cy` in SVG.
+    pub fn cy(&self) -> f32 {
+        self.cy
+    }
+
+    /// Horizontal radius.
+    ///
+    /// `rx` in SVG.
+    pub fn rx(&self) -> f32 {
+        self.rx
+    }
+
+    /// Vertical radius.
+    ///
+    /// `ry` in SVG.
+    pub fn ry(&self) -> f32 {
+        self.ry
+    }
+
+    /// Element's absolute transform.
+    ///
+    /// Contains all ancestors transforms including elements's transform.
+    pub fn abs_transform(&self) -> Transform {
+        self.abs_transform
+    }
+
+    /// Element's object bounding box.
+    ///
+    /// `objectBoundingBox` in SVG terms. Meaning it doesn't affected by parent transforms.
+    pub fn bounding_box(&self) -> Rect {
+        self.bounding_box
+    }
+
+    /// Element's bounding box in canvas coordinates.
+    ///
+    /// `userSpaceOnUse` in SVG terms.
+    pub fn abs_bounding_box(&self) -> Rect {
+        self.abs_bounding_box
+    }
+
+    /// Element's object bounding box including stroke.
+    ///
+    /// Will have the same value as `bounding_box` when ellipse has no stroke.
+    pub fn stroke_bounding_box(&self) -> Rect {
+        self.stroke_bounding_box
+    }
+
+    /// Element's bounding box including stroke in canvas coordinates.
+    ///
+    /// Will have the same value as `abs_bounding_box` when ellipse has no stroke.
+    pub fn abs_stroke_bounding_box(&self) -> Rect {
+        self.abs_stroke_bounding_box
+    }
+
+    fn subroots(&self, f: &mut dyn FnMut(&Group)) {
+        if let Some(Paint::Pattern(ref patt)) = self.fill.as_ref().map(|f| &f.paint) {
+            f(patt.root());
+        }
+        if let Some(Paint::Pattern(ref patt)) = self.stroke.as_ref().map(|f| &f.paint) {
+            f(patt.root());
+        }
+    }
+}
+
+/// A polygon element.
+///
+/// `polygon` element in SVG.
+#[derive(Clone, Debug)]
+pub struct Polygon {
+    pub(crate) id: String,
+    pub(crate) visible: bool,
+    pub(crate) fill: Option<Fill>,
+    pub(crate) stroke: Option<Stroke>,
+    pub(crate) paint_order: PaintOrder,
+    pub(crate) rendering_mode: ShapeRendering,
+    pub(crate) points: Vec<(f32, f32)>,
+    pub(crate) abs_transform: Transform,
+    pub(crate) bounding_box: Rect,
+    pub(crate) abs_bounding_box: Rect,
+    pub(crate) stroke_bounding_box: Rect,
+    pub(crate) abs_stroke_bounding_box: Rect,
+}
+
+impl Polygon {
+    /// Element's ID.
+    ///
+    /// Taken from the SVG itself.
+    /// Isn't automatically generated.
+    /// Can be empty.
+    pub fn id(&self) -> &str {
+        &self.id
+    }
+
+    /// Element visibility.
+    pub fn is_visible(&self) -> bool {
+        self.visible
+    }
+
+    /// Fill style.
+    pub fn fill(&self) -> Option<&Fill> {
+        self.fill.as_ref()
+    }
+
+    /// Stroke style.
+    pub fn stroke(&self) -> Option<&Stroke> {
+        self.stroke.as_ref()
+    }
+
+    /// Fill and stroke paint order.
+    pub fn paint_order(&self) -> PaintOrder {
+        self.paint_order
+    }
+
+    /// Rendering mode.
+    ///
+    /// `shape-rendering` in SVG.
+    pub fn rendering_mode(&self) -> ShapeRendering {
+        self.rendering_mode
+    }
+
+    /// Polygon points.
+    ///
+    /// `points` in SVG.
+    pub fn points(&self) -> &[(f32, f32)] {
+        &self.points
+    }
+
+    /// Element's absolute transform.
+    ///
+    /// Contains all ancestors transforms including elements's transform.
+    pub fn abs_transform(&self) -> Transform {
+        self.abs_transform
+    }
+
+    /// Element's object bounding box.
+    ///
+    /// `objectBoundingBox` in SVG terms. Meaning it doesn't affected by parent transforms.
+    pub fn bounding_box(&self) -> Rect {
+        self.bounding_box
+    }
+
+    /// Element's bounding box in canvas coordinates.
+    ///
+    /// `userSpaceOnUse` in SVG terms.
+    pub fn abs_bounding_box(&self) -> Rect {
+        self.abs_bounding_box
+    }
+
+    /// Element's object bounding box including stroke.
+    ///
+    /// Will have the same value as `bounding_box` when polygon has no stroke.
+    pub fn stroke_bounding_box(&self) -> Rect {
+        self.stroke_bounding_box
+    }
+
+    /// Element's bounding box including stroke in canvas coordinates.
+    ///
+    /// Will have the same value as `abs_bounding_box` when polygon has no stroke.
+    pub fn abs_stroke_bounding_box(&self) -> Rect {
+        self.abs_stroke_bounding_box
     }
 
     fn subroots(&self, f: &mut dyn FnMut(&Group)) {
@@ -1715,6 +2137,18 @@ fn loop_over_paint_servers(parent: &Group, f: &mut dyn FnMut(&Paint)) {
             Node::Path(ref path) => {
                 push(path.fill.as_ref().map(|f| &f.paint), f);
                 push(path.stroke.as_ref().map(|f| &f.paint), f);
+            }
+            Node::Rectangle(ref rect) => {
+                push(rect.fill.as_ref().map(|f| &f.paint), f);
+                push(rect.stroke.as_ref().map(|f| &f.paint), f);
+            }
+            Node::Ellipse(ref ellipse) => {
+                push(ellipse.fill.as_ref().map(|f| &f.paint), f);
+                push(ellipse.stroke.as_ref().map(|f| &f.paint), f);
+            }
+            Node::Polygon(ref polygon) => {
+                push(polygon.fill.as_ref().map(|f| &f.paint), f);
+                push(polygon.stroke.as_ref().map(|f| &f.paint), f);
             }
             Node::Image(_) => {}
             // Flattened text would be used instead.

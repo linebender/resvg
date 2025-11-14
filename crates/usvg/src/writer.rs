@@ -8,7 +8,7 @@ use svgtypes::{parse_font_families, FontFamily};
 use xmlwriter::XmlWriter;
 
 use crate::parser::{AId, EId};
-use crate::*;
+use crate::{ApproxEqUlps, *};
 
 impl Tree {
     /// Writes `usvg::Tree` back to SVG.
@@ -629,6 +629,132 @@ fn write_element(node: &Node, is_clip_path: bool, opt: &WriteOptions, xml: &mut 
     match node {
         Node::Path(ref p) => {
             write_path(p, is_clip_path, Transform::default(), None, opt, xml);
+        }
+        Node::Rectangle(ref rect) => {
+            // Convert rectangle to path for writing
+            // Note: This converts shapes to paths for SVG output.
+            // In the future, we could write them as native rect/ellipse/polygon elements.
+            use crate::parser::PathBuilderExt;
+            use std::sync::Arc;
+            use tiny_skia_path::PathBuilder;
+
+            let x = rect.x();
+            let y = rect.y();
+            let width = rect.width();
+            let height = rect.height();
+            let rx = rect.rx();
+            let ry = rect.ry();
+
+            // Create a temporary path from the rectangle
+            let path_data = if rx.approx_eq_ulps(&0.0, 4) && ry.approx_eq_ulps(&0.0, 4) {
+                match crate::Rect::from_xywh(x, y, width, height) {
+                    Some(r) => PathBuilder::from_rect(r),
+                    None => return,
+                }
+            } else {
+                // For rounded rectangles, convert to path with proper arcs
+                let mut builder = PathBuilder::new();
+                builder.move_to(x + rx, y);
+                builder.line_to(x + width - rx, y);
+                builder.arc_to(rx, ry, 0.0, false, true, x + width, y + ry);
+                builder.line_to(x + width, y + height - ry);
+                builder.arc_to(rx, ry, 0.0, false, true, x + width - rx, y + height);
+                builder.line_to(x + rx, y + height);
+                builder.arc_to(rx, ry, 0.0, false, true, x, y + height - ry);
+                builder.line_to(x, y + ry);
+                builder.arc_to(rx, ry, 0.0, false, true, x + rx, y);
+                builder.close();
+                match builder.finish() {
+                    Some(p) => p,
+                    None => return,
+                }
+            };
+
+            let path = Path::new(
+                rect.id().to_string(),
+                rect.is_visible(),
+                rect.fill().cloned(),
+                rect.stroke().cloned(),
+                rect.paint_order(),
+                rect.rendering_mode(),
+                Arc::new(path_data),
+                rect.abs_transform(),
+            );
+
+            if let Some(ref path) = path {
+                write_path(path, is_clip_path, Transform::default(), None, opt, xml);
+            }
+        }
+        Node::Ellipse(ref ellipse) => {
+            // Convert ellipse to path for writing
+            // Note: This converts shapes to paths for SVG output.
+            // In the future, we could write them as native rect/ellipse/polygon elements.
+            use crate::parser::PathBuilderExt;
+            use std::sync::Arc;
+            use tiny_skia_path::PathBuilder;
+
+            let cx = ellipse.cx();
+            let cy = ellipse.cy();
+            let rx = ellipse.rx();
+            let ry = ellipse.ry();
+
+            // Convert ellipse to path with proper arcs
+            let mut builder = PathBuilder::new();
+            builder.move_to(cx + rx, cy);
+            builder.arc_to(rx, ry, 0.0, false, true, cx, cy + ry);
+            builder.arc_to(rx, ry, 0.0, false, true, cx - rx, cy);
+            builder.arc_to(rx, ry, 0.0, false, true, cx, cy - ry);
+            builder.arc_to(rx, ry, 0.0, false, true, cx + rx, cy);
+            builder.close();
+
+            if let Some(path_data) = builder.finish() {
+                let path = Path::new(
+                    ellipse.id().to_string(),
+                    ellipse.is_visible(),
+                    ellipse.fill().cloned(),
+                    ellipse.stroke().cloned(),
+                    ellipse.paint_order(),
+                    ellipse.rendering_mode(),
+                    Arc::new(path_data),
+                    ellipse.abs_transform(),
+                );
+
+                if let Some(ref path) = path {
+                    write_path(path, is_clip_path, Transform::default(), None, opt, xml);
+                }
+            }
+        }
+        Node::Polygon(ref polygon) => {
+            // Convert polygon to path for writing
+            use std::sync::Arc;
+            use tiny_skia_path::PathBuilder;
+
+            let mut builder = PathBuilder::new();
+            let points = polygon.points();
+            if !points.is_empty() {
+                builder.move_to(points[0].0, points[0].1);
+                for &(x, y) in &points[1..] {
+                    builder.line_to(x, y);
+                }
+                builder.close();
+
+                if let Some(path_data) = builder.finish() {
+                    let path = Path::new(
+                        polygon.id().to_string(),
+                        polygon.is_visible(),
+                        polygon.fill().cloned(),
+                        polygon.stroke().cloned(),
+                        polygon.paint_order(),
+                        polygon.rendering_mode(),
+                        Arc::new(path_data),
+                        polygon.abs_transform(),
+                    );
+
+                    if let Some(ref path) = path {
+                        write_path(path, is_clip_path, Transform::default(), None, opt, xml);
+                    }
+                }
+            }
         }
         Node::Image(ref img) => {
             xml.start_svg_element(EId::Image);
