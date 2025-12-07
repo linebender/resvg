@@ -1594,7 +1594,7 @@ impl Tree {
         has_text_nodes(&self.root)
     }
 
-    /// Checks if the current tree has any defs
+    /// Checks if the current tree has any `defs` nodes.
     pub fn has_defs_nodes(&self) -> bool {
         !self.linear_gradients().is_empty()
             || !self.radial_gradients().is_empty()
