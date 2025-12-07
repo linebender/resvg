@@ -593,6 +593,8 @@ fn write_defs(tree: &Tree, opt: &WriteOptions, xml: &mut XmlWriter) {
     xml.end_element(); // end EId::Defs
 }
 
+/// Check if `<text />` nodes need to be converted to `<path />`
+/// To use before [`crate::write_text_path_paths`]
 fn need_convert_text_path_paths(parent: &Group) -> bool {
     for node in &parent.children {
         if let Node::Group(ref group) = node {
@@ -631,6 +633,7 @@ fn need_convert_text_path_paths(parent: &Group) -> bool {
     false
 }
 
+/// Check if `<text />` nodes into `<path />`
 fn write_text_path_paths(parent: &Group, opt: &WriteOptions, xml: &mut XmlWriter) {
     for node in &parent.children {
         if let Node::Group(ref group) = node {
