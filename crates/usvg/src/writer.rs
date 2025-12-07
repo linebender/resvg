@@ -633,7 +633,7 @@ fn need_convert_text_path_paths(parent: &Group) -> bool {
     false
 }
 
-/// Check if `<text />` nodes into `<path />`
+/// Converts `<text />` nodes into `<path />`
 fn write_text_path_paths(parent: &Group, opt: &WriteOptions, xml: &mut XmlWriter) {
     for node in &parent.children {
         if let Node::Group(ref group) = node {
