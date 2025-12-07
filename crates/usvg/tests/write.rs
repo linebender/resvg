@@ -56,7 +56,10 @@ fn resave_impl(name: &str, id_prefix: Option<String>, preserve_text: bool) {
     let expected_svg =
         std::fs::read_to_string(format!("tests/files/{}-expected.svg", name)).unwrap();
     // Do not use `assert_eq` because it produces an unreadable output.
-    assert!(output_svg == expected_svg);
+    let is_correct = output_svg == expected_svg;
+    // uncomment next line to apply correction
+    // std::fs::write(format!("tests/files/{}-expected.svg", name), output_svg).unwrap();
+    assert!(is_correct);
 }
 
 #[test]

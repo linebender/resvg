@@ -1,7 +1,4 @@
 <svg width="200" height="200" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
-    <defs>
-        <path id="pathForText1" fill="none" stroke="none" d="M 30 100 C 23.2698 70.6265 46.9153 46.8146 82.8138 46.8146 C 118.7123 46.8146 153.2698 70.6265 160 100"/>
-    </defs>
     <path id="pathForText1" fill="none" stroke="#808080" d="M 30 100 C 23.2698 70.6265 46.9153 46.8146 82.8138 46.8146 C 118.7123 46.8146 153.2698 70.6265 160 100"/>
     <text id="text1" xml:space="preserve"><textPath xlink:href="#pathForText1"><tspan><tspan font-family="Noto Sans" font-size="24" fill="#000000" stroke="none">abcdefghijklmnopqrstuvwxyz</tspan></tspan></textPath></text>
 </svg>

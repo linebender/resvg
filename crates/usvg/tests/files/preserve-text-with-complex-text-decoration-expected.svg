@@ -1,4 +1,3 @@
 <svg width="200" height="200" xmlns="http://www.w3.org/2000/svg">
-    <defs/>
     <text id="text1" xml:space="preserve"><tspan x="50" y="100"><tspan text-decoration="line-through" fill="#ffff00" stroke="#008000"><tspan text-decoration="overline" fill="#ffff00" stroke="#800080"><tspan font-family="Noto Sans" font-size="48" fill="#0000ff" stroke="#808080">Text</tspan></tspan></tspan></tspan></text>
 </svg>

@@ -153,9 +153,9 @@ pub(crate) fn convert(tree: &Tree, opt: &WriteOptions) -> String {
         xml.write_attribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
     }
 
-    xml.start_svg_element(EId::Defs);
-    write_defs(tree, opt, &mut xml);
-    xml.end_element();
+    if tree.has_defs_nodes() {
+        write_defs(tree, opt, &mut xml);
+    }
 
     write_elements(&tree.root, false, opt, &mut xml);
 
@@ -508,6 +508,7 @@ fn write_filters(tree: &Tree, opt: &WriteOptions, xml: &mut XmlWriter) {
 }
 
 fn write_defs(tree: &Tree, opt: &WriteOptions, xml: &mut XmlWriter) {
+    xml.start_svg_element(EId::Defs);
     for lg in tree.linear_gradients() {
         xml.start_svg_element(EId::LinearGradient);
         xml.write_id_attribute(lg.id(), opt);
@@ -589,6 +590,7 @@ fn write_defs(tree: &Tree, opt: &WriteOptions, xml: &mut XmlWriter) {
 
         xml.end_element();
     }
+    xml.end_element(); // end EId::Defs
 }
 
 fn write_text_path_paths(parent: &Group, opt: &WriteOptions, xml: &mut XmlWriter) {

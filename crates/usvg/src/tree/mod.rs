@@ -1594,6 +1594,16 @@ impl Tree {
         has_text_nodes(&self.root)
     }
 
+    /// Checks if the current tree has any defs
+    pub fn has_defs_nodes(&self) -> bool {
+        !self.linear_gradients().is_empty()
+            || !self.radial_gradients().is_empty()
+            || !self.patterns().is_empty()
+            || !self.filters().is_empty()
+            || !self.clip_paths().is_empty()
+            || !self.masks().is_empty()
+    }
+
     /// Returns a list of all unique [`LinearGradient`]s in the tree.
     pub fn linear_gradients(&self) -> &[Arc<LinearGradient>] {
         &self.linear_gradients
