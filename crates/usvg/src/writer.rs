@@ -153,7 +153,7 @@ pub(crate) fn convert(tree: &Tree, opt: &WriteOptions) -> String {
         xml.write_attribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
     }
 
-    if tree.has_defs_nodes() {
+    if tree.has_defs_nodes() || tree.has_text_nodes() {
         write_defs(tree, opt, &mut xml);
     }
 

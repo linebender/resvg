@@ -68,6 +68,11 @@ fn path_simple_case() {
 }
 
 #[test]
+fn path_simple_with_text_node() {
+    resave("path-simple-with-text-node");
+}
+
+#[test]
 fn ellipse_simple_case() {
     resave("ellipse-simple-case");
 }
