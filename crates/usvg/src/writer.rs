@@ -153,7 +153,7 @@ pub(crate) fn convert(tree: &Tree, opt: &WriteOptions) -> String {
         xml.write_attribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
     }
 
-    if tree.has_defs_nodes() || tree.has_text_nodes() {
+    if tree.has_defs_nodes() || need_convert_text_path_paths(&tree.root) {
         write_defs(tree, opt, &mut xml);
     }
 
@@ -549,7 +549,7 @@ fn write_defs(tree: &Tree, opt: &WriteOptions, xml: &mut XmlWriter) {
         xml.end_element();
     }
 
-    if tree.has_text_nodes() {
+    if need_convert_text_path_paths(&tree.root) {
         write_text_path_paths(&tree.root, opt, xml);
     }
 
@@ -591,6 +591,44 @@ fn write_defs(tree: &Tree, opt: &WriteOptions, xml: &mut XmlWriter) {
         xml.end_element();
     }
     xml.end_element(); // end EId::Defs
+}
+
+fn need_convert_text_path_paths(parent: &Group) -> bool {
+    for node in &parent.children {
+        if let Node::Group(ref group) = node {
+            if need_convert_text_path_paths(group) {
+                return true;
+            }
+        } else if let Node::Text(ref text) = node {
+            for chunk in &text.chunks {
+                if let TextFlow::Path(ref text_path) = chunk.text_flow {
+                    let path = Path::new(
+                        text_path.id().to_string(),
+                        true,
+                        None,
+                        None,
+                        PaintOrder::default(),
+                        ShapeRendering::default(),
+                        text_path.path.clone(),
+                        Transform::default(),
+                    );
+                    if path.is_some() {
+                        return true;
+                    }
+                }
+            }
+        }
+        let mut need_path = false;
+        node.subroots(|subroot| {
+            if !need_path && need_convert_text_path_paths(subroot) {
+                need_path = true;
+            }
+        });
+        if need_path {
+            return true;
+        }
+    }
+    false
 }
 
 fn write_text_path_paths(parent: &Group, opt: &WriteOptions, xml: &mut XmlWriter) {
