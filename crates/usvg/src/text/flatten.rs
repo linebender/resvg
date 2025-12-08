@@ -73,7 +73,10 @@ pub(crate) fn flatten(text: &mut Text, cache: &mut Cache) -> Option<(Group, NonZ
 
         for glyph in &span.positioned_glyphs {
             // A (best-effort conversion of a) COLR glyph.
+            /*
             if let Some(tree) = cache.fontdb_colr(glyph.font, glyph.id) {
+                push_outline_paths(span, &mut span_builder, &mut new_children, rendering_mode);
+
                 let mut group = Group {
                     transform: glyph.colr_transform(),
                     ..Group::empty()
@@ -84,8 +87,9 @@ pub(crate) fn flatten(text: &mut Text, cache: &mut Cache) -> Option<(Group, NonZ
 
                 new_children.push(Node::Group(Box::new(group)));
             }
+            */
             // An SVG glyph. Will return the usvg node containing the glyph descriptions.
-            else if let Some(node) = cache.fontdb_svg(glyph.font, glyph.id) {
+            if let Some(node) = cache.fontdb_svg(glyph.font, glyph.id) {
                 push_outline_paths(span, &mut span_builder, &mut new_children, rendering_mode);
 
                 let mut group = Group {
@@ -282,43 +286,7 @@ impl DatabaseExt for Database {
         })?
     }
 
-    fn colr(&self, id: ID, glyph_id: GlyphId) -> Option<Tree> {
-        self.with_face_data(id, |data, face_index| -> Option<Tree> {
-            let face = ttf_parser::Face::parse(data, face_index).ok()?;
-
-            let mut svg = XmlWriter::new(xmlwriter::Options::default());
-
-            svg.start_element("svg");
-            svg.write_attribute("xmlns", "http://www.w3.org/2000/svg");
-            svg.write_attribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
-
-            let mut path_buf = String::with_capacity(256);
-            let gradient_index = 1;
-            let clip_path_index = 1;
-
-            svg.start_element("g");
-
-            let mut glyph_painter = GlyphPainter {
-                face: &face,
-                svg: &mut svg,
-                path_buf: &mut path_buf,
-                gradient_index,
-                clip_path_index,
-                palette_index: 0,
-                transform: ttf_parser::Transform::default(),
-                outline_transform: ttf_parser::Transform::default(),
-                transforms_stack: vec![ttf_parser::Transform::default()],
-            };
-
-            face.paint_color_glyph(
-                glyph_id,
-                0,
-                RgbaColor::new(0, 0, 0, 255),
-                &mut glyph_painter,
-            )?;
-            svg.end_element();
-
-            Tree::from_data(svg.end_document().as_bytes(), &Options::default()).ok()
-        })?
+    fn colr(&self, _id: ID, _glyph_id: GlyphId) -> Option<Tree> {
+        None
     }
 }

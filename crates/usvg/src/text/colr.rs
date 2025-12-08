@@ -3,6 +3,7 @@
 
 use crate::parser::OptionLog;
 use rustybuzz::ttf_parser;
+use std::io::Write;
 
 struct Builder<'a>(&'a mut String);
 
@@ -46,12 +47,12 @@ trait XmlWriterExt {
     fn write_spread_method_attribute(&mut self, method: ttf_parser::colr::GradientExtend);
 }
 
-impl XmlWriterExt for xmlwriter::XmlWriter {
+impl<W: Write> XmlWriterExt for xmlwriter::XmlWriter<'_, W> {
     fn write_color_attribute(&mut self, name: &str, color: ttf_parser::RgbaColor) {
         self.write_attribute_fmt(
             name,
             format_args!("rgb({}, {}, {})", color.red, color.green, color.blue),
-        );
+        ).unwrap();
     }
 
     fn write_transform_attribute(&mut self, name: &str, ts: ttf_parser::Transform) {
@@ -65,7 +66,7 @@ impl XmlWriterExt for xmlwriter::XmlWriter {
                 "matrix({} {} {} {} {} {})",
                 ts.a, ts.b, ts.c, ts.d, ts.e, ts.f
             ),
-        );
+        ).unwrap();
     }
 
     fn write_spread_method_attribute(&mut self, extend: ttf_parser::colr::GradientExtend) {
@@ -76,15 +77,15 @@ impl XmlWriterExt for xmlwriter::XmlWriter {
                 ttf_parser::colr::GradientExtend::Repeat => &"repeat",
                 ttf_parser::colr::GradientExtend::Reflect => &"reflect",
             },
-        );
+        ).unwrap();
     }
 }
 
 // NOTE: This is only a best-effort translation of COLR into SVG.
-pub(crate) struct GlyphPainter<'a> {
+pub(crate) struct GlyphPainter<'a, 'w, W: Write> {
     pub(crate) face: &'a ttf_parser::Face<'a>,
-    pub(crate) svg: &'a mut xmlwriter::XmlWriter,
-    pub(crate) path_buf: &'a mut String,
+    pub(crate) svg: &'w mut xmlwriter::XmlWriter<'w, W>,
+    pub(crate) path_buf: &'w mut String,
     pub(crate) gradient_index: usize,
     pub(crate) clip_path_index: usize,
     pub(crate) palette_index: u16,
@@ -93,27 +94,27 @@ pub(crate) struct GlyphPainter<'a> {
     pub(crate) transforms_stack: Vec<ttf_parser::Transform>,
 }
 
-impl<'a> GlyphPainter<'a> {
+impl<'a, 'w, W: Write> GlyphPainter<'a, 'w, W> {
     fn write_gradient_stops(&mut self, stops: ttf_parser::colr::GradientStopsIter) {
         for stop in stops {
-            self.svg.start_element("stop");
-            self.svg.write_attribute("offset", &stop.stop_offset);
+            self.svg.start_element("stop").unwrap();
+            self.svg.write_attribute("offset", &stop.stop_offset).unwrap();
             self.svg.write_color_attribute("stop-color", stop.color);
             let opacity = f32::from(stop.color.alpha) / 255.0;
-            self.svg.write_attribute("stop-opacity", &opacity);
-            self.svg.end_element();
+            self.svg.write_attribute("stop-opacity", &opacity).unwrap();
+            self.svg.end_element().unwrap();
         }
     }
 
     fn paint_solid(&mut self, color: ttf_parser::RgbaColor) {
-        self.svg.start_element("path");
+        self.svg.start_element("path").unwrap();
         self.svg.write_color_attribute("fill", color);
         let opacity = f32::from(color.alpha) / 255.0;
-        self.svg.write_attribute("fill-opacity", &opacity);
+        self.svg.write_attribute("fill-opacity", &opacity).unwrap();
         self.svg
             .write_transform_attribute("transform", self.outline_transform);
-        self.svg.write_attribute("d", self.path_buf);
-        self.svg.end_element();
+        self.svg.write_attribute("d", &*self.path_buf).unwrap();
+        self.svg.end_element().unwrap();
     }
 
     fn paint_linear_gradient(&mut self, gradient: ttf_parser::colr::LinearGradient<'a>) {
@@ -128,28 +129,28 @@ impl<'a> GlyphPainter<'a> {
         // be applied from the first/last stop. So if we have a gradient with x1=0 x2=1, and
         // a stop at x=0.4 and x=0.6, then in SVG we will always see a padding, while in ttf
         // we will see the actual spreadMode. We need to account for that somehow.
-        self.svg.start_element("linearGradient");
-        self.svg.write_attribute("id", &gradient_id);
-        self.svg.write_attribute("x1", &gradient.x0);
-        self.svg.write_attribute("y1", &gradient.y0);
-        self.svg.write_attribute("x2", &gradient.x1);
-        self.svg.write_attribute("y2", &gradient.y1);
-        self.svg.write_attribute("gradientUnits", &"userSpaceOnUse");
+        self.svg.start_element("linearGradient").unwrap();
+        self.svg.write_attribute("id", &gradient_id).unwrap();
+        self.svg.write_attribute("x1", &gradient.x0).unwrap();
+        self.svg.write_attribute("y1", &gradient.y0).unwrap();
+        self.svg.write_attribute("x2", &gradient.x1).unwrap();
+        self.svg.write_attribute("y2", &gradient.y1).unwrap();
+        self.svg.write_attribute("gradientUnits", &"userSpaceOnUse").unwrap();
         self.svg.write_spread_method_attribute(gradient.extend);
         self.svg
             .write_transform_attribute("gradientTransform", gradient_transform);
         self.write_gradient_stops(
             gradient.stops(self.palette_index, self.face.variation_coordinates()),
         );
-        self.svg.end_element();
+        self.svg.end_element().unwrap();
 
-        self.svg.start_element("path");
+        self.svg.start_element("path").unwrap();
         self.svg
-            .write_attribute_fmt("fill", format_args!("url(#{})", gradient_id));
+            .write_attribute_fmt("fill", format_args!("url(#{})", gradient_id)).unwrap();
         self.svg
             .write_transform_attribute("transform", self.outline_transform);
-        self.svg.write_attribute("d", self.path_buf);
-        self.svg.end_element();
+        self.svg.write_attribute("d", &*self.path_buf).unwrap();
+        self.svg.end_element().unwrap();
     }
 
     fn paint_radial_gradient(&mut self, gradient: ttf_parser::colr::RadialGradient<'a>) {
@@ -158,30 +159,30 @@ impl<'a> GlyphPainter<'a> {
 
         let gradient_transform = paint_transform(self.outline_transform, self.transform);
 
-        self.svg.start_element("radialGradient");
-        self.svg.write_attribute("id", &gradient_id);
-        self.svg.write_attribute("cx", &gradient.x1);
-        self.svg.write_attribute("cy", &gradient.y1);
-        self.svg.write_attribute("r", &gradient.r1);
-        self.svg.write_attribute("fr", &gradient.r0);
-        self.svg.write_attribute("fx", &gradient.x0);
-        self.svg.write_attribute("fy", &gradient.y0);
-        self.svg.write_attribute("gradientUnits", &"userSpaceOnUse");
+        self.svg.start_element("radialGradient").unwrap();
+        self.svg.write_attribute("id", &gradient_id).unwrap();
+        self.svg.write_attribute("cx", &gradient.x1).unwrap();
+        self.svg.write_attribute("cy", &gradient.y1).unwrap();
+        self.svg.write_attribute("r", &gradient.r1).unwrap();
+        self.svg.write_attribute("fr", &gradient.r0).unwrap();
+        self.svg.write_attribute("fx", &gradient.x0).unwrap();
+        self.svg.write_attribute("fy", &gradient.y0).unwrap();
+        self.svg.write_attribute("gradientUnits", &"userSpaceOnUse").unwrap();
         self.svg.write_spread_method_attribute(gradient.extend);
         self.svg
             .write_transform_attribute("gradientTransform", gradient_transform);
         self.write_gradient_stops(
             gradient.stops(self.palette_index, self.face.variation_coordinates()),
         );
-        self.svg.end_element();
+        self.svg.end_element().unwrap();
 
-        self.svg.start_element("path");
+        self.svg.start_element("path").unwrap();
         self.svg
-            .write_attribute_fmt("fill", format_args!("url(#{})", gradient_id));
+            .write_attribute_fmt("fill", format_args!("url(#{})", gradient_id)).unwrap();
         self.svg
             .write_transform_attribute("transform", self.outline_transform);
-        self.svg.write_attribute("d", self.path_buf);
-        self.svg.end_element();
+        self.svg.write_attribute("d", &*self.path_buf).unwrap();
+        self.svg.end_element().unwrap();
     }
 
     fn paint_sweep_gradient(&mut self, _: ttf_parser::colr::SweepGradient<'a>) {
@@ -227,27 +228,27 @@ fn paint_transform(
     }
 }
 
-impl GlyphPainter<'_> {
+impl<W: Write> GlyphPainter<'_, '_, W> {
     fn clip_with_path(&mut self, path: &str) {
         let clip_id = format!("cp{}", self.clip_path_index);
         self.clip_path_index += 1;
 
-        self.svg.start_element("clipPath");
-        self.svg.write_attribute("id", &clip_id);
-        self.svg.start_element("path");
+        self.svg.start_element("clipPath").unwrap();
+        self.svg.write_attribute("id", &clip_id).unwrap();
+        self.svg.start_element("path").unwrap();
         self.svg
             .write_transform_attribute("transform", self.outline_transform);
-        self.svg.write_attribute("d", &path);
-        self.svg.end_element();
-        self.svg.end_element();
+        self.svg.write_attribute("d", &path).unwrap();
+        self.svg.end_element().unwrap();
+        self.svg.end_element().unwrap();
 
-        self.svg.start_element("g");
+        self.svg.start_element("g").unwrap();
         self.svg
-            .write_attribute_fmt("clip-path", format_args!("url(#{})", clip_id));
+            .write_attribute_fmt("clip-path", format_args!("url(#{})", clip_id)).unwrap();
     }
 }
 
-impl<'a> ttf_parser::colr::Painter<'a> for GlyphPainter<'a> {
+impl<'a, 'w, W: Write> ttf_parser::colr::Painter<'a> for GlyphPainter<'a, 'w, W> {
     fn outline_glyph(&mut self, glyph_id: ttf_parser::GlyphId) {
         self.path_buf.clear();
         let mut builder = Builder(self.path_buf);
@@ -262,7 +263,7 @@ impl<'a> ttf_parser::colr::Painter<'a> for GlyphPainter<'a> {
     }
 
     fn push_layer(&mut self, mode: ttf_parser::colr::CompositeMode) {
-        self.svg.start_element("g");
+        self.svg.start_element("g").unwrap();
 
         use ttf_parser::colr::CompositeMode;
         // TODO: Need to figure out how to represent the other blend modes
@@ -292,11 +293,11 @@ impl<'a> ttf_parser::colr::Painter<'a> for GlyphPainter<'a> {
         self.svg.write_attribute_fmt(
             "style",
             format_args!("mix-blend-mode: {}; isolation: isolate", mode),
-        );
+        ).unwrap();
     }
 
     fn pop_layer(&mut self) {
-        self.svg.end_element(); // g
+        self.svg.end_element().unwrap(); // g
     }
 
     fn push_transform(&mut self, transform: ttf_parser::Transform) {
@@ -324,7 +325,7 @@ impl<'a> ttf_parser::colr::Painter<'a> for GlyphPainter<'a> {
     }
 
     fn pop_clip(&mut self) {
-        self.svg.end_element();
+        self.svg.end_element().unwrap();
     }
 
     fn push_clip_box(&mut self, clipbox: ttf_parser::colr::ClipBox) {
