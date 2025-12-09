@@ -595,7 +595,9 @@ fn write_defs(tree: &Tree, opt: &WriteOptions, xml: &mut XmlWriter) {
 
 /// Check if `<text />` nodes need to be converted to `<path />`
 /// To use before [`crate::write_text_path_paths`]
-fn need_convert_text_path_paths(parent: &Group) -> bool {
+/// Check if the group or any of its descendants contains a `textPath`
+/// element.
+fn has_text_paths(parent: &Group) -> bool {
     for node in &parent.children {
         if let Node::Group(ref group) = node {
             if need_convert_text_path_paths(group) {
