@@ -635,7 +635,7 @@ fn has_text_paths(parent: &Group) -> bool {
     false
 }
 
-/// Converts `<text />` nodes into `<path />`
+/// Write the `path` elements for text paths.
 fn write_text_path_paths(parent: &Group, opt: &WriteOptions, xml: &mut XmlWriter) {
     for node in &parent.children {
         if let Node::Group(ref group) = node {
