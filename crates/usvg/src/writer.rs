@@ -153,8 +153,9 @@ pub(crate) fn convert(tree: &Tree, opt: &WriteOptions) -> String {
         xml.write_attribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
     }
 
-    if tree.has_defs_nodes() || need_convert_text_path_paths(&tree.root) {
-        write_defs(tree, opt, &mut xml);
+    let has_text_path = has_text_paths(&tree.root);
+    if tree.has_defs_nodes() || has_text_path {
+        write_defs(tree, opt, &mut xml, has_text_path);
     }
 
     write_elements(&tree.root, false, opt, &mut xml);
@@ -507,7 +508,9 @@ fn write_filters(tree: &Tree, opt: &WriteOptions, xml: &mut XmlWriter) {
     }
 }
 
-fn write_defs(tree: &Tree, opt: &WriteOptions, xml: &mut XmlWriter) {
+/// Write defs into the tree
+/// The [`write_text_path`] can be calculated with the [`has_text_paths`] function
+fn write_defs(tree: &Tree, opt: &WriteOptions, xml: &mut XmlWriter, write_text_path: bool) {
     xml.start_svg_element(EId::Defs);
     for lg in tree.linear_gradients() {
         xml.start_svg_element(EId::LinearGradient);
@@ -549,7 +552,7 @@ fn write_defs(tree: &Tree, opt: &WriteOptions, xml: &mut XmlWriter) {
         xml.end_element();
     }
 
-    if need_convert_text_path_paths(&tree.root) {
+    if write_text_path {
         write_text_path_paths(&tree.root, opt, xml);
     }
 
@@ -600,7 +603,7 @@ fn write_defs(tree: &Tree, opt: &WriteOptions, xml: &mut XmlWriter) {
 fn has_text_paths(parent: &Group) -> bool {
     for node in &parent.children {
         if let Node::Group(ref group) = node {
-            if need_convert_text_path_paths(group) {
+            if has_text_paths(group) {
                 return true;
             }
         } else if let Node::Text(ref text) = node {
@@ -624,7 +627,7 @@ fn has_text_paths(parent: &Group) -> bool {
         }
         let mut need_path = false;
         node.subroots(|subroot| {
-            if !need_path && need_convert_text_path_paths(subroot) {
+            if !need_path && has_text_paths(subroot) {
                 need_path = true;
             }
         });
