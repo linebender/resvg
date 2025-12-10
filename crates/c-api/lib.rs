@@ -9,6 +9,7 @@
 
 use std::ffi::CStr;
 use std::os::raw::c_char;
+use std::panic::AssertUnwindSafe;
 use std::slice;
 
 use resvg::tiny_skia;
@@ -868,6 +869,7 @@ fn convert_error(e: usvg::Error) -> resvg_error {
 /// @param height Pixmap height.
 /// @param pixmap Pixmap data. Should have width*height*4 size and contain
 ///               premultiplied RGBA8888 pixels.
+/// @return `true` if the rendering was successful; `false` elsewhere
 #[no_mangle]
 pub extern "C" fn resvg_render(
     tree: *const resvg_render_tree,
@@ -875,18 +877,22 @@ pub extern "C" fn resvg_render(
     width: u32,
     height: u32,
     pixmap: *mut c_char,
-) {
-    let tree = unsafe {
-        assert!(!tree.is_null());
-        &*tree
-    };
+) -> bool {
+    if tree.is_null() || pixmap.is_null() || width <= 0 || height <= 0 {
+        return false;
+    }
 
-    let pixmap_len = width as usize * height as usize * tiny_skia::BYTES_PER_PIXEL;
-    let pixmap: &mut [u8] =
-        unsafe { std::slice::from_raw_parts_mut(pixmap as *mut u8, pixmap_len) };
-    let mut pixmap = tiny_skia::PixmapMut::from_bytes(pixmap, width, height).unwrap();
+    std::panic::catch_unwind(AssertUnwindSafe(|| {
+        let tree = unsafe { &*tree };
 
-    resvg::render(&tree.0, transform.to_tiny_skia(), &mut pixmap)
+        let pixmap_len = width as usize * height as usize * tiny_skia::BYTES_PER_PIXEL;
+        let pixmap: &mut [u8] =
+            unsafe { std::slice::from_raw_parts_mut(pixmap as *mut u8, pixmap_len) };
+        let mut pixmap = tiny_skia::PixmapMut::from_bytes(pixmap, width, height).unwrap();
+
+        resvg::render(&tree.0, transform.to_tiny_skia(), &mut pixmap)
+    }))
+    .is_ok()
 }
 
 /// @brief Renders a Node by ID onto the image.
