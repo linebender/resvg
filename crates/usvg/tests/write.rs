@@ -68,6 +68,11 @@ fn path_simple_case() {
 }
 
 #[test]
+fn path_simple_case_empty_group() {
+    resave("path-simple-case-empty-group");
+}
+
+#[test]
 fn ellipse_simple_case() {
     resave("ellipse-simple-case");
 }
