@@ -228,27 +228,7 @@ fn write_filters(tree: &Tree, opt: &WriteOptions, xml: &mut XmlWriter) {
                     xml.write_filter_primitive_attrs(filter.rect(), fe);
                     xml.write_filter_input(AId::In, &blend.input1);
                     xml.write_filter_input(AId::In2, &blend.input2);
-                    xml.write_svg_attribute(
-                        AId::Mode,
-                        match blend.mode {
-                            BlendMode::Normal => "normal",
-                            BlendMode::Multiply => "multiply",
-                            BlendMode::Screen => "screen",
-                            BlendMode::Overlay => "overlay",
-                            BlendMode::Darken => "darken",
-                            BlendMode::Lighten => "lighten",
-                            BlendMode::ColorDodge => "color-dodge",
-                            BlendMode::ColorBurn => "color-burn",
-                            BlendMode::HardLight => "hard-light",
-                            BlendMode::SoftLight => "soft-light",
-                            BlendMode::Difference => "difference",
-                            BlendMode::Exclusion => "exclusion",
-                            BlendMode::Hue => "hue",
-                            BlendMode::Saturation => "saturation",
-                            BlendMode::Color => "color",
-                            BlendMode::Luminosity => "luminosity",
-                        },
-                    );
+                    xml.write_svg_attribute(AId::Mode, &blend.mode.to_string());
                     xml.write_svg_attribute(AId::Result, &fe.result);
                     xml.end_element();
                 }
@@ -896,31 +876,12 @@ fn write_group_element(g: &Group, is_clip_path: bool, opt: &WriteOptions, xml: &
     xml.write_transform(AId::Transform, g.transform, opt);
 
     if g.blend_mode != BlendMode::Normal || g.isolate {
-        let blend_mode = match g.blend_mode {
-            BlendMode::Normal => "normal",
-            BlendMode::Multiply => "multiply",
-            BlendMode::Screen => "screen",
-            BlendMode::Overlay => "overlay",
-            BlendMode::Darken => "darken",
-            BlendMode::Lighten => "lighten",
-            BlendMode::ColorDodge => "color-dodge",
-            BlendMode::ColorBurn => "color-burn",
-            BlendMode::HardLight => "hard-light",
-            BlendMode::SoftLight => "soft-light",
-            BlendMode::Difference => "difference",
-            BlendMode::Exclusion => "exclusion",
-            BlendMode::Hue => "hue",
-            BlendMode::Saturation => "saturation",
-            BlendMode::Color => "color",
-            BlendMode::Luminosity => "luminosity",
-        };
-
         // For reasons unknown, `mix-blend-mode` and `isolation` must be written
         // as `style` attribute.
         let isolation = if g.isolate { "isolate" } else { "auto" };
         xml.write_attribute_fmt(
             AId::Style.to_str(),
-            format_args!("mix-blend-mode:{};isolation:{}", blend_mode, isolation),
+            format_args!("mix-blend-mode:{};isolation:{}", g.blend_mode, isolation),
         );
     }
 
