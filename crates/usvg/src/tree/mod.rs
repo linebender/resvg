@@ -257,12 +257,17 @@ impl Display for BlendMode {
 ///
 /// `spreadMethod` attribute in the SVG.
 #[allow(missing_docs)]
-#[derive(Clone, Copy, PartialEq, Debug, Default)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub enum SpreadMethod {
-    #[default]
     Pad,
     Reflect,
     Repeat,
+}
+
+impl Default for SpreadMethod {
+    fn default() -> Self {
+        Self::Pad
+    }
 }
 
 /// A generic gradient.
