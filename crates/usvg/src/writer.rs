@@ -5,7 +5,7 @@ use std::fmt::Display;
 use std::io::Write;
 
 use svgtypes::{parse_font_families, FontFamily};
-use xmlwriter::{Options, XmlWriter};
+use xmlwriter::XmlWriter;
 
 use crate::parser::{AId, EId};
 use crate::*;
@@ -707,12 +707,7 @@ fn write_element(node: &Node, is_clip_path: bool, opt: &WriteOptions, xml: &mut 
             xml.end_element();
         }
         Node::Group(ref g) => {
-            let mut fake_xml = XmlWriter::new(Options::default());
-            write_group_element(g, is_clip_path, opt, &mut fake_xml);
-            let fake_xml_str = fake_xml.end_document();
-            if fake_xml_str != "<g/>\n" {
-                write_group_element(g, is_clip_path, opt, xml);
-            }
+            write_group_element(g, is_clip_path, opt, xml);
         }
         Node::Text(ref text) => {
             if opt.preserve_text {
