@@ -1,7 +1,7 @@
 // Copyright 2023 the Resvg Authors
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use std::fmt::{self, Display};
+use std::fmt::{Arguments, Display};
 use std::io::Write;
 
 use svgtypes::{parse_font_families, FontFamily};
@@ -188,7 +188,7 @@ impl<'a> LazyXmlWriter<'a> {
         }
     }
 
-    pub fn write_attribute_fmt(&mut self, name: &str, fmt: fmt::Arguments) {
+    pub fn write_attribute_fmt(&mut self, name: &str, fmt: Arguments) {
         self.init_node();
         self.xml.write_attribute_fmt(name, fmt);
     }
@@ -1057,6 +1057,7 @@ impl XmlWriterExt for XmlWriter {
         });
     }
 
+    // TODO: simplify
     fn write_units(&mut self, id: AId, units: Units, def: Units) {
         if units != def {
             self.write_attribute(
