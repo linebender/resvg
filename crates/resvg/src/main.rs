@@ -703,10 +703,11 @@ fn render_svg(args: &Args, tree: &usvg::Tree) -> Result<tiny_skia::Pixmap, Strin
             let size = args
                 .fit_to
                 .fit_to_size(tree.size().to_int_size())
-                .ok_or_else(|| "target size is zero".to_string())?;
+                .ok_or("target size is zero")?;
 
             // Unwrap is safe, because `size` is already valid.
-            let mut page_pixmap = tiny_skia::Pixmap::new(size.width(), size.height()).unwrap();
+            let mut page_pixmap = tiny_skia::Pixmap::new(size.width(), size.height())
+                .ok_or("Cannot create pixmap")?;
 
             if let Some(background) = args.background {
                 page_pixmap.fill(svg_to_skia_color(background));
@@ -728,10 +729,11 @@ fn render_svg(args: &Args, tree: &usvg::Tree) -> Result<tiny_skia::Pixmap, Strin
         let size = args
             .fit_to
             .fit_to_size(tree.size().to_int_size())
-            .ok_or_else(|| "target size is zero".to_string())?;
+            .ok_or("target size is zero")?;
 
         // Unwrap is safe, because `size` is already valid.
-        let mut pixmap = tiny_skia::Pixmap::new(size.width(), size.height()).unwrap();
+        let mut pixmap =
+            tiny_skia::Pixmap::new(size.width(), size.height()).ok_or("Cannot create pixmap")?;
 
         if let Some(background) = args.background {
             pixmap.fill(svg_to_skia_color(background));
