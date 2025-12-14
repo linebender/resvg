@@ -73,6 +73,15 @@ pub(crate) enum Units {
 
 // `Units` cannot have a default value, because it changes depending on an element.
 
+impl std::fmt::Display for Units {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Units::UserSpaceOnUse => write!(f, "userSpaceOnUse"),
+            Units::ObjectBoundingBox => write!(f, "objectBoundingBox"),
+        }
+    }
+}
+
 /// A visibility property.
 ///
 /// `visibility` attribute in the SVG.

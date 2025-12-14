@@ -1,11 +1,11 @@
 // Copyright 2023 the Resvg Authors
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use std::fmt::Display;
+use std::fmt::{self, Display};
 use std::io::Write;
 
 use svgtypes::{parse_font_families, FontFamily};
-use xmlwriter::{Options, XmlWriter};
+use xmlwriter::XmlWriter;
 
 use crate::parser::{AId, EId};
 use crate::*;
@@ -135,6 +135,74 @@ impl Default for WriteOptions {
             indent: Indent::Spaces(4),
             attributes_indent: Indent::None,
         }
+    }
+}
+
+pub struct LazyXmlWriter<'a> {
+    xml: &'a mut xmlwriter::XmlWriter,
+    current_node: Option<EId>,
+    force_write_node: bool,
+}
+
+impl<'a> LazyXmlWriter<'a> {
+    pub fn new(xml: &'a mut xmlwriter::XmlWriter, node: EId) -> Self {
+        Self {
+            xml,
+            current_node: Some(node),
+            force_write_node: false,
+        }
+    }
+
+    fn force_write(&mut self) -> &mut xmlwriter::XmlWriter {
+        self.init_node();
+        self.force_write_node = true;
+        self.xml
+    }
+
+    fn init_node(&mut self) {
+        if let Some(node) = self.current_node {
+            self.xml.start_svg_element(node);
+            self.current_node = None;
+        }
+    }
+
+    pub fn write_id_attribute(&mut self, id: &str, opt: &WriteOptions) {
+        self.init_node();
+        self.xml.write_id_attribute(id, opt);
+    }
+
+    pub fn write_func_iri(&mut self, aid: AId, id: &str, opt: &WriteOptions) {
+        self.init_node();
+        self.xml.write_func_iri(aid, id, opt);
+    }
+
+    fn write_svg_attribute<V: Display + ?Sized>(&mut self, id: AId, value: &V) {
+        self.init_node();
+        self.xml.write_svg_attribute(id, value);
+    }
+
+    fn write_transform(&mut self, id: AId, ts: Transform, opt: &WriteOptions) {
+        if !ts.is_default() {
+            self.init_node();
+            self.xml.write_transform(id, ts, opt);
+        }
+    }
+
+    pub fn write_attribute_fmt(&mut self, name: &str, fmt: fmt::Arguments) {
+        self.init_node();
+        self.xml.write_attribute_fmt(name, fmt);
+    }
+
+    pub fn end_element(&mut self) {
+        if self.force_write_node {
+            // simulate that node was written
+            self.current_node = None;
+        }
+        if let Some(_node) = self.current_node {
+            // Node was never written.
+            return;
+        }
+        self.xml.end_element();
     }
 }
 
@@ -707,12 +775,7 @@ fn write_element(node: &Node, is_clip_path: bool, opt: &WriteOptions, xml: &mut 
             xml.end_element();
         }
         Node::Group(ref g) => {
-            let mut fake_xml = XmlWriter::new(Options::default());
-            write_group_element(g, is_clip_path, opt, &mut fake_xml);
-            let fake_xml_str = fake_xml.end_document();
-            if fake_xml_str != "<g/>\n" {
-                write_group_element(g, is_clip_path, opt, xml);
-            }
+            write_group_element(g, is_clip_path, opt, xml);
         }
         Node::Text(ref text) => {
             if opt.preserve_text {
@@ -871,17 +934,17 @@ fn write_group_element(g: &Group, is_clip_path: bool, opt: &WriteOptions, xml: &
         return;
     }
 
-    xml.start_svg_element(EId::G);
+    let mut lazy_writer = LazyXmlWriter::new(xml, EId::G);
     if !g.id.is_empty() {
-        xml.write_id_attribute(&g.id, opt);
+        lazy_writer.write_id_attribute(&g.id, opt);
     };
 
     if let Some(ref clip) = g.clip_path {
-        xml.write_func_iri(AId::ClipPath, clip.id(), opt);
+        lazy_writer.write_func_iri(AId::ClipPath, clip.id(), opt);
     }
 
     if let Some(ref mask) = g.mask {
-        xml.write_func_iri(AId::Mask, mask.id(), opt);
+        lazy_writer.write_func_iri(AId::Mask, mask.id(), opt);
     }
 
     if !g.filters.is_empty() {
@@ -891,14 +954,14 @@ fn write_group_element(g: &Group, is_clip_path: bool, opt: &WriteOptions, xml: &
             .iter()
             .map(|filter| format!("url(#{}{})", prefix, filter.id()))
             .collect();
-        xml.write_svg_attribute(AId::Filter, &ids.join(" "));
+        lazy_writer.write_svg_attribute(AId::Filter, &ids.join(" "));
     }
 
     if g.opacity != Opacity::ONE {
-        xml.write_svg_attribute(AId::Opacity, &g.opacity.get());
+        lazy_writer.write_svg_attribute(AId::Opacity, &g.opacity.get());
     }
 
-    xml.write_transform(AId::Transform, g.transform, opt);
+    lazy_writer.write_transform(AId::Transform, g.transform, opt);
 
     if g.blend_mode != BlendMode::Normal || g.isolate {
         let blend_mode = match g.blend_mode {
@@ -923,15 +986,17 @@ fn write_group_element(g: &Group, is_clip_path: bool, opt: &WriteOptions, xml: &
         // For reasons unknown, `mix-blend-mode` and `isolation` must be written
         // as `style` attribute.
         let isolation = if g.isolate { "isolate" } else { "auto" };
-        xml.write_attribute_fmt(
+        lazy_writer.write_attribute_fmt(
             AId::Style.to_str(),
             format_args!("mix-blend-mode:{};isolation:{}", blend_mode, isolation),
         );
     }
 
-    write_elements(g, false, opt, xml);
-
-    xml.end_element();
+    if !g.children.is_empty() {
+        let xml = lazy_writer.force_write();
+        write_elements(g, false, opt, xml);
+    }
+    lazy_writer.end_element();
 }
 
 trait XmlWriterExt {
@@ -992,16 +1057,9 @@ impl XmlWriterExt for XmlWriter {
         });
     }
 
-    // TODO: simplify
     fn write_units(&mut self, id: AId, units: Units, def: Units) {
         if units != def {
-            self.write_attribute(
-                id.to_str(),
-                match units {
-                    Units::UserSpaceOnUse => "userSpaceOnUse",
-                    Units::ObjectBoundingBox => "objectBoundingBox",
-                },
-            );
+            self.write_attribute(id.to_str(), &units);
         }
     }
 
