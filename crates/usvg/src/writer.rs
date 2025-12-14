@@ -832,9 +832,8 @@ fn write_group_element(g: &Group, is_clip_path: bool, opt: &WriteOptions, xml: &
         // but only the group's children should be written.
         for child in &g.children {
             match child {
-                Node::Group(ref child_group) => {
+                Node::Group(child_group) => {
                     write_group_element(child_group, is_clip_path, opt, xml);
-                    continue;
                 }
                 Node::Path(child_path) => {
                     let clip_id = g.clip_path.as_ref().map(|cp| cp.id().to_string());
