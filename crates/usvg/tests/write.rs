@@ -74,7 +74,7 @@ fn path_simple_case_empty_group() {
 
 #[test]
 fn path_simple_case_empty_path() {
-    // this tests will succeed because the parser removes empty paths (not the writer)
+    // this test will succeed because the parser removes empty paths (not the writer)
     resave("path-simple-case-empty-path");
 }
 
