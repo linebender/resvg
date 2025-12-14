@@ -65,10 +65,10 @@ fn render_group(
         // Convert group bbox into an integer one, expanding each side outwards by 2px
         // to make sure that anti-aliased pixels would not be clipped.
         tiny_skia::IntRect::from_xywh(
-            bbox.x().floor() as i32 - 2,
-            bbox.y().floor() as i32 - 2,
-            bbox.width().ceil() as u32 + 4,
-            bbox.height().ceil() as u32 + 4,
+            (bbox.x().floor() as i32).checked_sub(2)?,
+            (bbox.y().floor() as i32).checked_sub(2)?,
+            (bbox.width().ceil() as u32).checked_add(4)?,
+            (bbox.height().ceil() as u32).checked_add(4)?,
         )?
     } else {
         // The bounding box for groups with filters is special and should not be expanded by 2px,
