@@ -31,6 +31,7 @@ mod render;
 /// Can be used to position SVG inside the `pixmap`.
 ///
 /// The produced content is in the sRGB color space.
+#[must_use]
 pub fn render(
     tree: &usvg::Tree,
     transform: tiny_skia::Transform,

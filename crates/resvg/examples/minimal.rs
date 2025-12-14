@@ -24,6 +24,6 @@ fn main() {
 
     let pixmap_size = tree.size().to_int_size();
     let mut pixmap = tiny_skia::Pixmap::new(pixmap_size.width(), pixmap_size.height()).unwrap();
-    resvg::render(&tree, tiny_skia::Transform::default(), &mut pixmap.as_mut());
+    resvg::render(&tree, tiny_skia::Transform::default(), &mut pixmap.as_mut()).expect("Failed to render");
     pixmap.save_png(&args[2]).unwrap();
 }

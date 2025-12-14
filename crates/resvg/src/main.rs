@@ -740,7 +740,7 @@ fn render_svg(args: &Args, tree: &usvg::Tree) -> Result<tiny_skia::Pixmap, Strin
 
         let ts = args.fit_to.fit_to_transform(tree.size().to_int_size());
 
-        resvg::render(tree, ts, &mut pixmap.as_mut());
+        resvg::render(tree, ts, &mut pixmap.as_mut()).ok_or("Failed to render svg")?;
 
         if args.export_area_drawing {
             trim_pixmap(tree, ts, &pixmap).unwrap_or(pixmap)
