@@ -992,16 +992,9 @@ impl XmlWriterExt for XmlWriter {
         });
     }
 
-    // TODO: simplify
     fn write_units(&mut self, id: AId, units: Units, def: Units) {
         if units != def {
-            self.write_attribute(
-                id.to_str(),
-                match units {
-                    Units::UserSpaceOnUse => "userSpaceOnUse",
-                    Units::ObjectBoundingBox => "objectBoundingBox",
-                },
-            );
+            self.write_attribute(id.to_str(), &units);
         }
     }
 
