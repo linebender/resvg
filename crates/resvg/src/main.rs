@@ -706,7 +706,7 @@ fn render_svg(args: &Args, tree: &usvg::Tree) -> Result<tiny_skia::Pixmap, Strin
 
             // Pixmap's width is limited by i32::MAX/4, we handle the creation error.
             let mut page_pixmap = tiny_skia::Pixmap::new(size.width(), size.height())
-                .ok_or("Cannot create pixmap")?;
+                .ok_or("cannot create pixmap")?;
 
             if let Some(background) = args.background {
                 page_pixmap.fill(svg_to_skia_color(background));
