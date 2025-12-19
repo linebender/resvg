@@ -13,6 +13,71 @@ const SVG_NS: &str = "http://www.w3.org/2000/svg";
 const XLINK_NS: &str = "http://www.w3.org/1999/xlink";
 const XML_NAMESPACE_NS: &str = "http://www.w3.org/XML/1998/namespace";
 
+/// Resolves CSS `light-dark(value1, value2)` function by extracting the first (light-mode) value.
+///
+/// The `light-dark()` CSS function is used for dark mode support. Since usvg doesn't support
+/// color scheme preferences, we extract the first value (light-mode color) as the fallback.
+///
+/// This function handles nested parentheses (e.g., `light-dark(rgb(0, 0, 0), rgb(255, 255, 255))`)
+/// and recursively resolves any nested `light-dark()` calls.
+fn resolve_light_dark(value: &str) -> std::borrow::Cow<'_, str> {
+    use std::borrow::Cow;
+
+    let Some(start_idx) = value.find("light-dark(") else {
+        return Cow::Borrowed(value);
+    };
+
+    let func_start = start_idx + "light-dark(".len();
+    let rest = &value[func_start..];
+
+    // Find the first argument by tracking parentheses depth
+    let mut depth = 1;
+    let mut first_arg_end = None;
+    let mut func_end = None;
+
+    for (i, c) in rest.char_indices() {
+        match c {
+            '(' => depth += 1,
+            ')' => {
+                depth -= 1;
+                if depth == 0 {
+                    func_end = Some(i);
+                    if first_arg_end.is_none() {
+                        first_arg_end = Some(i);
+                    }
+                    break;
+                }
+            }
+            ',' if depth == 1 && first_arg_end.is_none() => {
+                first_arg_end = Some(i);
+            }
+            _ => {}
+        }
+    }
+
+    let Some(first_arg_end) = first_arg_end else {
+        return Cow::Borrowed(value);
+    };
+    let func_end = func_end.unwrap_or(rest.len());
+
+    let first_arg = rest[..first_arg_end].trim();
+
+    // Reconstruct the value with light-dark() replaced by the first argument
+    let mut result = String::with_capacity(value.len());
+    result.push_str(&value[..start_idx]);
+    result.push_str(first_arg);
+    // Append any remaining content after the closing parenthesis
+    if func_end + 1 < rest.len() {
+        result.push_str(&rest[func_end + 1..]);
+    }
+
+    // Recursively resolve any remaining light-dark() calls
+    match resolve_light_dark(&result) {
+        Cow::Borrowed(_) => Cow::Owned(result),
+        Cow::Owned(s) => Cow::Owned(s),
+    }
+}
+
 impl<'input> Document<'input> {
     /// Parses a [`Document`] from a [`roxmltree::Document`].
     pub fn parse_tree(
@@ -321,7 +386,10 @@ pub(crate) fn parse_svg_element<'input>(
     let mut write_declaration = |declaration: &Declaration| {
         // TODO: perform XML attribute normalization
         let imp = declaration.important;
-        let val = declaration.value;
+        // Resolve CSS light-dark() function by extracting the first (light-mode) value.
+        // This handles Draw.io SVG exports that use light-dark() for dark mode support.
+        let val_cow = resolve_light_dark(declaration.value);
+        let val = val_cow.as_ref();
 
         if declaration.name == "marker" {
             insert_attribute(AId::MarkerStart, val, imp);
