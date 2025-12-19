@@ -8,6 +8,23 @@ use std::sync::Arc;
 use crate::FontResolver;
 use crate::{ImageHrefResolver, ImageRendering, ShapeRendering, Size, TextRendering};
 
+/// The color scheme preference for resolving CSS `light-dark()` function.
+///
+/// The CSS `light-dark()` function allows specifying two color values where the first
+/// is for light mode and the second is for dark mode. This option controls which
+/// value is extracted.
+///
+/// This is useful for rendering SVGs exported from applications like Draw.io that
+/// use `light-dark()` for dark mode support.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
+pub enum ColorScheme {
+    /// Use the first value (light mode color). This is the default.
+    #[default]
+    Light,
+    /// Use the second value (dark mode color).
+    Dark,
+}
+
 /// Processing options.
 #[derive(Debug)]
 pub struct Options<'a> {
@@ -98,6 +115,11 @@ pub struct Options<'a> {
     /// A CSS stylesheet that should be injected into the SVG. Can be used to overwrite
     /// certain attributes.
     pub style_sheet: Option<String>,
+
+    /// The color scheme to use when resolving CSS `light-dark()` function.
+    ///
+    /// Default: `ColorScheme::Light`
+    pub color_scheme: ColorScheme,
 }
 
 impl Default for Options<'_> {
@@ -119,6 +141,7 @@ impl Default for Options<'_> {
             #[cfg(feature = "text")]
             fontdb: Arc::new(fontdb::Database::new()),
             style_sheet: None,
+            color_scheme: ColorScheme::default(),
         }
     }
 }
