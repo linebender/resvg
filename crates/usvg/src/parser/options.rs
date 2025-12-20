@@ -8,6 +8,7 @@ use std::sync::Arc;
 use crate::FontResolver;
 use crate::{ImageHrefResolver, ImageRendering, ShapeRendering, Size, TextRendering};
 
+// TODO: Use svgtypes::ColorScheme once https://github.com/linebender/svgtypes/pull/59 is merged
 /// The color scheme preference for resolving CSS `light-dark()` function.
 ///
 /// The CSS `light-dark()` function allows specifying two color values where the first

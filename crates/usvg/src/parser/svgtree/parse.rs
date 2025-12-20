@@ -15,6 +15,7 @@ const XML_NAMESPACE_NS: &str = "http://www.w3.org/XML/1998/namespace";
 
 use crate::ColorScheme;
 
+// TODO: Use svgtypes::resolve_light_dark once https://github.com/linebender/svgtypes/pull/59 is merged
 /// Resolves CSS `light-dark(value1, value2)` function based on the specified color scheme.
 ///
 /// The `light-dark()` CSS function is used for dark mode support. This function extracts
