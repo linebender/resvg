@@ -286,7 +286,10 @@ impl<'a, 'input: 'a> SvgNode<'a, 'input> {
             Some(v) => Some(v),
             None => {
                 // TODO: show position in XML
-                log::warn!("Failed to parse {} value: '{}'.", aid, value);
+                let is_marker = matches!(aid, AId::MarkerEnd | AId::MarkerStart | AId::MarkerMid);
+                if !is_marker || value != "none" {
+                    log::warn!("Failed to parse {} value: '{}'.", aid, value);
+                }
                 None
             }
         }
