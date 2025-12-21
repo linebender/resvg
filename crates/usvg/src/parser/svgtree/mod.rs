@@ -282,7 +282,21 @@ impl<'a, 'input: 'a> SvgNode<'a, 'input> {
             .iter()
             .find(|a| a.name == aid)
             .map(|a| a.value.as_str())?;
-        if value == "none" {
+        // These AId have a initial value of none
+        let is_possible_none = matches!(
+            aid,
+            AId::Mask
+                | AId::MarkerStart
+                | AId::MarkerMid
+                | AId::MarkerEnd
+                | AId::ClipPath
+                | AId::Filter
+                | AId::FontSizeAdjust
+                | AId::TextDecoration
+                | AId::Stroke
+                | AId::StrokeDasharray
+        );
+        if is_possible_none && value == "none" {
             return None;
         }
         match T::parse(*self, aid, value) {
