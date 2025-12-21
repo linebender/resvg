@@ -282,7 +282,7 @@ impl<'a, 'input: 'a> SvgNode<'a, 'input> {
             .iter()
             .find(|a| a.name == aid)
             .map(|a| a.value.as_str())?;
-        // These AId have a initial value of none
+        // These AId have an initial value of none
         let is_possible_none = matches!(
             aid,
             AId::Mask
