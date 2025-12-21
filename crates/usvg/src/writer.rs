@@ -831,16 +831,22 @@ fn write_group_element(g: &Group, is_clip_path: bool, opt: &WriteOptions, xml: &
         // Same with text. Text elements will be converted into groups,
         // but only the group's children should be written.
         for child in &g.children {
-            if let Node::Path(ref path) = child {
-                let clip_id = g.clip_path.as_ref().map(|cp| cp.id().to_string());
-                write_path(
-                    path,
-                    is_clip_path,
-                    g.transform,
-                    clip_id.as_deref(),
-                    opt,
-                    xml,
-                );
+            match child {
+                Node::Group(child_group) => {
+                    write_group_element(child_group, is_clip_path, opt, xml);
+                }
+                Node::Path(child_path) => {
+                    let clip_id = g.clip_path.as_ref().map(|cp| cp.id().to_string());
+                    write_path(
+                        child_path,
+                        is_clip_path,
+                        g.transform,
+                        clip_id.as_deref(),
+                        opt,
+                        xml,
+                    );
+                }
+                _ => {}
             }
         }
         return;
