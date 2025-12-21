@@ -13,13 +13,95 @@ const SVG_NS: &str = "http://www.w3.org/2000/svg";
 const XLINK_NS: &str = "http://www.w3.org/1999/xlink";
 const XML_NAMESPACE_NS: &str = "http://www.w3.org/XML/1998/namespace";
 
+use crate::ColorScheme;
+
+// TODO: Use svgtypes::resolve_light_dark once https://github.com/linebender/svgtypes/pull/59 is merged
+/// Resolves CSS `light-dark(value1, value2)` function based on the specified color scheme.
+///
+/// The `light-dark()` CSS function is used for dark mode support. This function extracts
+/// the appropriate value based on the color scheme: first value for light mode, second for dark.
+///
+/// This function handles nested parentheses (e.g., `light-dark(rgb(0, 0, 0), rgb(255, 255, 255))`)
+/// and recursively resolves any nested `light-dark()` calls.
+fn resolve_light_dark(value: &str, color_scheme: ColorScheme) -> std::borrow::Cow<'_, str> {
+    use std::borrow::Cow;
+
+    let Some(start_idx) = value.find("light-dark(") else {
+        return Cow::Borrowed(value);
+    };
+
+    let func_start = start_idx + "light-dark(".len();
+    let rest = &value[func_start..];
+
+    // Find both arguments by tracking parentheses depth
+    let mut depth = 1;
+    let mut first_arg_end = None;
+    let mut second_arg_start = None;
+    let mut func_end = None;
+
+    for (i, c) in rest.char_indices() {
+        match c {
+            '(' => depth += 1,
+            ')' => {
+                depth -= 1;
+                if depth == 0 {
+                    func_end = Some(i);
+                    if first_arg_end.is_none() {
+                        first_arg_end = Some(i);
+                    }
+                    break;
+                }
+            }
+            ',' if depth == 1 && first_arg_end.is_none() => {
+                first_arg_end = Some(i);
+                second_arg_start = Some(i + 1);
+            }
+            _ => {}
+        }
+    }
+
+    let Some(first_arg_end) = first_arg_end else {
+        return Cow::Borrowed(value);
+    };
+    let func_end = func_end.unwrap_or(rest.len());
+
+    // Select the appropriate argument based on color scheme
+    let selected_arg = match color_scheme {
+        ColorScheme::Light => rest[..first_arg_end].trim(),
+        ColorScheme::Dark => {
+            if let Some(start) = second_arg_start {
+                rest[start..func_end].trim()
+            } else {
+                // No second argument, fall back to first
+                rest[..first_arg_end].trim()
+            }
+        }
+    };
+
+    // Reconstruct the value with light-dark() replaced by the selected argument
+    let mut result = String::with_capacity(value.len());
+    result.push_str(&value[..start_idx]);
+    result.push_str(selected_arg);
+    // Append any remaining content after the closing parenthesis
+    if func_end + 1 < rest.len() {
+        result.push_str(&rest[func_end + 1..]);
+    }
+
+    // Recursively resolve any remaining light-dark() calls
+    match resolve_light_dark(&result, color_scheme) {
+        Cow::Borrowed(_) => Cow::Owned(result),
+        Cow::Owned(s) => Cow::Owned(s),
+    }
+}
+
 impl<'input> Document<'input> {
     /// Parses a [`Document`] from a [`roxmltree::Document`].
     pub fn parse_tree(
         xml: &roxmltree::Document<'input>,
         injected_stylesheet: Option<&'input str>,
+        color_scheme: ColorScheme,
     ) -> Result<Document<'input>, Error> {
-        parse(xml, injected_stylesheet)
+        parse(xml, injected_stylesheet, color_scheme)
     }
 
     pub(crate) fn append(&mut self, parent_id: NodeId, kind: NodeKind) -> NodeId {
@@ -65,6 +147,7 @@ impl<'input> Document<'input> {
 fn parse<'input>(
     xml: &roxmltree::Document<'input>,
     injected_stylesheet: Option<&'input str>,
+    color_scheme: ColorScheme,
 ) -> Result<Document<'input>, Error> {
     let mut doc = Document {
         nodes: Vec::new(),
@@ -101,6 +184,7 @@ fn parse<'input>(
         0,
         &mut doc,
         &id_map,
+        color_scheme,
     )?;
 
     // Check that the root element is `svg`.
@@ -152,6 +236,7 @@ fn parse_xml_node_children<'input>(
     depth: u32,
     doc: &mut Document<'input>,
     id_map: &HashMap<&str, roxmltree::Node<'_, 'input>>,
+    color_scheme: ColorScheme,
 ) -> Result<(), Error> {
     for node in parent.children() {
         parse_xml_node(
@@ -163,6 +248,7 @@ fn parse_xml_node_children<'input>(
             depth,
             doc,
             id_map,
+            color_scheme,
         )?;
     }
 
@@ -178,6 +264,7 @@ fn parse_xml_node<'input>(
     depth: u32,
     doc: &mut Document<'input>,
     id_map: &HashMap<&str, roxmltree::Node<'_, 'input>>,
+    color_scheme: ColorScheme,
 ) -> Result<(), Error> {
     if depth > 1024 {
         return Err(Error::NodesLimitReached);
@@ -198,11 +285,28 @@ fn parse_xml_node<'input>(
         tag_name = EId::G;
     }
 
-    let node_id = parse_svg_element(node, parent_id, tag_name, style_sheet, ignore_ids, doc)?;
+    let node_id = parse_svg_element(
+        node,
+        parent_id,
+        tag_name,
+        style_sheet,
+        ignore_ids,
+        doc,
+        color_scheme,
+    )?;
     if tag_name == EId::Text {
-        super::text::parse_svg_text_element(node, node_id, style_sheet, doc)?;
+        super::text::parse_svg_text_element(node, node_id, style_sheet, doc, color_scheme)?;
     } else if tag_name == EId::Use {
-        parse_svg_use_element(node, origin, node_id, style_sheet, depth + 1, doc, id_map)?;
+        parse_svg_use_element(
+            node,
+            origin,
+            node_id,
+            style_sheet,
+            depth + 1,
+            doc,
+            id_map,
+            color_scheme,
+        )?;
     } else {
         parse_xml_node_children(
             node,
@@ -213,6 +317,7 @@ fn parse_xml_node<'input>(
             depth + 1,
             doc,
             id_map,
+            color_scheme,
         )?;
     }
 
@@ -226,6 +331,7 @@ pub(crate) fn parse_svg_element<'input>(
     style_sheet: &simplecss::StyleSheet,
     ignore_ids: bool,
     doc: &mut Document<'input>,
+    color_scheme: ColorScheme,
 ) -> Result<NodeId, Error> {
     let attrs_start_idx = doc.attrs.len();
 
@@ -321,7 +427,10 @@ pub(crate) fn parse_svg_element<'input>(
     let mut write_declaration = |declaration: &Declaration| {
         // TODO: perform XML attribute normalization
         let imp = declaration.important;
-        let val = declaration.value;
+        // Resolve CSS light-dark() function by extracting the appropriate value.
+        // This handles Draw.io SVG exports that use light-dark() for dark mode support.
+        let val_cow = resolve_light_dark(declaration.value, color_scheme);
+        let val = val_cow.as_ref();
 
         if declaration.name == "marker" {
             insert_attribute(AId::MarkerStart, val, imp);
@@ -551,6 +660,7 @@ fn parse_svg_use_element<'input>(
     depth: u32,
     doc: &mut Document<'input>,
     id_map: &HashMap<&str, roxmltree::Node<'_, 'input>>,
+    color_scheme: ColorScheme,
 ) -> Result<(), Error> {
     let link = match resolve_href(node, id_map) {
         Some(v) => v,
@@ -618,6 +728,7 @@ fn parse_svg_use_element<'input>(
         depth + 1,
         doc,
         id_map,
+        color_scheme,
     )
 }
 

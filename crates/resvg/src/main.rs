@@ -206,6 +206,8 @@ OPTIONS:
   --export-area-drawing         Use drawing's tight bounding box instead of image size.
                                 Used during normal rendering and not during --export-id
 
+  --color-scheme SCHEME         Sets the color scheme for resolving CSS light-dark() function
+                                [default: light] [possible values: light, dark]
   --perf                        Prints performance stats
   --quiet                       Disables warnings
 
@@ -240,6 +242,7 @@ struct CliArgs {
     skip_system_fonts: bool,
     list_fonts: bool,
     style_sheet: Option<path::PathBuf>,
+    color_scheme: usvg::ColorScheme,
 
     query_all: bool,
     export_id: Option<String>,
@@ -310,6 +313,9 @@ fn collect_args() -> Result<CliArgs, pico_args::Error> {
 
         export_area_drawing: input.contains("--export-area-drawing"),
         style_sheet: input.opt_value_from_str("--stylesheet").unwrap_or_default(),
+        color_scheme: input
+            .opt_value_from_fn("--color-scheme", parse_color_scheme)?
+            .unwrap_or_default(),
 
         perf: input.contains("--perf"),
         quiet: input.contains("--quiet"),
@@ -370,6 +376,14 @@ fn parse_languages(s: &str) -> Result<Vec<String>, String> {
     }
 
     Ok(langs)
+}
+
+fn parse_color_scheme(s: &str) -> Result<usvg::ColorScheme, String> {
+    match s.to_lowercase().as_str() {
+        "light" => Ok(usvg::ColorScheme::Light),
+        "dark" => Ok(usvg::ColorScheme::Dark),
+        _ => Err("invalid color scheme, expected 'light' or 'dark'".to_string()),
+    }
 }
 
 #[derive(Clone, PartialEq, Debug)]
@@ -578,6 +592,7 @@ fn parse_args() -> Result<Args, String> {
         font_resolver: usvg::FontResolver::default(),
         fontdb: Arc::new(fontdb::Database::new()),
         style_sheet,
+        color_scheme: args.color_scheme,
     };
 
     Ok(Args {
