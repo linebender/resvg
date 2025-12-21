@@ -282,14 +282,14 @@ impl<'a, 'input: 'a> SvgNode<'a, 'input> {
             .iter()
             .find(|a| a.name == aid)
             .map(|a| a.value.as_str())?;
+        if value == "none" {
+            return None;
+        }
         match T::parse(*self, aid, value) {
             Some(v) => Some(v),
             None => {
                 // TODO: show position in XML
-                let is_marker = matches!(aid, AId::MarkerEnd | AId::MarkerStart | AId::MarkerMid);
-                if !is_marker || value != "none" {
-                    log::warn!("Failed to parse {} value: '{}'.", aid, value);
-                }
+                log::warn!("Failed to parse {} value: '{}'.", aid, value);
                 None
             }
         }
