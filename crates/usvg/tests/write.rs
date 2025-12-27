@@ -68,6 +68,17 @@ fn path_simple_case() {
 }
 
 #[test]
+fn path_simple_case_empty_group() {
+    resave("path-simple-case-empty-group");
+}
+
+#[test]
+fn path_simple_case_empty_path() {
+    // this test will succeed because the parser removes empty paths (not the writer)
+    resave("path-simple-case-empty-path");
+}
+
+#[test]
 fn ellipse_simple_case() {
     resave("ellipse-simple-case");
 }
