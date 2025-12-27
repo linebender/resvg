@@ -128,11 +128,18 @@ pub(crate) fn flatten(text: &mut Text, cache: &mut Cache) -> Option<(Group, NonZ
                 group.calculate_bounding_boxes();
 
                 new_children.push(Node::Group(Box::new(group)));
-            } else if let Some(outline) = cache
-                .fontdb_outline(glyph.font, glyph.id)
-                .and_then(|p| p.transform(glyph.outline_transform()))
-            {
-                span_builder.push_path(&outline);
+            } else {
+                // For variable fonts, we need to extract the outline with variations applied.
+                // We can't use the cache here since the outline depends on variation values.
+                let outline = if glyph.variations.is_empty() {
+                    cache.fontdb_outline(glyph.font, glyph.id)
+                } else {
+                    cache.fontdb.outline_with_variations(glyph.font, glyph.id, &glyph.variations)
+                };
+
+                if let Some(outline) = outline.and_then(|p| p.transform(glyph.outline_transform())) {
+                    span_builder.push_path(&outline);
+                }
             }
         }
 
@@ -187,6 +194,12 @@ impl ttf_parser::OutlineBuilder for PathBuilder {
 
 pub(crate) trait DatabaseExt {
     fn outline(&self, id: ID, glyph_id: GlyphId) -> Option<tiny_skia_path::Path>;
+    fn outline_with_variations(
+        &self,
+        id: ID,
+        glyph_id: GlyphId,
+        variations: &[crate::FontVariation],
+    ) -> Option<tiny_skia_path::Path>;
     fn raster(&self, id: ID, glyph_id: GlyphId) -> Option<BitmapImage>;
     fn svg(&self, id: ID, glyph_id: GlyphId) -> Option<Node>;
     fn colr(&self, id: ID, glyph_id: GlyphId) -> Option<Tree>;
@@ -206,7 +219,38 @@ impl DatabaseExt for Database {
     #[inline(never)]
     fn outline(&self, id: ID, glyph_id: GlyphId) -> Option<tiny_skia_path::Path> {
         self.with_face_data(id, |data, face_index| -> Option<tiny_skia_path::Path> {
-            let font = ttf_parser::Face::parse(data, face_index).ok()?;
+            let mut font = ttf_parser::Face::parse(data, face_index).ok()?;
+
+            // For variable fonts, we need to set default variation values to get proper outlines
+            if font.is_variable() {
+                for axis in font.variation_axes() {
+                    font.set_variation(axis.tag, axis.def_value);
+                }
+            }
+
+            let mut builder = PathBuilder {
+                builder: tiny_skia_path::PathBuilder::new(),
+            };
+
+            font.outline_glyph(glyph_id, &mut builder)?;
+            builder.builder.finish()
+        })?
+    }
+
+    #[inline(never)]
+    fn outline_with_variations(
+        &self,
+        id: ID,
+        glyph_id: GlyphId,
+        variations: &[crate::FontVariation],
+    ) -> Option<tiny_skia_path::Path> {
+        self.with_face_data(id, |data, face_index| -> Option<tiny_skia_path::Path> {
+            let mut font = ttf_parser::Face::parse(data, face_index).ok()?;
+
+            // Apply font variations for variable fonts
+            for v in variations {
+                font.set_variation(ttf_parser::Tag::from_bytes(&v.tag), v.value);
+            }
 
             let mut builder = PathBuilder {
                 builder: tiny_skia_path::PathBuilder::new(),

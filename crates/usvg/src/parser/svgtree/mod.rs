@@ -716,6 +716,7 @@ impl AId {
                 | AId::FontStyle
                 | AId::FontVariant
                 | AId::FontWeight
+                | AId::FontVariationSettings
                 | AId::GlyphOrientationHorizontal
                 | AId::GlyphOrientationVertical
                 | AId::ImageRendering

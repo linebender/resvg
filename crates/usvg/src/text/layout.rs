@@ -45,6 +45,8 @@ pub struct PositionedGlyph {
     /// The ID of the font the glyph should be taken from. Can be used with the
     /// [font database of the tree](crate::Tree::fontdb) this glyph is part of.
     pub font: ID,
+    /// Font variation settings for variable fonts.
+    pub variations: Vec<crate::FontVariation>,
 }
 
 impl PositionedGlyph {
@@ -899,6 +901,7 @@ fn process_chunk(
             font,
             span.small_caps,
             span.apply_kerning,
+            &span.font.variations,
             resolver,
             fontdb,
         );
@@ -957,6 +960,7 @@ fn process_chunk(
                 &glyphs[range],
                 &chunk.text,
                 span.font_size.get(),
+                &span.font.variations,
             ));
         }
     }
@@ -1127,7 +1131,12 @@ fn apply_word_spacing(chunk: &TextChunk, clusters: &mut [GlyphCluster]) {
     }
 }
 
-fn form_glyph_clusters(glyphs: &[Glyph], text: &str, font_size: f32) -> GlyphCluster {
+fn form_glyph_clusters(
+    glyphs: &[Glyph],
+    text: &str,
+    font_size: f32,
+    variations: &[crate::FontVariation],
+) -> GlyphCluster {
     debug_assert!(!glyphs.is_empty());
 
     let mut width = 0.0;
@@ -1157,6 +1166,7 @@ fn form_glyph_clusters(glyphs: &[Glyph], text: &str, font_size: f32) -> GlyphClu
             font: glyph.font.id,
             text: glyph.text.clone(),
             id: glyph.id,
+            variations: variations.to_vec(),
         });
 
         x += glyph.width as f32;
@@ -1281,10 +1291,11 @@ pub(crate) fn shape_text(
     font: Arc<ResolvedFont>,
     small_caps: bool,
     apply_kerning: bool,
+    variations: &[crate::FontVariation],
     resolver: &FontResolver,
     fontdb: &mut Arc<fontdb::Database>,
 ) -> Vec<Glyph> {
-    let mut glyphs = shape_text_with_font(text, font.clone(), small_caps, apply_kerning, fontdb)
+    let mut glyphs = shape_text_with_font(text, font.clone(), small_caps, apply_kerning, variations, fontdb)
         .unwrap_or_default();
 
     // Remember all fonts used for shaping.
@@ -1314,6 +1325,7 @@ pub(crate) fn shape_text(
                 fallback_font.clone(),
                 small_caps,
                 apply_kerning,
+                variations,
                 fontdb,
             )
             .unwrap_or_default();
@@ -1371,10 +1383,27 @@ fn shape_text_with_font(
     font: Arc<ResolvedFont>,
     small_caps: bool,
     apply_kerning: bool,
+    variations: &[crate::FontVariation],
     fontdb: &fontdb::Database,
 ) -> Option<Vec<Glyph>> {
     fontdb.with_face_data(font.id, |font_data, face_index| -> Option<Vec<Glyph>> {
-        let rb_font = rustybuzz::Face::from_slice(font_data, face_index)?;
+        let mut rb_font = rustybuzz::Face::from_slice(font_data, face_index)?;
+
+        // Apply font variations for variable fonts
+        if !variations.is_empty() {
+            log::debug!("Applying {} font variations for shaping", variations.len());
+            for v in variations {
+                log::debug!("  Setting variation {:?} = {}", std::str::from_utf8(&v.tag).unwrap_or("????"), v.value);
+            }
+            let variations: Vec<_> = variations
+                .iter()
+                .map(|v| rustybuzz::Variation {
+                    tag: Tag::from_bytes(&v.tag),
+                    value: v.value,
+                })
+                .collect();
+            rb_font.set_variations(&variations);
+        }
 
         let bidi_info = unicode_bidi::BidiInfo::new(text, Some(unicode_bidi::Level::ltr()));
         let paragraph = &bidi_info.paragraphs[0];

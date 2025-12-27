@@ -51,6 +51,7 @@ font-variant-east-asian
 font-variant-ligatures
 font-variant-numeric
 font-variant-position
+font-variation-settings
 font-weight
 fr
 fx

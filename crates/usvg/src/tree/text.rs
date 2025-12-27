@@ -66,6 +66,39 @@ impl From<FontStretch> for fontdb::Stretch {
     }
 }
 
+/// A font variation axis setting.
+///
+/// Used for variable fonts to specify axis values like weight, width, etc.
+#[derive(Clone, Copy, Debug)]
+pub struct FontVariation {
+    /// The 4-byte axis tag (e.g., b"wght" for weight).
+    pub tag: [u8; 4],
+    /// The axis value.
+    pub value: f32,
+}
+
+impl FontVariation {
+    /// Creates a new font variation.
+    pub fn new(tag: [u8; 4], value: f32) -> Self {
+        Self { tag, value }
+    }
+}
+
+impl PartialEq for FontVariation {
+    fn eq(&self, other: &Self) -> bool {
+        self.tag == other.tag && self.value.to_bits() == other.value.to_bits()
+    }
+}
+
+impl Eq for FontVariation {}
+
+impl std::hash::Hash for FontVariation {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.tag.hash(state);
+        self.value.to_bits().hash(state);
+    }
+}
+
 /// A font style property.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
 pub enum FontStyle {
@@ -113,6 +146,7 @@ pub struct Font {
     pub(crate) style: FontStyle,
     pub(crate) stretch: FontStretch,
     pub(crate) weight: u16,
+    pub(crate) variations: Vec<FontVariation>,
 }
 
 impl Font {
@@ -136,6 +170,11 @@ impl Font {
     /// A font width.
     pub fn weight(&self) -> u16 {
         self.weight
+    }
+
+    /// Font variation settings for variable fonts.
+    pub fn variations(&self) -> &[FontVariation] {
+        &self.variations
     }
 }
 
