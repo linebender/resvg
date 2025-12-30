@@ -1295,8 +1295,15 @@ pub(crate) fn shape_text(
     resolver: &FontResolver,
     fontdb: &mut Arc<fontdb::Database>,
 ) -> Vec<Glyph> {
-    let mut glyphs = shape_text_with_font(text, font.clone(), small_caps, apply_kerning, variations, fontdb)
-        .unwrap_or_default();
+    let mut glyphs = shape_text_with_font(
+        text,
+        font.clone(),
+        small_caps,
+        apply_kerning,
+        variations,
+        fontdb,
+    )
+    .unwrap_or_default();
 
     // Remember all fonts used for shaping.
     let mut used_fonts = vec![font.id];
@@ -1393,7 +1400,11 @@ fn shape_text_with_font(
         if !variations.is_empty() {
             log::debug!("Applying {} font variations for shaping", variations.len());
             for v in variations {
-                log::debug!("  Setting variation {:?} = {}", std::str::from_utf8(&v.tag).unwrap_or("????"), v.value);
+                log::debug!(
+                    "  Setting variation {:?} = {}",
+                    std::str::from_utf8(&v.tag).unwrap_or("????"),
+                    v.value
+                );
             }
             let variations: Vec<_> = variations
                 .iter()

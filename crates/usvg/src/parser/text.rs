@@ -524,7 +524,10 @@ fn parse_font_variation_settings(node: SvgNode) -> Vec<FontVariation> {
 
         // Tag must be exactly 4 characters
         if tag_str.len() != 4 {
-            log::warn!("Invalid font-variation-settings tag: '{}' (must be 4 characters)", tag_str);
+            log::warn!(
+                "Invalid font-variation-settings tag: '{}' (must be 4 characters)",
+                tag_str
+            );
             continue;
         }
 

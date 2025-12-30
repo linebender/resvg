@@ -134,10 +134,13 @@ pub(crate) fn flatten(text: &mut Text, cache: &mut Cache) -> Option<(Group, NonZ
                 let outline = if glyph.variations.is_empty() {
                     cache.fontdb_outline(glyph.font, glyph.id)
                 } else {
-                    cache.fontdb.outline_with_variations(glyph.font, glyph.id, &glyph.variations)
+                    cache
+                        .fontdb
+                        .outline_with_variations(glyph.font, glyph.id, &glyph.variations)
                 };
 
-                if let Some(outline) = outline.and_then(|p| p.transform(glyph.outline_transform())) {
+                if let Some(outline) = outline.and_then(|p| p.transform(glyph.outline_transform()))
+                {
                     span_builder.push_path(&outline);
                 }
             }
