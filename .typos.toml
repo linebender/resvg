@@ -13,6 +13,7 @@ flate2 = "flate2"
 Hel = "Hel"
 PNGs = "PNGs"
 SVGinOT = "SVGinOT"
+wdth = "wdth"
 
 # Match Inside a Word - Case Insensitive
 [default.extend-words]
