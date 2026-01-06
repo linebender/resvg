@@ -78,8 +78,8 @@ fn text_simple_case() {
 }
 
 #[test]
-fn text_rect_clip_path() {
-    resave("rect-clip-path");
+fn clip_path_with_transform() {
+    resave("clip-path-with-transform");
 }
 
 #[test]
