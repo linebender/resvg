@@ -1439,9 +1439,10 @@ fn shape_text_with_font(
                 // Check if font has opsz axis
                 if let Ok(ttf_face) = ttf_parser::Face::parse(font_data, face_index) {
                     if let Some(axes) = ttf_face.tables().fvar {
-                        let has_opsz_axis = axes.axes.into_iter().any(|axis| {
-                            axis.tag == ttf_parser::Tag::from_bytes(b"opsz")
-                        });
+                        let has_opsz_axis = axes
+                            .axes
+                            .into_iter()
+                            .any(|axis| axis.tag == ttf_parser::Tag::from_bytes(b"opsz"));
                         if has_opsz_axis {
                             log::debug!(
                                 "Auto-setting opsz={} (font-optical-sizing: auto)",
@@ -1459,7 +1460,10 @@ fn shape_text_with_font(
 
         // Apply font variations for variable fonts
         if !final_variations.is_empty() {
-            log::debug!("Applying {} font variations for shaping", final_variations.len());
+            log::debug!(
+                "Applying {} font variations for shaping",
+                final_variations.len()
+            );
             for v in &final_variations {
                 log::debug!(
                     "  Setting variation {:?} = {}",

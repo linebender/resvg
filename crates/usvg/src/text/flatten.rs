@@ -135,15 +135,13 @@ pub(crate) fn flatten(text: &mut Text, cache: &mut Cache) -> Option<(Group, NonZ
                 let needs_variations = !glyph.variations.is_empty()
                     || glyph.font_optical_sizing() == crate::FontOpticalSizing::Auto;
                 let outline = if needs_variations {
-                    cache
-                        .fontdb
-                        .outline_with_variations(
-                            glyph.font,
-                            glyph.id,
-                            &glyph.variations,
-                            glyph.font_size(),
-                            glyph.font_optical_sizing(),
-                        )
+                    cache.fontdb.outline_with_variations(
+                        glyph.font,
+                        glyph.id,
+                        &glyph.variations,
+                        glyph.font_size(),
+                        glyph.font_optical_sizing(),
+                    )
                 } else {
                     cache.fontdb_outline(glyph.font, glyph.id)
                 };
@@ -274,9 +272,10 @@ impl DatabaseExt for Database {
                 if !has_explicit_opsz {
                     // Check if font has opsz axis
                     if let Some(axes) = font.tables().fvar {
-                        let has_opsz_axis = axes.axes.into_iter().any(|axis| {
-                            axis.tag == ttf_parser::Tag::from_bytes(b"opsz")
-                        });
+                        let has_opsz_axis = axes
+                            .axes
+                            .into_iter()
+                            .any(|axis| axis.tag == ttf_parser::Tag::from_bytes(b"opsz"));
                         if has_opsz_axis {
                             font.set_variation(ttf_parser::Tag::from_bytes(b"opsz"), font_size);
                         }
