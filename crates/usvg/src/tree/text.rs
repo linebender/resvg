@@ -257,6 +257,24 @@ impl Default for LengthAdjust {
     }
 }
 
+/// A font optical sizing property.
+///
+/// Controls automatic adjustment of the `opsz` axis in variable fonts
+/// based on font size. Matches CSS `font-optical-sizing`.
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum FontOpticalSizing {
+    /// Automatically set `opsz` to match font size (browser default).
+    Auto,
+    /// Do not automatically adjust `opsz`.
+    None,
+}
+
+impl Default for FontOpticalSizing {
+    fn default() -> Self {
+        Self::Auto
+    }
+}
+
 /// A text span decoration style.
 ///
 /// In SVG, text decoration and text it's applied to can have different styles.
@@ -320,6 +338,7 @@ pub struct TextSpan {
     pub(crate) font_size: NonZeroPositiveF32,
     pub(crate) small_caps: bool,
     pub(crate) apply_kerning: bool,
+    pub(crate) font_optical_sizing: FontOpticalSizing,
     pub(crate) decoration: TextDecoration,
     pub(crate) dominant_baseline: DominantBaseline,
     pub(crate) alignment_baseline: AlignmentBaseline,
@@ -383,6 +402,15 @@ impl TextSpan {
     /// Supports both `kerning` and `font-kerning` properties.
     pub fn apply_kerning(&self) -> bool {
         self.apply_kerning
+    }
+
+    /// Font optical sizing mode.
+    ///
+    /// When `Auto` (default), the `opsz` axis will be automatically set
+    /// to match the font size for variable fonts that support it.
+    /// This matches the CSS `font-optical-sizing: auto` behavior.
+    pub fn font_optical_sizing(&self) -> FontOpticalSizing {
+        self.font_optical_sizing
     }
 
     /// A span decorations.

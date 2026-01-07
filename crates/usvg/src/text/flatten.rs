@@ -131,12 +131,21 @@ pub(crate) fn flatten(text: &mut Text, cache: &mut Cache) -> Option<(Group, NonZ
             } else {
                 // For variable fonts, we need to extract the outline with variations applied.
                 // We can't use the cache here since the outline depends on variation values.
-                let outline = if glyph.variations.is_empty() {
-                    cache.fontdb_outline(glyph.font, glyph.id)
-                } else {
+                // Also handle auto-opsz for variable fonts.
+                let needs_variations = !glyph.variations.is_empty()
+                    || glyph.font_optical_sizing() == crate::FontOpticalSizing::Auto;
+                let outline = if needs_variations {
                     cache
                         .fontdb
-                        .outline_with_variations(glyph.font, glyph.id, &glyph.variations)
+                        .outline_with_variations(
+                            glyph.font,
+                            glyph.id,
+                            &glyph.variations,
+                            glyph.font_size(),
+                            glyph.font_optical_sizing(),
+                        )
+                } else {
+                    cache.fontdb_outline(glyph.font, glyph.id)
                 };
 
                 if let Some(outline) = outline.and_then(|p| p.transform(glyph.outline_transform()))
@@ -202,6 +211,8 @@ pub(crate) trait DatabaseExt {
         id: ID,
         glyph_id: GlyphId,
         variations: &[crate::FontVariation],
+        font_size: f32,
+        font_optical_sizing: crate::FontOpticalSizing,
     ) -> Option<tiny_skia_path::Path>;
     fn raster(&self, id: ID, glyph_id: GlyphId) -> Option<BitmapImage>;
     fn svg(&self, id: ID, glyph_id: GlyphId) -> Option<Node>;
@@ -246,13 +257,31 @@ impl DatabaseExt for Database {
         id: ID,
         glyph_id: GlyphId,
         variations: &[crate::FontVariation],
+        font_size: f32,
+        font_optical_sizing: crate::FontOpticalSizing,
     ) -> Option<tiny_skia_path::Path> {
         self.with_face_data(id, |data, face_index| -> Option<tiny_skia_path::Path> {
             let mut font = ttf_parser::Face::parse(data, face_index).ok()?;
 
-            // Apply font variations for variable fonts
+            // Apply explicit font variations
             for v in variations {
                 font.set_variation(ttf_parser::Tag::from_bytes(&v.tag), v.value);
+            }
+
+            // Auto-set opsz if font-optical-sizing is auto and not explicitly set
+            if font_optical_sizing == crate::FontOpticalSizing::Auto {
+                let has_explicit_opsz = variations.iter().any(|v| v.tag == *b"opsz");
+                if !has_explicit_opsz {
+                    // Check if font has opsz axis
+                    if let Some(axes) = font.tables().fvar {
+                        let has_opsz_axis = axes.axes.into_iter().any(|axis| {
+                            axis.tag == ttf_parser::Tag::from_bytes(b"opsz")
+                        });
+                        if has_opsz_axis {
+                            font.set_variation(ttf_parser::Tag::from_bytes(b"opsz"), font_size);
+                        }
+                    }
+                }
             }
 
             let mut builder = PathBuilder {

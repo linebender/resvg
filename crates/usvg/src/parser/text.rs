@@ -263,6 +263,12 @@ fn collect_text_chunks_impl(
             apply_kerning = false;
         }
 
+        // Parse font-optical-sizing (defaults to auto to match browser behavior)
+        let font_optical_sizing = match parent.find_attribute::<&str>(AId::FontOpticalSizing) {
+            Some("none") => crate::FontOpticalSizing::None,
+            _ => crate::FontOpticalSizing::Auto, // "auto" or missing = Auto (browser default)
+        };
+
         let mut text_length =
             parent.try_convert_length(AId::TextLength, Units::UserSpaceOnUse, state);
         // Negative values should be ignored.
@@ -284,6 +290,7 @@ fn collect_text_chunks_impl(
             font_size,
             small_caps: parent.find_attribute::<&str>(AId::FontVariant) == Some("small-caps"),
             apply_kerning,
+            font_optical_sizing,
             decoration: resolve_decoration(parent, state, cache),
             visible: visibility == Visibility::Visible,
             dominant_baseline,
