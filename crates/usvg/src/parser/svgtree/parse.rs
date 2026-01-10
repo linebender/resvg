@@ -12,6 +12,7 @@ use super::{AId, Attribute, Document, EId, NodeData, NodeId, NodeKind, ShortRang
 const SVG_NS: &str = "http://www.w3.org/2000/svg";
 const XLINK_NS: &str = "http://www.w3.org/1999/xlink";
 const XML_NAMESPACE_NS: &str = "http://www.w3.org/XML/1998/namespace";
+const RESVG_NS: &str = "https://resvg.io/ns";
 
 impl<'input> Document<'input> {
     /// Parses a [`Document`] from a [`roxmltree::Document`].
@@ -232,11 +233,19 @@ pub(crate) fn parse_svg_element<'input>(
     // Copy presentational attributes first.
     for attr in xml_node.attributes() {
         match attr.namespace() {
-            None | Some(SVG_NS) | Some(XLINK_NS) | Some(XML_NAMESPACE_NS) => {}
+            None | Some(SVG_NS) | Some(XLINK_NS) | Some(XML_NAMESPACE_NS) | Some(RESVG_NS) => {}
             _ => continue,
         }
 
-        let aid = match AId::from_str(attr.name()) {
+        // For resvg namespace attributes, we need to use the prefixed name for lookup
+        // because the AId enum uses names like "resvg:hinting-target"
+        let attr_name = if attr.namespace() == Some(RESVG_NS) {
+            format!("resvg:{}", attr.name())
+        } else {
+            attr.name().to_string()
+        };
+
+        let aid = match AId::from_str(&attr_name) {
             Some(v) => v,
             None => continue,
         };

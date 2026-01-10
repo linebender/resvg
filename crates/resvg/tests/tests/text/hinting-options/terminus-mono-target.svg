@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:resvg="https://resvg.io/ns"
+     width="300" height="120">
+    <style>.t { font-family: "Terminus (TTF)"; }</style>
+    <!-- Bitmap strikes: 12, 14, 16 -->
+    <text class="t" x="5" y="18" font-size="12" text-rendering="optimizeLegibility"
+          resvg:hinting-target="mono">12px bitmap: 0O Il1 S5 Z2</text>
+    <text class="t" x="5" y="38" font-size="14" text-rendering="optimizeLegibility"
+          resvg:hinting-target="mono">14px bitmap: 0O Il1 S5 Z2</text>
+    <text class="t" x="5" y="60" font-size="16" text-rendering="optimizeLegibility"
+          resvg:hinting-target="mono">16px bitmap: 0O Il1 S5 Z2</text>
+    <!-- Outline fallback: 13, 15 (no bitmap strikes) -->
+    <text class="t" x="5" y="82" font-size="13" text-rendering="optimizeLegibility"
+          resvg:hinting-target="mono">13px outline: 0O Il1 S5 Z2</text>
+    <text class="t" x="5" y="104" font-size="15" text-rendering="optimizeLegibility"
+          resvg:hinting-target="mono">15px outline: 0O Il1 S5 Z2</text>
+    <text class="t" x="200" y="118" font-size="10" fill="#666">bitmap vs outline</text>
+</svg>

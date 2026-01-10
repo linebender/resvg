@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:resvg="https://resvg.io/ns" width="300" height="100" font-family="Noto Sans">
+    <title>Preserve linear metrics: prevents horizontal adjustment</title>
+
+    <!-- Default: allow horizontal hinting adjustments -->
+    <text x="5" y="22" font-size="12" text-rendering="optimizeLegibility"
+          resvg:hinting-preserve-linear-metrics="false">Linear=false: Hamburgefonstiv 0O Il1</text>
+
+    <!-- Preserve: keep original inter-glyph spacing -->
+    <text x="5" y="47" font-size="12" text-rendering="optimizeLegibility"
+          resvg:hinting-preserve-linear-metrics="true">Linear=true: Hamburgefonstiv 0O Il1</text>
+
+    <!-- Unhinted comparison -->
+    <text x="5" y="72" font-size="12" text-rendering="geometricPrecision"
+          >Unhinted: Hamburgefonstiv 0O Il1 S5 Z2</text>
+
+    <text x="5" y="95" font-size="10" fill="#666">Linear metrics preservation at 12px</text>
+</svg>
