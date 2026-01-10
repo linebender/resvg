@@ -6,7 +6,7 @@ use png::{BitDepth, ColorType, Encoder};
 use rgb::{FromSlice, Rgba, RGBA8};
 use std::cmp::max;
 use std::fs::File;
-use std::io::BufWriter;
+use std::io::{BufWriter, Cursor};
 use std::process::Command;
 use std::sync::Arc;
 use usvg::fontdb;
@@ -226,10 +226,10 @@ fn is_pix_diff(pixel1: &Rgba<u8>, pixel2: &Rgba<u8>, threshold: u8) -> bool {
 }
 
 fn load_png(data: Vec<u8>) -> TestImage {
-    let mut decoder = png::Decoder::new(data.as_slice());
+    let mut decoder = png::Decoder::new(Cursor::new(data.as_slice()));
     decoder.set_transformations(png::Transformations::normalize_to_color8());
     let mut reader = decoder.read_info().unwrap();
-    let mut img_data = vec![0; reader.output_buffer_size()];
+    let mut img_data = vec![0; reader.output_buffer_size().unwrap()];
     let info = reader.next_frame(&mut img_data).unwrap();
 
     let data = match info.color_type {
