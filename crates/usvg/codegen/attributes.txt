@@ -40,6 +40,7 @@ font
 font-family
 font-feature-settings
 font-kerning
+font-optical-sizing
 font-size
 font-size-adjust
 font-stretch
@@ -51,6 +52,7 @@ font-variant-east-asian
 font-variant-ligatures
 font-variant-numeric
 font-variant-position
+font-variation-settings
 font-weight
 fr
 fx
@@ -133,6 +135,11 @@ refY
 requiredExtensions
 requiredFeatures
 result
+resvg:hinting-engine
+resvg:hinting-mode
+resvg:hinting-preserve-linear-metrics
+resvg:hinting-symmetric
+resvg:hinting-target
 rotate
 rx
 ry

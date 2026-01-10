@@ -1529,6 +1529,38 @@ fn write_span(
         xml.write_attribute("style", "font-kerning:none");
     }
 
+    // Write hinting settings if they differ from defaults
+    if span.font.hinting.target != HintingTarget::Smooth {
+        xml.write_svg_attribute(AId::ResvgHintingTarget, "mono");
+    }
+
+    if span.font.hinting.mode != HintingMode::Normal {
+        let mode = match span.font.hinting.mode {
+            HintingMode::Normal => unreachable!(),
+            HintingMode::Light => "light",
+            HintingMode::Lcd => "lcd",
+            HintingMode::VerticalLcd => "vertical-lcd",
+        };
+        xml.write_svg_attribute(AId::ResvgHintingMode, mode);
+    }
+
+    if span.font.hinting.engine != HintingEngine::AutoFallback {
+        let engine = match span.font.hinting.engine {
+            HintingEngine::Auto => "auto",
+            HintingEngine::Native => "native",
+            HintingEngine::AutoFallback => unreachable!(),
+        };
+        xml.write_svg_attribute(AId::ResvgHintingEngine, engine);
+    }
+
+    if !span.font.hinting.symmetric_rendering {
+        xml.write_svg_attribute(AId::ResvgHintingSymmetric, "false");
+    }
+
+    if span.font.hinting.preserve_linear_metrics {
+        xml.write_svg_attribute(AId::ResvgHintingPreserveLinearMetrics, "true");
+    }
+
     if span.dominant_baseline != DominantBaseline::Auto {
         let name = match span.dominant_baseline {
             DominantBaseline::UseScript => "use-script",

@@ -106,9 +106,24 @@ fn gen_map(
 
     let joined_names = names.iter().map(|n| to_enum_name(n)).join(",\n    ");
 
+    // Collect CSS-style aliases for resvg: namespaced attributes
+    // resvg:hinting-target -> -resvg-hinting-target (for CSS style attribute)
+    let css_aliases: Vec<(String, String)> = names
+        .iter()
+        .filter(|n| n.starts_with("resvg:"))
+        .map(|n| {
+            let css_name = format!("-resvg-{}", &n[6..]);
+            let enum_variant = format!("{}::{}", enum_name, to_enum_name(n));
+            (css_name, enum_variant)
+        })
+        .collect();
+
     let mut map = phf_codegen::Map::new();
     for name in &names {
         map.entry(*name, &format!("{}::{}", enum_name, to_enum_name(name)));
+    }
+    for (css_name, enum_variant) in &css_aliases {
+        map.entry(css_name, enum_variant);
     }
 
     let mut map_data = Vec::new();
@@ -172,19 +187,26 @@ fn gen_map(
 // some-string -> SomeString
 // some_string -> SomeString
 // some:string -> SomeString
+// -resvg-foo -> ResvgFoo (leading dash is skipped)
 // 100 -> N100
 fn to_enum_name(name: &str) -> String {
     let mut change_case = false;
+    let mut is_first_alpha = true;
     let mut s = String::with_capacity(name.len());
-    for (idx, c) in name.chars().enumerate() {
-        if idx == 0 {
+    for c in name.chars() {
+        // Skip leading dashes/underscores/colons
+        if is_first_alpha && (c == '-' || c == '_' || c == ':') {
+            continue;
+        }
+
+        if is_first_alpha {
+            is_first_alpha = false;
             if c.is_digit(10) {
                 s.push('N');
                 s.push(c);
             } else {
                 s.push(c.to_uppercase().next().unwrap());
             }
-
             continue;
         }
 

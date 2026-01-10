@@ -47,9 +47,9 @@ fn process() -> Result<(), String> {
         }
     }
 
-    let mut svg_data = timed(args.perf, "Reading", || -> Result<Vec<u8>, &str> {
+    let mut svg_data = timed(args.perf, "Reading", || -> Result<Vec<u8>, String> {
         if let InputFrom::File(ref file) = args.in_svg {
-            std::fs::read(file).map_err(|_| "failed to open the provided file")
+            std::fs::read(file).map_err(|e| format!("failed to open '{}': {}", file.display(), e))
         } else {
             use std::io::Read;
             let mut buf = Vec::new();
@@ -57,7 +57,7 @@ fn process() -> Result<(), String> {
             let mut handle = stdin.lock();
             handle
                 .read_to_end(&mut buf)
-                .map_err(|_| "failed to read stdin")?;
+                .map_err(|e| format!("failed to read stdin: {}", e))?;
             Ok(buf)
         }
     })?;
@@ -102,15 +102,16 @@ fn process() -> Result<(), String> {
     // Render.
     let img = render_svg(&args, &tree)?;
 
+    let dpi = args.raw_args.dpi;
     match args.out_png.unwrap() {
         OutputTo::Stdout => {
             use std::io::Write;
-            let buf = img.encode_png().map_err(|e| e.to_string())?;
+            let buf = resvg::encode_png_with_dpi(&img, dpi).map_err(|e| e.to_string())?;
             std::io::stdout().write_all(&buf).unwrap();
         }
         OutputTo::File(ref file) => {
             timed(args.perf, "Saving", || {
-                img.save_png(file).map_err(|e| e.to_string())
+                resvg::save_png_with_dpi(&img, file, dpi).map_err(|e| e.to_string())
             })?;
         }
     };
@@ -267,7 +268,7 @@ fn collect_args() -> Result<CliArgs, pico_args::Error> {
         std::process::exit(0);
     }
 
-    Ok(CliArgs {
+    let result = CliArgs {
         width: input.opt_value_from_fn(["-w", "--width"], parse_length)?,
         height: input.opt_value_from_fn(["-h", "--height"], parse_length)?,
         zoom: input.opt_value_from_fn(["-z", "--zoom"], parse_zoom)?,
@@ -316,7 +317,17 @@ fn collect_args() -> Result<CliArgs, pico_args::Error> {
 
         input: input.opt_free_from_str()?,
         output: input.opt_free_from_str()?,
-    })
+    };
+
+    // Check for any remaining/unknown arguments
+    let remaining = input.finish();
+    if !remaining.is_empty() {
+        let args: Vec<_> = remaining.iter().map(|s| s.to_string_lossy()).collect();
+        eprintln!("Error: unknown arguments: {}", args.join(", "));
+        std::process::exit(1);
+    }
+
+    Ok(result)
 }
 
 fn parse_dpi(s: &str) -> Result<u32, String> {
@@ -577,6 +588,8 @@ fn parse_args() -> Result<Args, String> {
         image_href_resolver: usvg::ImageHrefResolver::default(),
         font_resolver: usvg::FontResolver::default(),
         fontdb: Arc::new(fontdb::Database::new()),
+        #[cfg(feature = "text")]
+        hinting: usvg::HintingOptions::default(),
         style_sheet,
     };
 

@@ -66,6 +66,221 @@ impl From<FontStretch> for fontdb::Stretch {
     }
 }
 
+/// A font variation axis setting.
+///
+/// Used for variable fonts to specify axis values like weight, width, etc.
+#[derive(Clone, Copy, Debug)]
+pub struct FontVariation {
+    /// The 4-byte axis tag (e.g., b"wght" for weight).
+    pub tag: [u8; 4],
+    /// The axis value.
+    pub value: f32,
+}
+
+impl FontVariation {
+    /// Creates a new font variation.
+    pub fn new(tag: [u8; 4], value: f32) -> Self {
+        Self { tag, value }
+    }
+}
+
+impl PartialEq for FontVariation {
+    fn eq(&self, other: &Self) -> bool {
+        self.tag == other.tag && self.value.to_bits() == other.value.to_bits()
+    }
+}
+
+impl Eq for FontVariation {}
+
+impl std::hash::Hash for FontVariation {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.tag.hash(state);
+        self.value.to_bits().hash(state);
+    }
+}
+
+/// Hinting target specifies the type of rasterization output.
+///
+/// Corresponds to `-resvg-hinting-target` CSS property.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, Default)]
+pub enum HintingTarget {
+    /// Strong hinting for aliased, monochromatic rasterization.
+    /// Best for pixel-perfect rendering without anti-aliasing.
+    Mono,
+    /// Hinting suitable for anti-aliased rasterization.
+    /// This is the default and most common choice.
+    #[default]
+    Smooth,
+}
+
+impl std::str::FromStr for HintingTarget {
+    type Err = &'static str;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "mono" => Ok(HintingTarget::Mono),
+            "smooth" => Ok(HintingTarget::Smooth),
+            _ => Err("invalid"),
+        }
+    }
+}
+
+/// Hinting mode for smooth rendering.
+///
+/// Corresponds to `-resvg-hinting-mode` CSS property.
+/// Only applies when `HintingTarget::Smooth` is used.
+///
+/// **Note:** The `Lcd` and `VerticalLcd` modes only affect how glyph outlines are
+/// hinted (optimized for subpixel geometry). They do **not** produce actual LCD
+/// subpixel rendering with separate RGB channels, as tiny-skia (the rasterizer)
+/// does not support subpixel anti-aliasing. For these modes to produce visible
+/// differences from `Normal`, a renderer with LCD subpixel support would be needed.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, Default)]
+pub enum HintingMode {
+    /// Standard smooth hinting. Equivalent to FreeType's `FT_LOAD_TARGET_NORMAL`.
+    #[default]
+    Normal,
+    /// Lighter hinting with fewer horizontal adjustments.
+    /// Produces results closer to unhinted outlines while still aligning to the pixel grid.
+    /// Equivalent to FreeType's `FT_LOAD_TARGET_LIGHT`.
+    Light,
+    /// Optimized for horizontal RGB subpixel rendering (standard LCD displays).
+    /// Equivalent to FreeType's `FT_LOAD_TARGET_LCD`.
+    ///
+    /// **Note:** This only affects outline hinting. Actual subpixel rendering
+    /// (RGB channel separation) is not implemented in resvg.
+    Lcd,
+    /// Optimized for vertical RGB subpixel rendering (rotated LCD displays).
+    /// Equivalent to FreeType's `FT_LOAD_TARGET_LCD_V`.
+    ///
+    /// **Note:** This only affects outline hinting. Actual subpixel rendering
+    /// (RGB channel separation) is not implemented in resvg.
+    VerticalLcd,
+}
+
+impl std::str::FromStr for HintingMode {
+    type Err = &'static str;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "normal" => Ok(HintingMode::Normal),
+            "light" => Ok(HintingMode::Light),
+            "lcd" => Ok(HintingMode::Lcd),
+            "vertical-lcd" => Ok(HintingMode::VerticalLcd),
+            _ => Err("invalid"),
+        }
+    }
+}
+
+/// Hinting engine selection.
+///
+/// Corresponds to `-resvg-hinting-engine` CSS property.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, Default)]
+pub enum HintingEngine {
+    /// Use the automatic hinter (autohinting).
+    /// Generates hinting on-the-fly for fonts without native hinting.
+    Auto,
+    /// Use only the native TrueType/PostScript interpreter.
+    /// Falls back to unhinted if the font has no hinting instructions.
+    Native,
+    /// Automatic selection based on font capabilities (default).
+    /// Uses native interpreter if `fpgm`/`prep` tables exist, otherwise autohints.
+    /// This matches FreeType's default behavior.
+    #[default]
+    AutoFallback,
+}
+
+impl std::str::FromStr for HintingEngine {
+    type Err = &'static str;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "auto" => Ok(HintingEngine::Auto),
+            "native" => Ok(HintingEngine::Native),
+            "auto-fallback" => Ok(HintingEngine::AutoFallback),
+            _ => Err("invalid"),
+        }
+    }
+}
+
+/// Complete hinting configuration for text rendering.
+///
+/// These options control how font outlines are adjusted for pixel grid alignment.
+/// All options can be set via resvg-specific CSS properties or SVG attributes.
+///
+/// # Custom Properties
+///
+/// These properties are resvg extensions and not part of the SVG or CSS standards.
+/// They can be used in two ways:
+///
+/// ## As SVG attributes (resvg namespace)
+///
+/// ```xml
+/// <svg xmlns="http://www.w3.org/2000/svg"
+///      xmlns:resvg="https://github.com/linebender/resvg">
+///   <text resvg:hinting-target="mono"
+///         resvg:hinting-mode="normal"
+///         resvg:hinting-engine="auto-fallback">
+///     Pixel-perfect text
+///   </text>
+/// </svg>
+/// ```
+///
+/// ## As CSS properties (vendor-prefixed)
+///
+/// ```xml
+/// <svg xmlns="http://www.w3.org/2000/svg">
+///   <text style="-resvg-hinting-target: mono; -resvg-hinting-mode: normal;">
+///     Pixel-perfect text
+///   </text>
+/// </svg>
+/// ```
+///
+/// # Available Properties
+///
+/// | Property | Values | Default | Description |
+/// |----------|--------|---------|-------------|
+/// | `-resvg-hinting-target` | `smooth`, `mono` | `smooth` | Rasterization target |
+/// | `-resvg-hinting-mode` | `normal`, `light`, `lcd`, `vertical-lcd` | `normal` | Smooth hinting mode |
+/// | `-resvg-hinting-engine` | `auto`, `native`, `auto-fallback` | `auto-fallback` | Hinting engine |
+/// | `-resvg-hinting-symmetric` | `true`, `false` | `true` | Symmetric rendering |
+/// | `-resvg-hinting-preserve-linear-metrics` | `true`, `false` | `false` | Preserve spacing |
+///
+/// These properties inherit and can be set on any text element or ancestor.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
+pub struct HintingSettings {
+    /// The hinting target (mono or smooth rasterization).
+    /// CSS: `-resvg-hinting-target`
+    pub target: HintingTarget,
+    /// The smooth hinting mode (only used when target is Smooth).
+    /// CSS: `-resvg-hinting-mode`
+    pub mode: HintingMode,
+    /// The hinting engine to use.
+    /// CSS: `-resvg-hinting-engine`
+    pub engine: HintingEngine,
+    /// Allow TrueType bytecode to assume symmetric rendering (vertical supersampling).
+    /// When true, ClearType-optimized fonts may produce wider horizontal stems.
+    /// CSS: `-resvg-hinting-symmetric`
+    pub symmetric_rendering: bool,
+    /// Preserve linear advance metrics (no horizontal glyph adjustments).
+    /// When true, inter-glyph spacing remains constant regardless of hinting.
+    /// Useful for layout consistency without re-evaluating glyph outlines.
+    /// CSS: `-resvg-hinting-preserve-linear-metrics`
+    pub preserve_linear_metrics: bool,
+}
+
+impl Default for HintingSettings {
+    fn default() -> Self {
+        Self {
+            target: HintingTarget::default(),
+            mode: HintingMode::default(),
+            engine: HintingEngine::default(),
+            symmetric_rendering: true,
+            preserve_linear_metrics: false,
+        }
+    }
+}
+
 /// A font style property.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
 pub enum FontStyle {
@@ -113,6 +328,8 @@ pub struct Font {
     pub(crate) style: FontStyle,
     pub(crate) stretch: FontStretch,
     pub(crate) weight: u16,
+    pub(crate) variations: Vec<FontVariation>,
+    pub(crate) hinting: HintingSettings,
 }
 
 impl Font {
@@ -136,6 +353,18 @@ impl Font {
     /// A font width.
     pub fn weight(&self) -> u16 {
         self.weight
+    }
+
+    /// Font variation settings for variable fonts.
+    pub fn variations(&self) -> &[FontVariation] {
+        &self.variations
+    }
+
+    /// Hinting settings for text rendering.
+    ///
+    /// Controlled by `-resvg-hinting-*` CSS properties.
+    pub fn hinting(&self) -> HintingSettings {
+        self.hinting
     }
 }
 
@@ -218,6 +447,24 @@ impl Default for LengthAdjust {
     }
 }
 
+/// A font optical sizing property.
+///
+/// Controls automatic adjustment of the `opsz` axis in variable fonts
+/// based on font size. Matches CSS `font-optical-sizing`.
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum FontOpticalSizing {
+    /// Automatically set `opsz` to match font size (browser default).
+    Auto,
+    /// Do not automatically adjust `opsz`.
+    None,
+}
+
+impl Default for FontOpticalSizing {
+    fn default() -> Self {
+        Self::Auto
+    }
+}
+
 /// A text span decoration style.
 ///
 /// In SVG, text decoration and text it's applied to can have different styles.
@@ -281,6 +528,7 @@ pub struct TextSpan {
     pub(crate) font_size: NonZeroPositiveF32,
     pub(crate) small_caps: bool,
     pub(crate) apply_kerning: bool,
+    pub(crate) font_optical_sizing: FontOpticalSizing,
     pub(crate) decoration: TextDecoration,
     pub(crate) dominant_baseline: DominantBaseline,
     pub(crate) alignment_baseline: AlignmentBaseline,
@@ -344,6 +592,15 @@ impl TextSpan {
     /// Supports both `kerning` and `font-kerning` properties.
     pub fn apply_kerning(&self) -> bool {
         self.apply_kerning
+    }
+
+    /// Font optical sizing mode.
+    ///
+    /// When `Auto` (default), the `opsz` axis will be automatically set
+    /// to match the font size for variable fonts that support it.
+    /// This matches the CSS `font-optical-sizing: auto` behavior.
+    pub fn font_optical_sizing(&self) -> FontOpticalSizing {
+        self.font_optical_sizing
     }
 
     /// A span decorations.

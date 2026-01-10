@@ -11,9 +11,12 @@ use crate::{Cache, Font, FontStretch, FontStyle, Text};
 
 pub(crate) mod flatten;
 
-mod colr;
 /// Provides access to the layout of a text node.
 pub mod layout;
+
+// Skrifa-based implementations for font metrics and COLR
+mod skrifa_colr;
+mod skrifa_metrics;
 
 /// A shorthand for [FontResolver]'s font selection function.
 ///
@@ -201,13 +204,18 @@ impl std::fmt::Debug for FontResolver<'_> {
 ///    is not based on the outlines of a glyph, but instead the glyph metrics as well
 ///    as decoration spans).
 /// 2. We convert all of the positioned glyphs into outlines.
-pub(crate) fn convert(text: &mut Text, resolver: &FontResolver, cache: &mut Cache) -> Option<()> {
+pub(crate) fn convert(
+    text: &mut Text,
+    resolver: &FontResolver,
+    cache: &mut Cache,
+    hinting_ctx: Option<flatten::HintingContext>,
+) -> Option<()> {
     let (text_fragments, bbox) = layout::layout_text(text, resolver, &mut cache.fontdb)?;
     text.layouted = text_fragments;
     text.bounding_box = bbox.to_rect();
     text.abs_bounding_box = bbox.transform(text.abs_transform)?.to_rect();
 
-    let (group, stroke_bbox) = flatten::flatten(text, cache)?;
+    let (group, stroke_bbox) = flatten::flatten(text, cache, hinting_ctx)?;
     text.flattened = Box::new(group);
     text.stroke_bounding_box = stroke_bbox.to_rect();
     text.abs_stroke_bounding_box = stroke_bbox.transform(text.abs_transform)?.to_rect();

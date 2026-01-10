@@ -11,7 +11,7 @@ use fontdb::Database;
 #[cfg(feature = "text")]
 use fontdb::ID;
 #[cfg(feature = "text")]
-use rustybuzz::ttf_parser::GlyphId;
+use skrifa::GlyphId;
 use svgtypes::{Length, LengthUnit as Unit, PaintOrderKind, TransformOrigin};
 use tiny_skia_path::PathBuilder;
 
@@ -56,7 +56,7 @@ pub struct Cache {
     #[cfg(feature = "text")]
     cache_svg: HashMap<(ID, GlyphId), Option<Node>>,
     #[cfg(feature = "text")]
-    cache_raster: HashMap<(ID, GlyphId), Option<BitmapImage>>,
+    cache_raster: HashMap<(ID, GlyphId, u16), Option<BitmapImage>>,
 
     pub clip_paths: HashMap<String, Arc<ClipPath>>,
     pub masks: HashMap<String, Arc<Mask>>,
@@ -203,7 +203,26 @@ impl Cache {
     font_lookup!(fontdb_outline, cache_outline, outline, tiny_skia_path::Path);
     font_lookup!(fontdb_colr, cache_colr, colr, Tree);
     font_lookup!(fontdb_svg, cache_svg, svg, Node);
-    font_lookup!(fontdb_raster, cache_raster, raster, BitmapImage);
+
+    #[cfg(feature = "text")]
+    pub(crate) fn fontdb_raster(
+        &mut self,
+        font: ID,
+        glyph: GlyphId,
+        font_size: f32,
+    ) -> Option<BitmapImage> {
+        // Round font_size to u16 for cache key (sub-pixel precision not needed for strike selection)
+        let size_key = font_size.round() as u16;
+        let key = (font, glyph, size_key);
+        match self.cache_raster.get(&key) {
+            Some(cache_hit) => cache_hit.clone(),
+            None => {
+                let lookup = self.fontdb.raster(font, glyph, font_size);
+                self.cache_raster.insert(key, lookup.clone());
+                lookup
+            }
+        }
+    }
 }
 
 // TODO: is there a simpler way?

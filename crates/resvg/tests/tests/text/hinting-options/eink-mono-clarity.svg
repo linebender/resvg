@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:resvg="https://resvg.io/ns"
+     width="300" height="80" font-family="Inter">
+    <text x="5" y="20" font-size="12" text-rendering="optimizeLegibility"
+          resvg:hinting-target="mono">12px: The quick brown fox jumps 0123456789</text>
+    <text x="5" y="42" font-size="14" text-rendering="optimizeLegibility"
+          resvg:hinting-target="mono">14px: The quick brown fox jumps 012345</text>
+    <text x="5" y="66" font-size="16" text-rendering="optimizeLegibility"
+          resvg:hinting-target="mono">16px: Quick brown fox 012345</text>
+</svg>
