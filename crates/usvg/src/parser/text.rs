@@ -140,7 +140,16 @@ pub(crate) fn convert(
         layouted: vec![],
     };
 
-    if text::convert(&mut text, &state.opt.font_resolver, cache).is_none() {
+    let hinting_ctx = if state.opt.hinting.enabled {
+        Some(crate::text::flatten::HintingContext {
+            enabled: true,
+            dpi: state.opt.hinting.dpi.unwrap_or(state.opt.dpi),
+        })
+    } else {
+        None
+    };
+
+    if text::convert(&mut text, &state.opt.font_resolver, cache, hinting_ctx).is_none() {
         return;
     }
 
@@ -263,6 +272,12 @@ fn collect_text_chunks_impl(
             apply_kerning = false;
         }
 
+        // Parse font-optical-sizing (defaults to auto to match browser behavior)
+        let font_optical_sizing = match parent.find_attribute::<&str>(AId::FontOpticalSizing) {
+            Some("none") => crate::FontOpticalSizing::None,
+            _ => crate::FontOpticalSizing::Auto, // "auto" or missing = Auto (browser default)
+        };
+
         let mut text_length =
             parent.try_convert_length(AId::TextLength, Units::UserSpaceOnUse, state);
         // Negative values should be ignored.
@@ -284,6 +299,7 @@ fn collect_text_chunks_impl(
             font_size,
             small_caps: parent.find_attribute::<&str>(AId::FontVariant) == Some("small-caps"),
             apply_kerning,
+            font_optical_sizing,
             decoration: resolve_decoration(parent, state, cache),
             visible: visibility == Visibility::Visible,
             dominant_baseline,
@@ -392,6 +408,49 @@ fn convert_font(node: SvgNode, state: &converter::State) -> Font {
     let style: FontStyle = node.find_attribute(AId::FontStyle).unwrap_or_default();
     let stretch = conv_font_stretch(node);
     let weight = resolve_font_weight(node);
+    let mut variations = parse_font_variation_settings(node);
+
+    // Auto-map standard font properties to variation axes if not explicitly set.
+    // This allows variable fonts to work with regular font-weight/font-stretch properties.
+    let has_wght = variations.iter().any(|v| &v.tag == b"wght");
+    let has_wdth = variations.iter().any(|v| &v.tag == b"wdth");
+    let has_ital = variations.iter().any(|v| &v.tag == b"ital");
+    let has_slnt = variations.iter().any(|v| &v.tag == b"slnt");
+
+    // Map font-weight to wght axis (if not already set)
+    if !has_wght && weight != 400 {
+        variations.push(FontVariation::new(*b"wght", weight as f32));
+    }
+
+    // Map font-stretch to wdth axis (if not already set)
+    // CSS font-stretch percentages: ultra-condensed=50%, condensed=75%, normal=100%, expanded=125%, ultra-expanded=200%
+    if !has_wdth {
+        let wdth = match stretch {
+            FontStretch::UltraCondensed => 50.0,
+            FontStretch::ExtraCondensed => 62.5,
+            FontStretch::Condensed => 75.0,
+            FontStretch::SemiCondensed => 87.5,
+            FontStretch::Normal => 100.0,
+            FontStretch::SemiExpanded => 112.5,
+            FontStretch::Expanded => 125.0,
+            FontStretch::ExtraExpanded => 150.0,
+            FontStretch::UltraExpanded => 200.0,
+        };
+        if wdth != 100.0 {
+            variations.push(FontVariation::new(*b"wdth", wdth));
+        }
+    }
+
+    // Map font-style: italic to ital axis (if not already set)
+    if !has_ital && style == FontStyle::Italic {
+        variations.push(FontVariation::new(*b"ital", 1.0));
+    }
+
+    // Map font-style: oblique to slnt axis (if not already set)
+    // Default oblique angle is typically 12-14 degrees
+    if !has_slnt && style == FontStyle::Oblique {
+        variations.push(FontVariation::new(*b"slnt", -12.0));
+    }
 
     let font_families = if let Some(n) = node.ancestors().find(|n| n.has_attribute(AId::FontFamily))
     {
@@ -421,7 +480,97 @@ fn convert_font(node: SvgNode, state: &converter::State) -> Font {
         style,
         stretch,
         weight,
+        variations,
     }
+}
+
+/// Parses the `font-variation-settings` CSS property.
+///
+/// Syntax: `normal | [ <string> <number> ]#`
+/// Example: `"wght" 700, "wdth" 50`
+fn parse_font_variation_settings(node: SvgNode) -> Vec<FontVariation> {
+    let value = if let Some(n) = node
+        .ancestors()
+        .find(|n| n.has_attribute(AId::FontVariationSettings))
+    {
+        let v = n.attribute(AId::FontVariationSettings).unwrap_or("");
+        log::debug!("Found font-variation-settings: '{}'", v);
+        v
+    } else {
+        return Vec::new();
+    };
+
+    // "normal" means no variations
+    if value.eq_ignore_ascii_case("normal") || value.is_empty() {
+        return Vec::new();
+    }
+
+    let mut variations = Vec::new();
+
+    // Parse comma-separated list of "tag" value pairs
+    for part in value.split(',') {
+        let part = part.trim();
+        if part.is_empty() {
+            continue;
+        }
+
+        // Find the tag (quoted string) and value
+        // Format: "wght" 700 or 'wght' 700
+        let mut chars = part.chars().peekable();
+
+        // Skip whitespace
+        while chars.peek().map_or(false, |c| c.is_whitespace()) {
+            chars.next();
+        }
+
+        // Parse quoted tag
+        let quote = match chars.next() {
+            Some('"') => '"',
+            Some('\'') => '\'',
+            _ => continue, // Invalid format
+        };
+
+        let mut tag_str = String::new();
+        for c in chars.by_ref() {
+            if c == quote {
+                break;
+            }
+            tag_str.push(c);
+        }
+
+        // Tag must be exactly 4 characters
+        if tag_str.len() != 4 {
+            log::warn!(
+                "Invalid font-variation-settings tag: '{}' (must be 4 characters)",
+                tag_str
+            );
+            continue;
+        }
+
+        // Skip whitespace before value
+        while chars.peek().map_or(false, |c| c.is_whitespace()) {
+            chars.next();
+        }
+
+        // Parse the numeric value
+        let value_str: String = chars.collect();
+        let value_str = value_str.trim();
+
+        let value = match value_str.parse::<f32>() {
+            Ok(v) => v,
+            Err(_) => {
+                log::warn!("Invalid font-variation-settings value: '{}'", value_str);
+                continue;
+            }
+        };
+
+        let tag_bytes = tag_str.as_bytes();
+        let tag = [tag_bytes[0], tag_bytes[1], tag_bytes[2], tag_bytes[3]];
+
+        variations.push(FontVariation::new(tag, value));
+    }
+
+    variations
 }
 
 // TODO: properly resolve narrower/wider

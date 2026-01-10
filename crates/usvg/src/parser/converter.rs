@@ -11,7 +11,7 @@ use fontdb::Database;
 #[cfg(feature = "text")]
 use fontdb::ID;
 #[cfg(feature = "text")]
-use rustybuzz::ttf_parser::GlyphId;
+use skrifa::GlyphId;
 use svgtypes::{Length, LengthUnit as Unit, PaintOrderKind, TransformOrigin};
 use tiny_skia_path::PathBuilder;
 

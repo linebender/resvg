@@ -6,9 +6,9 @@ use std::num::NonZeroU16;
 use std::sync::Arc;
 
 use fontdb::{Database, ID};
+use harfrust::Tag;
 use kurbo::{ParamCurve, ParamCurveArclen, ParamCurveDeriv};
-use rustybuzz::ttf_parser;
-use rustybuzz::ttf_parser::{GlyphId, Tag};
+use skrifa::{GlyphId, MetadataProvider};
 use strict_num::NonZeroPositiveF32;
 use tiny_skia_path::{NonZeroRect, Transform};
 use unicode_script::UnicodeScript;
@@ -45,9 +45,23 @@ pub struct PositionedGlyph {
     /// The ID of the font the glyph should be taken from. Can be used with the
     /// [font database of the tree](crate::Tree::fontdb) this glyph is part of.
     pub font: ID,
+    /// Font variation settings for variable fonts.
+    pub variations: Vec<crate::FontVariation>,
+    /// Font optical sizing mode for auto-opsz computation.
+    pub font_optical_sizing: crate::FontOpticalSizing,
 }
 
 impl PositionedGlyph {
+    /// Returns the font size for this glyph.
+    pub fn font_size(&self) -> f32 {
+        self.font_size
+    }
+
+    /// Returns the font optical sizing mode.
+    pub fn font_optical_sizing(&self) -> crate::FontOpticalSizing {
+        self.font_optical_sizing
+    }
+
     /// Returns the transform of glyph.
     pub fn transform(&self) -> Transform {
         let sx = self.font_size / self.units_per_em as f32;
@@ -66,18 +80,17 @@ impl PositionedGlyph {
             .pre_concat(Transform::from_scale(1.0, -1.0))
     }
 
-    /// Returns the transform for the glyph, assuming that a CBTD-based raster glyph
+    /// Returns the transform for the glyph, assuming that a CBDT-based raster glyph
     /// is being used.
-    pub fn cbdt_transform(&self, x: f32, y: f32, pixels_per_em: f32, height: f32) -> Transform {
+    pub fn cbdt_transform(&self, x: f32, y: f32, pixels_per_em: f32) -> Transform {
         self.transform()
             .pre_concat(Transform::from_scale(
                 self.units_per_em as f32 / pixels_per_em,
                 self.units_per_em as f32 / pixels_per_em,
             ))
-            // Right now, the top-left corner of the image would be placed in
-            // on the "text cursor", but we want the bottom-left corner to be there,
-            // so we need to shift it up and also apply the x/y offset.
-            .pre_translate(x, -height - y)
+            // The y value from skrifa's inner_bearing_y points to the top of the glyph.
+            // We negate it to convert from font coordinates (y-up) to image coordinates (y-down).
+            .pre_translate(x, -y)
     }
 
     /// Returns the transform for the glyph, assuming that a sbix-based raster glyph
@@ -899,6 +912,9 @@ fn process_chunk(
             font,
             span.small_caps,
             span.apply_kerning,
+            &span.font.variations,
+            span.font_size.get(),
+            span.font_optical_sizing,
             resolver,
             fontdb,
         );
@@ -953,10 +969,25 @@ fn process_chunk(
     let mut clusters = Vec::new();
     for (range, byte_idx) in GlyphClusters::new(&glyphs) {
         if let Some(span) = chunk_span_at(chunk, byte_idx) {
+            // Compute effective variations including auto-opsz to match what was used during shaping.
+            // This ensures the glyph outlines use the same variations as the advance/position calculations.
+            let font_id = fonts_cache
+                .get(&span.font)
+                .map(|f| f.id)
+                .unwrap_or_else(|| glyphs[range.start].font.id);
+            let effective_variations = compute_effective_variations(
+                &span.font.variations,
+                span.font_size.get(),
+                span.font_optical_sizing,
+                font_id,
+                fontdb,
+            );
             clusters.push(form_glyph_clusters(
                 &glyphs[range],
                 &chunk.text,
                 span.font_size.get(),
+                &effective_variations,
+                span.font_optical_sizing,
             ));
         }
     }
@@ -1127,7 +1158,13 @@ fn apply_word_spacing(chunk: &TextChunk, clusters: &mut [GlyphCluster]) {
     }
 }
 
-fn form_glyph_clusters(glyphs: &[Glyph], text: &str, font_size: f32) -> GlyphCluster {
+fn form_glyph_clusters(
+    glyphs: &[Glyph],
+    text: &str,
+    font_size: f32,
+    variations: &[crate::FontVariation],
+    font_optical_sizing: crate::FontOpticalSizing,
+) -> GlyphCluster {
     debug_assert!(!glyphs.is_empty());
 
     let mut width = 0.0;
@@ -1157,6 +1194,8 @@ fn form_glyph_clusters(glyphs: &[Glyph], text: &str, font_size: f32) -> GlyphClu
             font: glyph.font.id,
             text: glyph.text.clone(),
             id: glyph.id,
+            variations: variations.to_vec(),
+            font_optical_sizing,
         });
 
         x += glyph.width as f32;
@@ -1189,89 +1228,21 @@ pub(crate) trait DatabaseExt {
     fn has_char(&self, id: ID, c: char) -> bool;
 }
 
+// Skrifa-based implementation for font metrics
 impl DatabaseExt for Database {
     #[inline(never)]
     fn load_font(&self, id: ID) -> Option<ResolvedFont> {
-        self.with_face_data(id, |data, face_index| -> Option<ResolvedFont> {
-            let font = ttf_parser::Face::parse(data, face_index).ok()?;
-
-            let units_per_em = NonZeroU16::new(font.units_per_em())?;
-
-            let ascent = font.ascender();
-            let descent = font.descender();
-
-            let x_height = font
-                .x_height()
-                .and_then(|x| u16::try_from(x).ok())
-                .and_then(NonZeroU16::new);
-            let x_height = match x_height {
-                Some(height) => height,
-                None => {
-                    // If not set - fallback to height * 45%.
-                    // 45% is what Firefox uses.
-                    u16::try_from((f32::from(ascent - descent) * 0.45) as i32)
-                        .ok()
-                        .and_then(NonZeroU16::new)?
-                }
-            };
-
-            let line_through = font.strikeout_metrics();
-            let line_through_position = match line_through {
-                Some(metrics) => metrics.position,
-                None => x_height.get() as i16 / 2,
-            };
-
-            let (underline_position, underline_thickness) = match font.underline_metrics() {
-                Some(metrics) => {
-                    let thickness = u16::try_from(metrics.thickness)
-                        .ok()
-                        .and_then(NonZeroU16::new)
-                        // `ttf_parser` guarantees that units_per_em is >= 16
-                        .unwrap_or_else(|| NonZeroU16::new(units_per_em.get() / 12).unwrap());
-
-                    (metrics.position, thickness)
-                }
-                None => (
-                    -(units_per_em.get() as i16) / 9,
-                    NonZeroU16::new(units_per_em.get() / 12).unwrap(),
-                ),
-            };
-
-            // 0.2 and 0.4 are generic offsets used by some applications (Inkscape/librsvg).
-            let mut subscript_offset = (units_per_em.get() as f32 / 0.2).round() as i16;
-            let mut superscript_offset = (units_per_em.get() as f32 / 0.4).round() as i16;
-            if let Some(metrics) = font.subscript_metrics() {
-                subscript_offset = metrics.y_offset;
-            }
-
-            if let Some(metrics) = font.superscript_metrics() {
-                superscript_offset = metrics.y_offset;
-            }
-
-            Some(ResolvedFont {
-                id,
-                units_per_em,
-                ascent,
-                descent,
-                x_height,
-                underline_position,
-                underline_thickness,
-                line_through_position,
-                subscript_offset,
-                superscript_offset,
-            })
+        self.with_face_data(id, |data, face_index| {
+            super::skrifa_metrics::load_font_metrics(data, face_index, id)
         })?
     }
 
     #[inline(never)]
     fn has_char(&self, id: ID, c: char) -> bool {
-        let res = self.with_face_data(id, |font_data, face_index| -> Option<bool> {
-            let font = ttf_parser::Face::parse(font_data, face_index).ok()?;
-            font.glyph_index(c)?;
-            Some(true)
-        });
-
-        res == Some(Some(true))
+        self.with_face_data(id, |font_data, face_index| {
+            super::skrifa_metrics::has_char(font_data, face_index, c)
+        })
+        .unwrap_or(false)
     }
 }
 
@@ -1281,11 +1252,23 @@ pub(crate) fn shape_text(
     font: Arc<ResolvedFont>,
     small_caps: bool,
     apply_kerning: bool,
+    variations: &[crate::FontVariation],
+    font_size: f32,
+    font_optical_sizing: crate::FontOpticalSizing,
     resolver: &FontResolver,
     fontdb: &mut Arc<fontdb::Database>,
 ) -> Vec<Glyph> {
-    let mut glyphs = shape_text_with_font(text, font.clone(), small_caps, apply_kerning, fontdb)
-        .unwrap_or_default();
+    let mut glyphs = shape_text_with_font(
+        text,
+        font.clone(),
+        small_caps,
+        apply_kerning,
+        variations,
+        font_size,
+        font_optical_sizing,
+        fontdb,
+    )
+    .unwrap_or_default();
 
     // Remember all fonts used for shaping.
     let mut used_fonts = vec![font.id];
@@ -1314,6 +1297,9 @@ pub(crate) fn shape_text(
                 fallback_font.clone(),
                 small_caps,
                 apply_kerning,
+                variations,
+                font_size,
+                font_optical_sizing,
                 fontdb,
             )
             .unwrap_or_default();
@@ -1371,10 +1357,75 @@ fn shape_text_with_font(
     font: Arc<ResolvedFont>,
     small_caps: bool,
     apply_kerning: bool,
+    variations: &[crate::FontVariation],
+    font_size: f32,
+    font_optical_sizing: crate::FontOpticalSizing,
     fontdb: &fontdb::Database,
 ) -> Option<Vec<Glyph>> {
     fontdb.with_face_data(font.id, |font_data, face_index| -> Option<Vec<Glyph>> {
-        let rb_font = rustybuzz::Face::from_slice(font_data, face_index)?;
+        let hr_font = harfrust::FontRef::from_index(font_data, face_index).ok()?;
+
+        // Build the list of variations to apply
+        let mut final_variations: Vec<harfrust::Variation> = variations
+            .iter()
+            .map(|v| harfrust::Variation {
+                tag: Tag::new(&v.tag),
+                value: v.value,
+            })
+            .collect();
+
+        // Automatic optical sizing: if font-optical-sizing is auto and the font has
+        // an 'opsz' axis that isn't explicitly set, auto-set it to match font size.
+        // This matches browser behavior (CSS font-optical-sizing: auto).
+        if font_optical_sizing == crate::FontOpticalSizing::Auto {
+            let has_explicit_opsz = variations.iter().any(|v| v.tag == *b"opsz");
+            if !has_explicit_opsz {
+                // Check if font has opsz axis using skrifa
+                if let Ok(skrifa_font) = skrifa::FontRef::from_index(font_data, face_index) {
+                    let axes = skrifa_font.axes();
+                    let has_opsz_axis = axes.iter().any(|axis| axis.tag() == Tag::new(b"opsz"));
+                    if has_opsz_axis {
+                        log::debug!(
+                            "Auto-setting opsz={} (font-optical-sizing: auto)",
+                            font_size
+                        );
+                        final_variations.push(harfrust::Variation {
+                            tag: Tag::new(b"opsz"),
+                            value: font_size,
+                        });
+                    }
+                }
+            }
+        }
+
+        // Log variations if any
+        if !final_variations.is_empty() {
+            log::debug!(
+                "Applying {} font variations for shaping",
+                final_variations.len()
+            );
+            for v in &final_variations {
+                log::debug!(
+                    "  Setting variation {:?} = {}",
+                    std::str::from_utf8(&v.tag.into_bytes()).unwrap_or("????"),
+                    v.value
+                );
+            }
+        }
+
+        // Create shaper data and instance
+        let shaper_data = harfrust::ShaperData::new(&hr_font);
+        let shaper_instance = if !final_variations.is_empty() {
+            Some(harfrust::ShaperInstance::from_variations(&hr_font, final_variations))
+        } else {
+            None
+        };
+
+        // Build shaper with optional instance
+        let shaper = shaper_data
+            .shaper(&hr_font)
+            .instance(shaper_instance.as_ref())
+            .build();
 
         let bidi_info = unicode_bidi::BidiInfo::new(text, Some(unicode_bidi::Level::ltr()));
         let paragraph = &bidi_info.paragraphs[0];
@@ -1390,31 +1441,37 @@ fn shape_text_with_font(
             }
 
             let ltr = levels[run.start].is_ltr();
-            let hb_direction = if ltr {
-                rustybuzz::Direction::LeftToRight
+            let hr_direction = if ltr {
+                harfrust::Direction::LeftToRight
             } else {
-                rustybuzz::Direction::RightToLeft
+                harfrust::Direction::RightToLeft
             };
 
-            let mut buffer = rustybuzz::UnicodeBuffer::new();
+            let mut buffer = harfrust::UnicodeBuffer::new();
             buffer.push_str(sub_text);
-            buffer.set_direction(hb_direction);
+            buffer.set_direction(hr_direction);
+            // Set script based on the first character's script for proper shaping
+            // This is critical for Arabic and other complex scripts
+            if let Some(first_char) = sub_text.chars().next() {
+                let script = unicode_script_to_harfrust(first_char.script());
+                buffer.set_script(script);
+            }
 
             let mut features = Vec::new();
             if small_caps {
-                features.push(rustybuzz::Feature::new(Tag::from_bytes(b"smcp"), 1, ..));
+                features.push(harfrust::Feature::new(Tag::new(b"smcp"), 1, ..));
             }
 
             if !apply_kerning {
-                features.push(rustybuzz::Feature::new(Tag::from_bytes(b"kern"), 0, ..));
+                features.push(harfrust::Feature::new(Tag::new(b"kern"), 0, ..));
             }
 
-            let output = rustybuzz::shape(&rb_font, &features, buffer);
+            let output = shaper.shape(buffer, &features);
 
             let positions = output.glyph_positions();
             let infos = output.glyph_infos();
 
-            for i in 0..output.len() {
+            for i in 0usize..output.len() {
                 let pos = positions[i];
                 let info = infos[i];
                 let idx = run.start + info.cluster as usize;
@@ -1433,7 +1490,7 @@ fn shape_text_with_font(
                     byte_idx: ByteIndex::new(idx),
                     cluster_len: end.checked_sub(start).unwrap_or(0), // TODO: can fail?
                     text: sub_text[start..end].to_string(),
-                    id: GlyphId(info.glyph_id as u16),
+                    id: GlyphId::new(info.glyph_id as u32),
                     dx: pos.x_offset,
                     dy: pos.y_offset,
                     width: pos.x_advance,
@@ -1548,7 +1605,7 @@ pub(crate) struct Glyph {
 
 impl Glyph {
     fn is_missing(&self) -> bool {
-        self.id.0 == 0
+        self.id.to_u32() == 0
     }
 }
 
@@ -1597,6 +1654,33 @@ pub(crate) fn is_word_separator_characters(c: char) -> bool {
 }
 
 impl ResolvedFont {
+    /// Creates a new ResolvedFont with all required metrics.
+    pub(crate) fn new(
+        id: ID,
+        units_per_em: NonZeroU16,
+        ascent: i16,
+        descent: i16,
+        x_height: NonZeroU16,
+        underline_position: i16,
+        underline_thickness: NonZeroU16,
+        line_through_position: i16,
+        subscript_offset: i16,
+        superscript_offset: i16,
+    ) -> Self {
+        Self {
+            id,
+            units_per_em,
+            ascent,
+            descent,
+            x_height,
+            underline_position,
+            underline_thickness,
+            line_through_position,
+            subscript_offset,
+            superscript_offset,
+        }
+    }
+
     #[inline]
     pub(crate) fn scale(&self, font_size: f32) -> f32 {
         font_size / self.units_per_em.get() as f32
@@ -1743,4 +1827,82 @@ impl ByteIndex {
     pub(crate) fn char_from(&self, text: &str) -> char {
         text[self.0..].chars().next().unwrap()
     }
+}
+
+/// Converts unicode_script::Script to harfrust::Script
+fn unicode_script_to_harfrust(script: unicode_script::Script) -> harfrust::Script {
+    use unicode_script::Script::*;
+    match script {
+        Arabic => harfrust::script::ARABIC,
+        Armenian => harfrust::script::ARMENIAN,
+        Bengali => harfrust::script::BENGALI,
+        Bopomofo => harfrust::script::BOPOMOFO,
+        Cyrillic => harfrust::script::CYRILLIC,
+        Devanagari => harfrust::script::DEVANAGARI,
+        Georgian => harfrust::script::GEORGIAN,
+        Greek => harfrust::script::GREEK,
+        Gujarati => harfrust::script::GUJARATI,
+        Gurmukhi => harfrust::script::GURMUKHI,
+        Han => harfrust::script::HAN,
+        Hangul => harfrust::script::HANGUL,
+        Hebrew => harfrust::script::HEBREW,
+        Hiragana => harfrust::script::HIRAGANA,
+        Kannada => harfrust::script::KANNADA,
+        Katakana => harfrust::script::KATAKANA,
+        Khmer => harfrust::script::KHMER,
+        Lao => harfrust::script::LAO,
+        Latin => harfrust::script::LATIN,
+        Malayalam => harfrust::script::MALAYALAM,
+        Myanmar => harfrust::script::MYANMAR,
+        Oriya => harfrust::script::ORIYA,
+        Sinhala => harfrust::script::SINHALA,
+        Syriac => harfrust::script::SYRIAC,
+        Tamil => harfrust::script::TAMIL,
+        Telugu => harfrust::script::TELUGU,
+        Thai => harfrust::script::THAI,
+        Tibetan => harfrust::script::TIBETAN,
+        _ => harfrust::script::COMMON,
+    }
+}
+
+/// Computes effective font variations including automatic optical sizing.
+///
+/// If `font_optical_sizing` is `Auto` and the font has an `opsz` axis that isn't
+/// explicitly set in `variations`, this function adds `opsz=font_size` to match
+/// browser behavior (CSS font-optical-sizing: auto).
+fn compute_effective_variations(
+    variations: &[crate::FontVariation],
+    font_size: f32,
+    font_optical_sizing: crate::FontOpticalSizing,
+    font_id: ID,
+    fontdb: &fontdb::Database,
+) -> Vec<crate::FontVariation> {
+    let mut effective = variations.to_vec();
+
+    // Automatic optical sizing: if font-optical-sizing is auto and the font has
+    // an 'opsz' axis that isn't explicitly set, auto-set it to match font size.
+    if font_optical_sizing == crate::FontOpticalSizing::Auto {
+        let has_explicit_opsz = variations.iter().any(|v| v.tag == *b"opsz");
+        if !has_explicit_opsz {
+            // Check if font has opsz axis
+            let has_opsz_axis = fontdb
+                .with_face_data(font_id, |font_data, face_index| {
+                    if let Ok(font) = skrifa::FontRef::from_index(font_data, face_index) {
+                        font.axes().iter().any(|axis| axis.tag() == Tag::new(b"opsz"))
+                    } else {
+                        false
+                    }
+                })
+                .unwrap_or(false);
+
+            if has_opsz_axis {
+                effective.push(crate::FontVariation {
+                    tag: *b"opsz",
+                    value: font_size,
+                });
+            }
+        }
+    }
+
+    effective
 }

@@ -577,6 +577,8 @@ fn parse_args() -> Result<Args, String> {
         image_href_resolver: usvg::ImageHrefResolver::default(),
         font_resolver: usvg::FontResolver::default(),
         fontdb: Arc::new(fontdb::Database::new()),
+        #[cfg(feature = "text")]
+        hinting: usvg::HintingOptions::default(),
         style_sheet,
     };
 
