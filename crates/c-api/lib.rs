@@ -79,7 +79,7 @@ impl resvg_transform {
 }
 
 /// @brief Creates an identity transform.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn resvg_transform_identity() -> resvg_transform {
     resvg_transform {
         a: 1.0,
@@ -98,7 +98,7 @@ pub extern "C" fn resvg_transform_identity() -> resvg_transform {
 /// Must be called only once.
 ///
 /// All warnings will be printed to the `stderr`.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn resvg_init_log() {
     if let Ok(()) = log::set_logger(&LOGGER) {
         log::set_max_level(log::LevelFilter::Warn);
@@ -116,7 +116,7 @@ pub struct resvg_options {
 /// @brief Creates a new #resvg_options object.
 ///
 /// Should be destroyed via #resvg_options_destroy.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn resvg_options_create() -> *mut resvg_options {
     Box::into_raw(Box::new(resvg_options {
         options: usvg::Options::default(),
@@ -139,7 +139,7 @@ fn cast_opt(opt: *mut resvg_options) -> &'static mut usvg::Options<'static> {
 /// Must be UTF-8. Can be set to NULL.
 ///
 /// Default: NULL
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn resvg_options_set_resources_dir(opt: *mut resvg_options, path: *const c_char) {
     if path.is_null() {
         cast_opt(opt).resources_dir = None;
@@ -153,7 +153,7 @@ pub extern "C" fn resvg_options_set_resources_dir(opt: *mut resvg_options, path:
 /// Impact units conversion.
 ///
 /// Default: 96
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn resvg_options_set_dpi(opt: *mut resvg_options, dpi: f32) {
     cast_opt(opt).dpi = dpi;
 }
@@ -163,7 +163,7 @@ pub extern "C" fn resvg_options_set_dpi(opt: *mut resvg_options, dpi: f32) {
 /// Must be UTF-8. Can be set to NULL.
 ///
 /// Default: NULL
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn resvg_options_set_stylesheet(opt: *mut resvg_options, content: *const c_char) {
     if content.is_null() {
         cast_opt(opt).style_sheet = None;
@@ -179,7 +179,7 @@ pub extern "C" fn resvg_options_set_stylesheet(opt: *mut resvg_options, content:
 /// Must be UTF-8. NULL is not allowed.
 ///
 /// Default: Times New Roman
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn resvg_options_set_font_family(opt: *mut resvg_options, family: *const c_char) {
     cast_opt(opt).font_family = cstr_to_str(family).unwrap().to_string();
 }
@@ -189,7 +189,7 @@ pub extern "C" fn resvg_options_set_font_family(opt: *mut resvg_options, family:
 /// Will be used when no `font-size` attribute is set in the SVG.
 ///
 /// Default: 12
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn resvg_options_set_font_size(opt: *mut resvg_options, size: f32) {
     cast_opt(opt).font_size = size;
 }
@@ -201,7 +201,7 @@ pub extern "C" fn resvg_options_set_font_size(opt: *mut resvg_options, size: f32
 /// Has no effect when the `text` feature is not enabled.
 ///
 /// Default: Times New Roman
-#[no_mangle]
+#[unsafe(no_mangle)]
 #[allow(unused_variables)]
 pub extern "C" fn resvg_options_set_serif_family(opt: *mut resvg_options, family: *const c_char) {
     #[cfg(feature = "text")]
@@ -219,7 +219,7 @@ pub extern "C" fn resvg_options_set_serif_family(opt: *mut resvg_options, family
 /// Has no effect when the `text` feature is not enabled.
 ///
 /// Default: Arial
-#[no_mangle]
+#[unsafe(no_mangle)]
 #[allow(unused_variables)]
 pub extern "C" fn resvg_options_set_sans_serif_family(
     opt: *mut resvg_options,
@@ -240,7 +240,7 @@ pub extern "C" fn resvg_options_set_sans_serif_family(
 /// Has no effect when the `text` feature is not enabled.
 ///
 /// Default: Comic Sans MS
-#[no_mangle]
+#[unsafe(no_mangle)]
 #[allow(unused_variables)]
 pub extern "C" fn resvg_options_set_cursive_family(opt: *mut resvg_options, family: *const c_char) {
     #[cfg(feature = "text")]
@@ -258,7 +258,7 @@ pub extern "C" fn resvg_options_set_cursive_family(opt: *mut resvg_options, fami
 /// Has no effect when the `text` feature is not enabled.
 ///
 /// Default: Papyrus on macOS, Impact on other OS'es
-#[no_mangle]
+#[unsafe(no_mangle)]
 #[allow(unused_variables)]
 pub extern "C" fn resvg_options_set_fantasy_family(opt: *mut resvg_options, family: *const c_char) {
     #[cfg(feature = "text")]
@@ -276,7 +276,7 @@ pub extern "C" fn resvg_options_set_fantasy_family(opt: *mut resvg_options, fami
 /// Has no effect when the `text` feature is not enabled.
 ///
 /// Default: Courier New
-#[no_mangle]
+#[unsafe(no_mangle)]
 #[allow(unused_variables)]
 pub extern "C" fn resvg_options_set_monospace_family(
     opt: *mut resvg_options,
@@ -299,7 +299,7 @@ pub extern "C" fn resvg_options_set_monospace_family(
 /// Must be UTF-8. Can be NULL.
 ///
 /// Default: en
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn resvg_options_set_languages(opt: *mut resvg_options, languages: *const c_char) {
     if languages.is_null() {
         cast_opt(opt).languages = Vec::new();
@@ -334,7 +334,7 @@ pub enum resvg_shape_rendering {
 /// Will be used when an SVG element's `shape-rendering` property is set to `auto`.
 ///
 /// Default: `RESVG_SHAPE_RENDERING_GEOMETRIC_PRECISION`
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn resvg_options_set_shape_rendering_mode(
     opt: *mut resvg_options,
     mode: resvg_shape_rendering,
@@ -362,7 +362,7 @@ pub enum resvg_text_rendering {
 /// Will be used when an SVG element's `text-rendering` property is set to `auto`.
 ///
 /// Default: `RESVG_TEXT_RENDERING_OPTIMIZE_LEGIBILITY`
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn resvg_options_set_text_rendering_mode(
     opt: *mut resvg_options,
     mode: resvg_text_rendering,
@@ -389,7 +389,7 @@ pub enum resvg_image_rendering {
 /// Will be used when an SVG element's `image-rendering` property is set to `auto`.
 ///
 /// Default: `RESVG_IMAGE_RENDERING_OPTIMIZE_QUALITY`
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn resvg_options_set_image_rendering_mode(
     opt: *mut resvg_options,
     mode: resvg_image_rendering,
@@ -406,7 +406,7 @@ pub extern "C" fn resvg_options_set_image_rendering_mode(
 /// Prints a warning into the log when the data is not a valid TrueType font.
 ///
 /// Has no effect when the `text` feature is not enabled.
-#[no_mangle]
+#[unsafe(no_mangle)]
 #[allow(unused_variables)]
 pub extern "C" fn resvg_options_load_font_data(
     opt: *mut resvg_options,
@@ -427,7 +427,7 @@ pub extern "C" fn resvg_options_load_font_data(
 /// Has no effect when the `text` feature is not enabled.
 ///
 /// @return #resvg_error with RESVG_OK, RESVG_ERROR_NOT_AN_UTF8_STR or RESVG_ERROR_FILE_OPEN_FAILED
-#[no_mangle]
+#[unsafe(no_mangle)]
 #[allow(unused_variables)]
 pub extern "C" fn resvg_options_load_font_file(
     opt: *mut resvg_options,
@@ -465,7 +465,7 @@ pub extern "C" fn resvg_options_load_font_file(
 /// Prints warnings into the log.
 ///
 /// Has no effect when the `text` feature is not enabled.
-#[no_mangle]
+#[unsafe(no_mangle)]
 #[allow(unused_variables)]
 pub extern "C" fn resvg_options_load_system_fonts(opt: *mut resvg_options) {
     #[cfg(feature = "text")]
@@ -475,7 +475,7 @@ pub extern "C" fn resvg_options_load_system_fonts(opt: *mut resvg_options) {
 }
 
 /// @brief Destroys the #resvg_options.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn resvg_options_destroy(opt: *mut resvg_options) {
     unsafe {
         assert!(!opt.is_null());
@@ -497,7 +497,7 @@ pub struct resvg_render_tree(pub usvg::Tree);
 /// @param opt Rendering options. Must not be NULL.
 /// @param tree Parsed render tree. Should be destroyed via #resvg_tree_destroy.
 /// @return #resvg_error
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn resvg_parse_tree_from_file(
     file_path: *const c_char,
     opt: *const resvg_options,
@@ -542,7 +542,7 @@ pub extern "C" fn resvg_parse_tree_from_file(
 /// @param opt Rendering options. Must not be NULL.
 /// @param tree Parsed render tree. Should be destroyed via #resvg_tree_destroy.
 /// @return #resvg_error
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn resvg_parse_tree_from_data(
     data: *const c_char,
     len: usize,
@@ -575,7 +575,7 @@ pub extern "C" fn resvg_parse_tree_from_data(
 ///
 /// @param tree Render tree.
 /// @return Returns `true` if tree has no nodes.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn resvg_is_image_empty(tree: *const resvg_render_tree) -> bool {
     let tree = unsafe {
         assert!(!tree.is_null());
@@ -594,7 +594,7 @@ pub extern "C" fn resvg_is_image_empty(tree: *const resvg_render_tree) -> bool {
 ///
 /// @param tree Render tree.
 /// @return Image size.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn resvg_get_image_size(tree: *const resvg_render_tree) -> resvg_size {
     let tree = unsafe {
         assert!(!tree.is_null());
@@ -619,7 +619,7 @@ pub extern "C" fn resvg_get_image_size(tree: *const resvg_render_tree) -> resvg_
 /// @param tree Render tree.
 /// @param bbox Image's object bounding box.
 /// @return `false` if an image has no elements.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn resvg_get_object_bbox(
     tree: *const resvg_render_tree,
     bbox: *mut resvg_rect,
@@ -654,7 +654,7 @@ pub extern "C" fn resvg_get_object_bbox(
 /// @param tree Render tree.
 /// @param bbox Image's bounding box.
 /// @return `false` if an image has no elements.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn resvg_get_image_bbox(
     tree: *const resvg_render_tree,
     bbox: *mut resvg_rect,
@@ -689,7 +689,7 @@ pub extern "C" fn resvg_get_image_bbox(
 /// @return `true` if a node exists.
 /// @return `false` if a node doesn't exist or ID isn't a UTF-8 string.
 /// @return `false` if a node exists, but not renderable.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn resvg_node_exists(tree: *const resvg_render_tree, id: *const c_char) -> bool {
     let id = match cstr_to_str(id) {
         Some(v) => v,
@@ -715,7 +715,7 @@ pub extern "C" fn resvg_node_exists(tree: *const resvg_render_tree, id: *const c
 /// @return `true` if a node exists.
 /// @return `false` if a node doesn't exist or ID isn't a UTF-8 string.
 /// @return `false` if a node exists, but not renderable.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn resvg_get_node_transform(
     tree: *const resvg_render_tree,
     id: *const c_char,
@@ -762,7 +762,7 @@ pub extern "C" fn resvg_get_node_transform(
 /// @return `false` if a node with such an ID does not exist
 /// @return `false` if ID isn't a UTF-8 string.
 /// @return `false` if ID is an empty string
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn resvg_get_node_bbox(
     tree: *const resvg_render_tree,
     id: *const c_char,
@@ -779,7 +779,7 @@ pub extern "C" fn resvg_get_node_bbox(
 /// @return `false` if a node with such an ID does not exist
 /// @return `false` if ID isn't a UTF-8 string.
 /// @return `false` if ID is an empty string
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn resvg_get_node_stroke_bbox(
     tree: *const resvg_render_tree,
     id: *const c_char,
@@ -833,7 +833,7 @@ fn get_node_bbox(
 }
 
 /// @brief Destroys the #resvg_render_tree.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn resvg_tree_destroy(tree: *mut resvg_render_tree) {
     unsafe {
         assert!(!tree.is_null());
@@ -868,7 +868,7 @@ fn convert_error(e: usvg::Error) -> resvg_error {
 /// @param height Pixmap height.
 /// @param pixmap Pixmap data. Should have width*height*4 size and contain
 ///               premultiplied RGBA8888 pixels.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn resvg_render(
     tree: *const resvg_render_tree,
     transform: resvg_transform,
@@ -901,7 +901,7 @@ pub extern "C" fn resvg_render(
 /// @return `false` when `id` is not a non-empty UTF-8 string.
 /// @return `false` when the selected `id` is not present.
 /// @return `false` when an element has a zero bbox.
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn resvg_render_node(
     tree: *const resvg_render_tree,
     id: *const c_char,

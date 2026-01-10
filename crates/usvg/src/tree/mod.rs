@@ -991,7 +991,7 @@ impl Node {
     ///     for node in parent.children() {
     ///         // do stuff...
     ///
-    ///         if let usvg::Node::Group(ref g) = node {
+    ///         if let usvg::Node::Group(g) = node {
     ///             all_nodes(g);
     ///         }
     ///
