@@ -375,8 +375,8 @@ fn apply_inner(
             .ok_or(Error::InvalidRegion)?;
 
         // `feOffset` inherits its region from the input.
-        if let usvg::filter::Kind::Offset(ref fe) = primitive.kind() {
-            if let usvg::filter::Input::Reference(ref name) = fe.input() {
+        if let usvg::filter::Kind::Offset(fe) = primitive.kind() {
+            if let usvg::filter::Input::Reference(name) = fe.input() {
                 if let Some(res) = results.iter().rev().find(|v| v.name == *name) {
                     subregion = res.image.region;
                 }
@@ -386,62 +386,62 @@ fn apply_inner(
         let cs = primitive.color_interpolation();
 
         let mut result = match primitive.kind() {
-            usvg::filter::Kind::Blend(ref fe) => {
+            usvg::filter::Kind::Blend(fe) => {
                 let input1 = get_input(fe.input1(), region, source, &results)?;
                 let input2 = get_input(fe.input2(), region, source, &results)?;
                 apply_blend(fe, cs, region, input1, input2)
             }
-            usvg::filter::Kind::DropShadow(ref fe) => {
+            usvg::filter::Kind::DropShadow(fe) => {
                 let input = get_input(fe.input(), region, source, &results)?;
                 apply_drop_shadow(fe, cs, ts, input)
             }
-            usvg::filter::Kind::Flood(ref fe) => apply_flood(fe, region),
-            usvg::filter::Kind::GaussianBlur(ref fe) => {
+            usvg::filter::Kind::Flood(fe) => apply_flood(fe, region),
+            usvg::filter::Kind::GaussianBlur(fe) => {
                 let input = get_input(fe.input(), region, source, &results)?;
                 apply_blur(fe, cs, ts, input)
             }
-            usvg::filter::Kind::Offset(ref fe) => {
+            usvg::filter::Kind::Offset(fe) => {
                 let input = get_input(fe.input(), region, source, &results)?;
                 apply_offset(fe, ts, input)
             }
-            usvg::filter::Kind::Composite(ref fe) => {
+            usvg::filter::Kind::Composite(fe) => {
                 let input1 = get_input(fe.input1(), region, source, &results)?;
                 let input2 = get_input(fe.input2(), region, source, &results)?;
                 apply_composite(fe, cs, region, input1, input2)
             }
-            usvg::filter::Kind::Merge(ref fe) => apply_merge(fe, cs, region, source, &results),
-            usvg::filter::Kind::Tile(ref fe) => {
+            usvg::filter::Kind::Merge(fe) => apply_merge(fe, cs, region, source, &results),
+            usvg::filter::Kind::Tile(fe) => {
                 let input = get_input(fe.input(), region, source, &results)?;
                 apply_tile(input, region)
             }
-            usvg::filter::Kind::Image(ref fe) => apply_image(fe, region, subregion, ts),
-            usvg::filter::Kind::ComponentTransfer(ref fe) => {
+            usvg::filter::Kind::Image(fe) => apply_image(fe, region, subregion, ts),
+            usvg::filter::Kind::ComponentTransfer(fe) => {
                 let input = get_input(fe.input(), region, source, &results)?;
                 apply_component_transfer(fe, cs, input)
             }
-            usvg::filter::Kind::ColorMatrix(ref fe) => {
+            usvg::filter::Kind::ColorMatrix(fe) => {
                 let input = get_input(fe.input(), region, source, &results)?;
                 apply_color_matrix(fe, cs, input)
             }
-            usvg::filter::Kind::ConvolveMatrix(ref fe) => {
+            usvg::filter::Kind::ConvolveMatrix(fe) => {
                 let input = get_input(fe.input(), region, source, &results)?;
                 apply_convolve_matrix(fe, cs, input)
             }
-            usvg::filter::Kind::Morphology(ref fe) => {
+            usvg::filter::Kind::Morphology(fe) => {
                 let input = get_input(fe.input(), region, source, &results)?;
                 apply_morphology(fe, cs, ts, input)
             }
-            usvg::filter::Kind::DisplacementMap(ref fe) => {
+            usvg::filter::Kind::DisplacementMap(fe) => {
                 let input1 = get_input(fe.input1(), region, source, &results)?;
                 let input2 = get_input(fe.input2(), region, source, &results)?;
                 apply_displacement_map(fe, region, cs, ts, input1, input2)
             }
-            usvg::filter::Kind::Turbulence(ref fe) => apply_turbulence(fe, region, cs, ts),
-            usvg::filter::Kind::DiffuseLighting(ref fe) => {
+            usvg::filter::Kind::Turbulence(fe) => apply_turbulence(fe, region, cs, ts),
+            usvg::filter::Kind::DiffuseLighting(fe) => {
                 let input = get_input(fe.input(), region, source, &results)?;
                 apply_diffuse_lighting(fe, region, cs, ts, input)
             }
-            usvg::filter::Kind::SpecularLighting(ref fe) => {
+            usvg::filter::Kind::SpecularLighting(fe) => {
                 let input = get_input(fe.input(), region, source, &results)?;
                 apply_specular_lighting(fe, region, cs, ts, input)
             }
@@ -544,7 +544,7 @@ fn get_input(
                 color_space: usvg::filter::ColorInterpolation::SRGB,
             })
         }
-        usvg::filter::Input::Reference(ref name) => {
+        usvg::filter::Input::Reference(name) => {
             if let Some(v) = results.iter().rev().find(|v| v.name == *name) {
                 Ok(v.image.clone())
             } else {
@@ -1061,16 +1061,16 @@ fn transform_light_source(
     use std::f32::consts::SQRT_2;
     use usvg::filter::LightSource;
 
-    match source {
+    match &mut source {
         LightSource::DistantLight(..) => {}
-        LightSource::PointLight(ref mut light) => {
+        LightSource::PointLight(light) => {
             let mut point = tiny_skia::Point::from_xy(light.x, light.y);
             ts.map_point(&mut point);
             light.x = point.x - region.x() as f32;
             light.y = point.y - region.y() as f32;
             light.z = light.z * (ts.sx * ts.sx + ts.sy * ts.sy).sqrt() / SQRT_2;
         }
-        LightSource::SpotLight(ref mut light) => {
+        LightSource::SpotLight(light) => {
             let sz = (ts.sx * ts.sx + ts.sy * ts.sy).sqrt() / SQRT_2;
 
             let mut point = tiny_skia::Point::from_xy(light.x, light.y);

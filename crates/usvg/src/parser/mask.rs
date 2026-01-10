@@ -6,7 +6,7 @@ use std::sync::Arc;
 use svgtypes::{Length, LengthUnit as Unit};
 
 use super::svgtree::{AId, EId, SvgNode};
-use super::{converter, OptionLog};
+use super::{OptionLog, converter};
 use crate::{Group, Mask, MaskType, Node, NonEmptyString, NonZeroRect, Transform, Units};
 
 pub(crate) fn convert(

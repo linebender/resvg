@@ -25,10 +25,10 @@ pub fn render_node(
     pixmap: &mut tiny_skia::PixmapMut,
 ) {
     match node {
-        usvg::Node::Group(ref group) => {
+        usvg::Node::Group(group) => {
             render_group(group, ctx, transform, pixmap);
         }
-        usvg::Node::Path(ref path) => {
+        usvg::Node::Path(path) => {
             crate::path::render(
                 path,
                 tiny_skia::BlendMode::SourceOver,
@@ -37,10 +37,10 @@ pub fn render_node(
                 pixmap,
             );
         }
-        usvg::Node::Image(ref image) => {
+        usvg::Node::Image(image) => {
             crate::image::render(image, transform, pixmap);
         }
-        usvg::Node::Text(ref text) => {
+        usvg::Node::Text(text) => {
             render_group(text.flattened(), ctx, transform, pixmap);
         }
     }

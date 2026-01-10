@@ -4,10 +4,10 @@
 use std::sync::Arc;
 
 use kurbo::{ParamCurve, ParamCurveArclen};
-use svgtypes::{parse_font_families, FontFamily, Length, LengthUnit};
+use svgtypes::{FontFamily, Length, LengthUnit, parse_font_families};
 
 use super::svgtree::{AId, EId, FromValue, SvgNode};
-use super::{converter, style, OptionLog};
+use super::{OptionLog, converter, style};
 use crate::*;
 
 impl<'a, 'input: 'a> FromValue<'a, 'input> for TextAnchor {

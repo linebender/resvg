@@ -4,7 +4,7 @@
 use std::fmt::Display;
 use std::io::Write;
 
-use svgtypes::{parse_font_families, FontFamily};
+use svgtypes::{FontFamily, parse_font_families};
 use xmlwriter::XmlWriter;
 
 use crate::parser::{AId, EId};
@@ -576,13 +576,13 @@ fn write_defs(tree: &Tree, opt: &WriteOptions, xml: &mut XmlWriter, write_text_p
 
 fn has_text_paths(parent: &Group) -> bool {
     for node in &parent.children {
-        if let Node::Group(ref group) = node {
+        if let Node::Group(group) = node {
             if has_text_paths(group) {
                 return true;
             }
-        } else if let Node::Text(ref text) = node {
+        } else if let Node::Text(text) = node {
             for chunk in &text.chunks {
-                if let TextFlow::Path(ref text_path) = chunk.text_flow {
+                if let TextFlow::Path(text_path) = &chunk.text_flow {
                     let path = Path::new(
                         text_path.id().to_string(),
                         true,
@@ -615,11 +615,11 @@ fn has_text_paths(parent: &Group) -> bool {
 /// Write the `path` elements for text paths.
 fn write_text_path_paths(parent: &Group, opt: &WriteOptions, xml: &mut XmlWriter) {
     for node in &parent.children {
-        if let Node::Group(ref group) = node {
+        if let Node::Group(group) = node {
             write_text_path_paths(group, opt, xml);
-        } else if let Node::Text(ref text) = node {
+        } else if let Node::Text(text) = node {
             for chunk in &text.chunks {
-                if let TextFlow::Path(ref text_path) = chunk.text_flow {
+                if let TextFlow::Path(text_path) = &chunk.text_flow {
                     let path = Path::new(
                         text_path.id().to_string(),
                         true,
@@ -630,7 +630,7 @@ fn write_text_path_paths(parent: &Group, opt: &WriteOptions, xml: &mut XmlWriter
                         text_path.path.clone(),
                         Transform::default(),
                     );
-                    if let Some(ref path) = path {
+                    if let Some(path) = &path {
                         write_path(path, false, Transform::default(), None, opt, xml);
                     }
                 }
@@ -649,10 +649,10 @@ fn write_elements(parent: &Group, is_clip_path: bool, opt: &WriteOptions, xml: &
 
 fn write_element(node: &Node, is_clip_path: bool, opt: &WriteOptions, xml: &mut XmlWriter) {
     match node {
-        Node::Path(ref p) => {
+        Node::Path(p) => {
             write_path(p, is_clip_path, Transform::default(), None, opt, xml);
         }
-        Node::Image(ref img) => {
+        Node::Image(img) => {
             xml.start_svg_element(EId::Image);
             if !img.id.is_empty() {
                 xml.write_id_attribute(&img.id, opt);
@@ -686,10 +686,10 @@ fn write_element(node: &Node, is_clip_path: bool, opt: &WriteOptions, xml: &mut 
 
             xml.end_element();
         }
-        Node::Group(ref g) => {
+        Node::Group(g) => {
             write_group_element(g, is_clip_path, opt, xml);
         }
-        Node::Text(ref text) => {
+        Node::Text(text) => {
             if opt.preserve_text {
                 xml.start_svg_element(EId::Text);
 
@@ -1024,7 +1024,7 @@ impl XmlWriterExt for XmlWriter {
             match input {
                 filter::Input::SourceGraphic => "SourceGraphic",
                 filter::Input::SourceAlpha => "SourceAlpha",
-                filter::Input::Reference(ref s) => s,
+                filter::Input::Reference(s) => s,
             },
         );
     }
@@ -1059,11 +1059,11 @@ impl XmlWriterExt for XmlWriter {
             filter::TransferFunction::Identity => {
                 self.write_svg_attribute(AId::Type, "identity");
             }
-            filter::TransferFunction::Table(ref values) => {
+            filter::TransferFunction::Table(values) => {
                 self.write_svg_attribute(AId::Type, "table");
                 self.write_numbers(AId::TableValues, values);
             }
-            filter::TransferFunction::Discrete(ref values) => {
+            filter::TransferFunction::Discrete(values) => {
                 self.write_svg_attribute(AId::Type, "discrete");
                 self.write_numbers(AId::TableValues, values);
             }
@@ -1090,11 +1090,11 @@ impl XmlWriterExt for XmlWriter {
     fn write_image_data(&mut self, kind: &ImageKind) {
         let svg_string;
         let (mime, data) = match kind {
-            ImageKind::JPEG(ref data) => ("jpeg", data.as_slice()),
-            ImageKind::PNG(ref data) => ("png", data.as_slice()),
-            ImageKind::GIF(ref data) => ("gif", data.as_slice()),
-            ImageKind::WEBP(ref data) => ("webp", data.as_slice()),
-            ImageKind::SVG(ref tree) => {
+            ImageKind::JPEG(data) => ("jpeg", data.as_slice()),
+            ImageKind::PNG(data) => ("png", data.as_slice()),
+            ImageKind::GIF(data) => ("gif", data.as_slice()),
+            ImageKind::WEBP(data) => ("webp", data.as_slice()),
+            ImageKind::SVG(tree) => {
                 svg_string = tree.to_string(&WriteOptions::default());
                 ("svg+xml", svg_string.as_bytes())
             }
@@ -1116,7 +1116,7 @@ impl XmlWriterExt for XmlWriter {
 fn has_xlink(parent: &Group) -> bool {
     for node in &parent.children {
         match node {
-            Node::Group(ref g) => {
+            Node::Group(g) => {
                 for filter in &g.filters {
                     if filter
                         .primitives
@@ -1127,12 +1127,12 @@ fn has_xlink(parent: &Group) -> bool {
                     }
                 }
 
-                if let Some(ref mask) = g.mask {
+                if let Some(mask) = &g.mask {
                     if has_xlink(mask.root()) {
                         return true;
                     }
 
-                    if let Some(ref sub_mask) = mask.mask {
+                    if let Some(sub_mask) = &mask.mask {
                         if has_xlink(&sub_mask.root) {
                             return true;
                         }
@@ -1146,7 +1146,7 @@ fn has_xlink(parent: &Group) -> bool {
             Node::Image(_) => {
                 return true;
             }
-            Node::Text(ref text) => {
+            Node::Text(text) => {
                 if text
                     .chunks
                     .iter()
@@ -1284,7 +1284,7 @@ fn write_path(
 }
 
 fn write_fill(fill: &Option<Fill>, is_clip_path: bool, opt: &WriteOptions, xml: &mut XmlWriter) {
-    if let Some(ref fill) = fill {
+    if let Some(fill) = fill {
         write_paint(AId::Fill, &fill.paint, opt, xml);
 
         if fill.opacity != Opacity::ONE {
@@ -1306,7 +1306,7 @@ fn write_fill(fill: &Option<Fill>, is_clip_path: bool, opt: &WriteOptions, xml: 
 }
 
 fn write_stroke(stroke: &Option<Stroke>, opt: &WriteOptions, xml: &mut XmlWriter) {
-    if let Some(ref stroke) = stroke {
+    if let Some(stroke) = stroke {
         write_paint(AId::Stroke, &stroke.paint, opt, xml);
 
         if stroke.opacity != Opacity::ONE {
@@ -1352,13 +1352,13 @@ fn write_stroke(stroke: &Option<Stroke>, opt: &WriteOptions, xml: &mut XmlWriter
 fn write_paint(aid: AId, paint: &Paint, opt: &WriteOptions, xml: &mut XmlWriter) {
     match paint {
         Paint::Color(c) => xml.write_color(aid, *c),
-        Paint::LinearGradient(ref lg) => {
+        Paint::LinearGradient(lg) => {
             xml.write_func_iri(aid, lg.id(), opt);
         }
-        Paint::RadialGradient(ref rg) => {
+        Paint::RadialGradient(rg) => {
             xml.write_func_iri(aid, rg.id(), opt);
         }
-        Paint::Pattern(ref patt) => {
+        Paint::Pattern(patt) => {
             xml.write_func_iri(aid, patt.id(), opt);
         }
     }
@@ -1366,18 +1366,18 @@ fn write_paint(aid: AId, paint: &Paint, opt: &WriteOptions, xml: &mut XmlWriter)
 
 fn write_light_source(light: &filter::LightSource, xml: &mut XmlWriter) {
     match light {
-        filter::LightSource::DistantLight(ref light) => {
+        filter::LightSource::DistantLight(light) => {
             xml.start_svg_element(EId::FeDistantLight);
             xml.write_svg_attribute(AId::Azimuth, &light.azimuth);
             xml.write_svg_attribute(AId::Elevation, &light.elevation);
         }
-        filter::LightSource::PointLight(ref light) => {
+        filter::LightSource::PointLight(light) => {
             xml.start_svg_element(EId::FePointLight);
             xml.write_svg_attribute(AId::X, &light.x);
             xml.write_svg_attribute(AId::Y, &light.y);
             xml.write_svg_attribute(AId::Z, &light.z);
         }
-        filter::LightSource::SpotLight(ref light) => {
+        filter::LightSource::SpotLight(light) => {
             xml.start_svg_element(EId::FeSpotLight);
             xml.write_svg_attribute(AId::X, &light.x);
             xml.write_svg_attribute(AId::Y, &light.y);
@@ -1386,8 +1386,8 @@ fn write_light_source(light: &filter::LightSource, xml: &mut XmlWriter) {
             xml.write_svg_attribute(AId::PointsAtY, &light.points_at_y);
             xml.write_svg_attribute(AId::PointsAtZ, &light.points_at_z);
             xml.write_svg_attribute(AId::SpecularExponent, &light.specular_exponent);
-            if let Some(ref n) = light.limiting_cone_angle {
-                xml.write_svg_attribute(AId::LimitingConeAngle, n);
+            if let Some(n) = light.limiting_cone_angle {
+                xml.write_svg_attribute(AId::LimitingConeAngle, &n);
             }
         }
     }

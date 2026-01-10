@@ -1,7 +1,7 @@
 // Copyright 2020 the Resvg Authors
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use super::{f32_bound, ImageRefMut};
+use super::{ImageRefMut, f32_bound};
 use rgb::RGBA8;
 use usvg::filter::{ConvolveMatrix, EdgeMode};
 

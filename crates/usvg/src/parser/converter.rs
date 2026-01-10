@@ -17,7 +17,7 @@ use tiny_skia_path::PathBuilder;
 
 use super::svgtree::{self, AId, EId, FromValue, SvgNode};
 use super::units::{self, convert_length};
-use super::{marker, Error, Options};
+use super::{Error, Options, marker};
 #[cfg(feature = "text")]
 use crate::flatten::BitmapImage;
 use crate::parser::paint_server::process_paint;

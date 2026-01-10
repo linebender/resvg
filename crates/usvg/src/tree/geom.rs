@@ -65,17 +65,9 @@ impl ViewBox {
             (sx, sy)
         } else {
             let s = if self.aspect.slice {
-                if sx < sy {
-                    sy
-                } else {
-                    sx
-                }
+                if sx < sy { sy } else { sx }
             } else {
-                if sx > sy {
-                    sy
-                } else {
-                    sx
-                }
+                if sx > sy { sy } else { sx }
             };
 
             (s, s)

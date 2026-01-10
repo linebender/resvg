@@ -3,7 +3,7 @@
 
 use once_cell::sync::Lazy;
 use png::{BitDepth, ColorType, Encoder};
-use rgb::{FromSlice, Rgba, RGBA8};
+use rgb::{FromSlice, RGBA8, Rgba};
 use std::cmp::max;
 use std::fs::File;
 use std::io::{BufWriter, Cursor};

@@ -7,9 +7,9 @@ use std::sync::Arc;
 use strict_num::PositiveF32;
 use svgtypes::{Length, LengthUnit as Unit};
 
+use super::OptionLog;
 use super::converter::{self, Cache, SvgColorExt};
 use super::svgtree::{AId, EId, SvgNode};
-use super::OptionLog;
 use crate::*;
 
 pub(crate) enum ServerOrColor {
@@ -35,7 +35,7 @@ pub(crate) fn convert(
         _ => unreachable!(),
     };
 
-    if let Some(ServerOrColor::Server(ref paint)) = paint {
+    if let Some(ServerOrColor::Server(paint)) = &paint {
         cache
             .paint
             .insert(node.element_id().to_string(), paint.clone());
@@ -584,10 +584,10 @@ fn node_to_user_coordinates(
     cache: &mut Cache,
 ) {
     match node {
-        Node::Group(ref mut g) => {
+        Node::Group(g) => {
             // No need to check clip paths, because they cannot have paint servers.
-            if let Some(ref mut mask) = g.mask {
-                if let Some(ref mut mask) = Arc::get_mut(mask) {
+            if let Some(mask) = &mut g.mask {
+                if let Some(mask) = Arc::get_mut(mask) {
                     update_paint_servers(
                         &mut mask.root,
                         context_transform,
@@ -596,8 +596,8 @@ fn node_to_user_coordinates(
                         cache,
                     );
 
-                    if let Some(ref mut sub_mask) = mask.mask {
-                        if let Some(ref mut sub_mask) = Arc::get_mut(sub_mask) {
+                    if let Some(sub_mask) = &mut mask.mask {
+                        if let Some(sub_mask) = Arc::get_mut(sub_mask) {
                             update_paint_servers(
                                 &mut sub_mask.root,
                                 context_transform,
@@ -611,9 +611,9 @@ fn node_to_user_coordinates(
             }
 
             for filter in &mut g.filters {
-                if let Some(ref mut filter) = Arc::get_mut(filter) {
+                if let Some(filter) = Arc::get_mut(filter) {
                     for primitive in &mut filter.primitives {
-                        if let filter::Kind::Image(ref mut image) = primitive.kind {
+                        if let filter::Kind::Image(image) = &mut primitive.kind {
                             update_paint_servers(
                                 &mut image.root,
                                 context_transform,
@@ -628,7 +628,7 @@ fn node_to_user_coordinates(
 
             update_paint_servers(g, context_transform, context_bbox, text_bbox, cache);
         }
-        Node::Path(ref mut path) => {
+        Node::Path(path) => {
             // Paths inside `Text::flattened` are special and must use text's bounding box
             // instead of their own.
             let bbox = text_bbox.unwrap_or(path.bounding_box);
@@ -650,12 +650,12 @@ fn node_to_user_coordinates(
                 cache,
             );
         }
-        Node::Image(ref mut image) => {
-            if let ImageKind::SVG(ref mut tree) = image.kind {
+        Node::Image(image) => {
+            if let ImageKind::SVG(tree) = &mut image.kind {
                 update_paint_servers(&mut tree.root, context_transform, context_bbox, None, cache);
             }
         }
-        Node::Text(ref mut text) => {
+        Node::Text(text) => {
             // By the SVG spec, `tspan` doesn't have a bbox and uses the parent `text` bbox.
             // Therefore we have to use text's bbox when converting tspan and flatted text
             // paint servers.
@@ -730,15 +730,15 @@ fn node_to_user_coordinates(
                     );
                 };
 
-                if let Some(ref mut path) = span.overline {
+                if let Some(path) = &mut span.overline {
                     process_decoration(path);
                 }
 
-                if let Some(ref mut path) = span.underline {
+                if let Some(path) = &mut span.underline {
                     process_decoration(path);
                 }
 
-                if let Some(ref mut path) = span.line_through {
+                if let Some(path) = &mut span.line_through {
                     process_decoration(path);
                 }
             }
@@ -764,7 +764,7 @@ fn process_fill(
     cache: &mut Cache,
 ) {
     let mut ok = false;
-    if let Some(ref mut fill) = fill {
+    if let Some(fill) = fill.as_mut() {
         // Path context elements (i.e. for  markers) have already been resolved,
         // so we only care about use nodes.
         ok = process_paint(
@@ -791,7 +791,7 @@ fn process_stroke(
     cache: &mut Cache,
 ) {
     let mut ok = false;
-    if let Some(ref mut stroke) = stroke {
+    if let Some(stroke) = stroke.as_mut() {
         // Path context elements (i.e. for  markers) have already been resolved,
         // so we only care about use nodes.
         ok = process_paint(
@@ -831,7 +831,7 @@ fn process_context_paint(
 
     match paint {
         Paint::Color(_) => {}
-        Paint::LinearGradient(ref lg) => {
+        Paint::LinearGradient(lg) => {
             let transform = lg.transform.post_concat(rev_transform);
             *paint = Paint::LinearGradient(Arc::new(LinearGradient {
                 x1: lg.x1,
@@ -847,7 +847,7 @@ fn process_context_paint(
                 },
             }));
         }
-        Paint::RadialGradient(ref rg) => {
+        Paint::RadialGradient(rg) => {
             let transform = rg.transform.post_concat(rev_transform);
             *paint = Paint::RadialGradient(Arc::new(RadialGradient {
                 cx: rg.cx,
@@ -864,7 +864,7 @@ fn process_context_paint(
                 },
             }));
         }
-        Paint::Pattern(ref pat) => {
+        Paint::Pattern(pat) => {
             let transform = pat.transform.post_concat(rev_transform);
             *paint = Paint::Pattern(Arc::new(Pattern {
                 id: cache.gen_pattern_id(),
@@ -907,8 +907,8 @@ pub(crate) fn process_paint(
         }
     }
 
-    if let Paint::Pattern(ref mut patt) = paint {
-        if let Some(ref mut patt) = Arc::get_mut(patt) {
+    if let Paint::Pattern(patt) = paint {
+        if let Some(patt) = Arc::get_mut(patt) {
             update_paint_servers(&mut patt.root, Transform::default(), None, None, cache);
         }
     }
@@ -921,7 +921,7 @@ pub(crate) fn process_paint(
 }
 
 fn process_text_decoration(style: &mut Option<TextDecorationStyle>, bbox: Rect, cache: &mut Cache) {
-    if let Some(ref mut style) = style {
+    if let Some(style) = style.as_mut() {
         process_fill(
             &mut style.fill,
             Transform::default(),
@@ -956,9 +956,9 @@ impl Paint {
         // This reduces the amount of cloning and preserves the original ID as well.
         match self {
             Paint::Color(_) => {} // unreachable
-            Paint::LinearGradient(ref mut lg) => {
+            Paint::LinearGradient(lg) => {
                 let transform = lg.transform.post_concat(Transform::from_bbox(bbox));
-                if let Some(ref mut lg) = Arc::get_mut(lg) {
+                if let Some(lg) = Arc::get_mut(lg) {
                     lg.base.transform = transform;
                     lg.base.units = Units::UserSpaceOnUse;
                 } else {
@@ -977,9 +977,9 @@ impl Paint {
                     });
                 }
             }
-            Paint::RadialGradient(ref mut rg) => {
+            Paint::RadialGradient(rg) => {
                 let transform = rg.transform.post_concat(Transform::from_bbox(bbox));
-                if let Some(ref mut rg) = Arc::get_mut(rg) {
+                if let Some(rg) = Arc::get_mut(rg) {
                     rg.base.transform = transform;
                     rg.base.units = Units::UserSpaceOnUse;
                 } else {
@@ -999,14 +999,14 @@ impl Paint {
                     });
                 }
             }
-            Paint::Pattern(ref mut patt) => {
+            Paint::Pattern(patt) => {
                 let rect = if patt.units == Units::ObjectBoundingBox {
                     patt.rect.bbox_transform(bbox)
                 } else {
                     patt.rect
                 };
 
-                if let Some(ref mut patt) = Arc::get_mut(patt) {
+                if let Some(patt) = Arc::get_mut(patt) {
                     patt.rect = rect;
                     patt.units = Units::UserSpaceOnUse;
 
@@ -1071,16 +1071,16 @@ impl Paint {
     pub(crate) fn units(&self) -> Units {
         match self {
             Self::Color(_) => Units::UserSpaceOnUse,
-            Self::LinearGradient(ref lg) => lg.units,
-            Self::RadialGradient(ref rg) => rg.units,
-            Self::Pattern(ref patt) => patt.units,
+            Self::LinearGradient(lg) => lg.units,
+            Self::RadialGradient(rg) => rg.units,
+            Self::Pattern(patt) => patt.units,
         }
     }
 
     #[inline]
     pub(crate) fn content_units(&self) -> Units {
         match self {
-            Self::Pattern(ref patt) => patt.content_units,
+            Self::Pattern(patt) => patt.content_units,
             _ => Units::UserSpaceOnUse,
         }
     }

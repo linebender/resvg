@@ -1,7 +1,7 @@
 // Copyright 2020 the Resvg Authors
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use super::{f32_bound, ImageRefMut};
+use super::{ImageRefMut, f32_bound};
 use usvg::filter::{ComponentTransfer, TransferFunction};
 
 /// Applies component transfer functions for each `src` image channel.

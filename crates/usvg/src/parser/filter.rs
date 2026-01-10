@@ -11,15 +11,15 @@ use strict_num::PositiveF32;
 use svgtypes::{AspectRatio, Length, LengthUnit as Unit};
 
 use crate::{
-    filter::{self, *},
     ApproxZeroUlps, Color, Group, Node, NonEmptyString, NonZeroF32, NonZeroRect, Opacity, Size,
     Units,
+    filter::{self, *},
 };
 
+use super::OptionLog;
 use super::converter::{self, SvgColorExt};
 use super::paint_server::{convert_units, resolve_number};
 use super::svgtree::{AId, EId, FromValue, SvgNode};
-use super::OptionLog;
 
 impl<'a, 'input: 'a> FromValue<'a, 'input> for filter::ColorInterpolation {
     fn parse(_: SvgNode, _: AId, value: &str) -> Option<Self> {
@@ -836,14 +836,14 @@ fn convert_image_inner(
         return if root.has_children() {
             root.calculate_bounding_boxes();
             // Transfer node id from group's child to the group itself if needed.
-            if let Some(Node::Group(ref mut g)) = root.children.first_mut() {
+            if let Some(Node::Group(g)) = root.children.first_mut() {
                 if let Some(child2) = g.children.first_mut() {
                     g.id = child2.id().to_string();
                     match child2 {
-                        Node::Group(ref mut g2) => g2.id.clear(),
-                        Node::Path(ref mut path) => path.id.clear(),
-                        Node::Image(ref mut image) => image.id.clear(),
-                        Node::Text(ref mut text) => text.id.clear(),
+                        Node::Group(g2) => g2.id.clear(),
+                        Node::Path(path) => path.id.clear(),
+                        Node::Image(image) => image.id.clear(),
+                        Node::Text(text) => text.id.clear(),
                     }
                 }
             }

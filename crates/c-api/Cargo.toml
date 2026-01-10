@@ -3,7 +3,7 @@ name = "resvg-capi"
 version = "0.45.1"
 keywords = ["svg", "render", "raster", "c-api"]
 license.workspace = true
-edition = "2021"
+edition = "2024"
 rust-version = "1.87.0"
 workspace = "../.."
 
