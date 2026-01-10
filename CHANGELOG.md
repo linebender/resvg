@@ -8,7 +8,7 @@ This changelog also contains important changes in dependencies.
 
 ## [Unreleased]
 
-This release has an MSRV of 1.85.0 for `usvg` and `resvg` and the C API.
+This release has an MSRV of 1.87.0 for `usvg` and `resvg` and the C API.
 
 ### Added
 
