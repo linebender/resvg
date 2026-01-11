@@ -10,17 +10,47 @@ This changelog also contains important changes in dependencies.
 
 This release has an MSRV of 1.87.0 for `usvg` and `resvg` and the C API.
 
+## [0.46.0]
+
+This release has an MSRV of 1.87.0 for `usvg` and `resvg` and the C API.
+
 ### Added
 
 - Support SVGs without the xmlns attribute on the root. Thanks to [@JosefKuchar][].
+- Add a from_data_nested method to usvg::Tree (#955 by @tovrstra)
+- Use cache for glyph outlining (#957 by @newinnovations)
+- Support loading nested embedded images (#958 by @LaurenzV)
 
 ### Changed
 
-- Upgraded kurbo to 0.12 and svgtypes to 0.16. Thanks to [@HaHa421][].
+- Bump dependencies, bump MSRV to 1.87, Upgrade to edition 2024 (#1002 and #1003 @LaurenzV)
+- Upgraded kurbo to 0.13 and svgtypes to 0.16.1. Thanks to [@HaHa421][].
+- Bump zune_jpeg (#964 by @LaurenzV)
+- Fix abs_bounding_box calculation for image (#924 by @Dabble63)
+- Fix crash caused by glyph splitting (#929 by @arnaud-secondlayer)
+- Fix a bug with incorrect resolving of fill/stroke color (#953 by @LaurenzV)
+- Fix inverted condition in has_text_nodes method (#967 by @Daaiid)
+- Do not write empty defs nodes (#980 by @Its-Just-Nans)
+- Check if text paths need to be written out (#981 by @Its-Just-Nans)
+- Use checked arithmetic when computing bounding box (#987 by @Its-Just-Nans)
+- Fix bug in rewriting of clip paths with transformed path (#988  by @Its-Just-Nans)
+
+
+### Removed
+
+- Remove unused phf dependency (#920)
+
+## [0.45.1] - 2025-04-16
+
+### Changed
+
+- Support SVGs without the xmlns attribute on the root (#892)
+- Add optimization for paths with markers in paint-order but no actual markers (#887)
 
 ### Removed
 
 - tools/kde-dolphin-thumbnailer. This was never a released tool, and it doesn't support current versions of KDE/dolphin ([#897][] by [@DJMcNab][])
+
 
 ## [0.45.0] - 2025-02-26
 This is the first release under the stewardship of [Linebender][], who is now responsible for maintenance of this crate.
@@ -1288,10 +1318,19 @@ This release has an MSRV of 1.65 for `usvg` and 1.67.1 for `resvg` and the C API
 [@michabay05]: https://github.com/michabay05
 [@Shnatsel]: https://github.com/Shnatsel
 [@JosefKuchar]: https://github.com/JosefKuchar
+[@tovrstra]: https://github.com/tovrstra
+[@newinnovations]: https://github.com/newinnovations
+[@LaurenzV]: https://github.com/LaurenzV
+[@HaHa421]: https://github.com/HaHa421
+[@Dabble63]: https://github.com/Dabble63
+[@Daaiid]: https://github.com/Daaiid
+[@arnaud-secondlayer]: https://github.com/arnaud-secondlayer
+[@Its-Just-Nans]: https://github.com/Its-Just-Nans
 
 [#897]: https://github.com/linebender/resvg/pull/897
 
-[Unreleased]: https://github.com/linebender/resvg/compare/v0.45.1...HEAD
+[Unreleased]: https://github.com/linebender/resvg/compare/v0.46.0...HEAD
+[0.46.0]: https://github.com/linebender/resvg/compare/v0.45.1...v0.46.1
 [0.45.1]: https://github.com/linebender/resvg/compare/v0.45.0...v0.45.1
 [0.45.0]: https://github.com/linebender/resvg/compare/v0.44.0...v0.45.0
 [0.44.0]: https://github.com/linebender/resvg/compare/v0.43.0...v0.44.0
