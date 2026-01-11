@@ -1330,7 +1330,7 @@ This release has an MSRV of 1.65 for `usvg` and 1.67.1 for `resvg` and the C API
 [#897]: https://github.com/linebender/resvg/pull/897
 
 [Unreleased]: https://github.com/linebender/resvg/compare/v0.46.0...HEAD
-[0.46.0]: https://github.com/linebender/resvg/compare/v0.45.1...v0.46.1
+[0.46.0]: https://github.com/linebender/resvg/compare/v0.45.1...v0.46.0
 [0.45.1]: https://github.com/linebender/resvg/compare/v0.45.0...v0.45.1
 [0.45.0]: https://github.com/linebender/resvg/compare/v0.44.0...v0.45.0
 [0.44.0]: https://github.com/linebender/resvg/compare/v0.43.0...v0.44.0
