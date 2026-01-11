@@ -21,7 +21,7 @@ mod text;
 #[cfg(feature = "text")]
 pub(crate) use converter::Cache;
 pub use image::{ImageHrefDataResolverFn, ImageHrefResolver, ImageHrefStringResolverFn};
-pub use options::Options;
+pub use options::{ColorScheme, Options};
 pub(crate) use svgtree::{AId, EId};
 
 /// List of all errors.
@@ -136,7 +136,12 @@ impl crate::Tree {
                     (opt.font_resolver.select_fallback)(c, used_fonts, db)
                 }),
             },
-            ..Options::default()
+            // Inherit font_family from parent
+            font_family: opt.font_family.clone(),
+            // Inherit style_sheet from parent
+            style_sheet: opt.style_sheet.clone(),
+            // Inherit color_scheme from parent so nested SVGs use the same scheme
+            color_scheme: opt.color_scheme,
         };
 
         Self::from_data(data, &nested_opt)
@@ -157,7 +162,7 @@ impl crate::Tree {
 
     /// Parses `Tree` from `roxmltree::Document`.
     pub fn from_xmltree(doc: &roxmltree::Document, opt: &Options) -> Result<Self, Error> {
-        let doc = svgtree::Document::parse_tree(doc, opt.style_sheet.as_deref())?;
+        let doc = svgtree::Document::parse_tree(doc, opt.style_sheet.as_deref(), opt.color_scheme)?;
         self::converter::convert_doc(&doc, opt)
     }
 }
