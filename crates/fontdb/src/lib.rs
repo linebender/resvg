@@ -187,7 +187,7 @@ impl ID {
     /// Should be used in tandem with [`Database::push_face_info`].
     #[inline]
     pub fn dummy() -> Self {
-        Self(InnerId::from(slotmap::KeyData::from_ffi(core::u64::MAX)))
+        Self(InnerId::from(slotmap::KeyData::from_ffi(u64::MAX)))
     }
 }
 
@@ -622,9 +622,9 @@ impl Database {
         } in fontconfig.aliases
         {
             let name = prefer
-                .get(0)
-                .or_else(|| accept.get(0))
-                .or_else(|| default.get(0));
+                .first()
+                .or_else(|| accept.first())
+                .or_else(|| default.first());
 
             if let Some(name) = name {
                 match alias.to_lowercase().as_str() {
@@ -836,7 +836,9 @@ impl Database {
             }
             Source::File(path) => {
                 let file = std::fs::File::open(path).ok()?;
-                // SAFETY: We immediately copy data out, not keeping the mmap alive
+                // SAFETY: The mmap is kept alive through Arc sharing. While another process
+                // could modify the underlying file (which is why this function is marked unsafe),
+                // the mapping remains valid for the lifetime of the Arc.
                 let shared_data =
                     std::sync::Arc::new(unsafe { memmap2::MmapOptions::new().map(&file).ok()? })
                         as std::sync::Arc<dyn AsRef<[u8]> + Send + Sync>;

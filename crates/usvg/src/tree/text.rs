@@ -741,8 +741,8 @@ impl TextChunk {
     }
 
     /// A text chunk flow.
-    pub fn text_flow(&self) -> TextFlow {
-        self.text_flow.clone()
+    pub fn text_flow(&self) -> &TextFlow {
+        &self.text_flow
     }
 
     /// A text chunk actual text.

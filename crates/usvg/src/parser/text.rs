@@ -574,10 +574,10 @@ fn parse_font_variation_settings(node: SvgNode) -> Vec<FontVariation> {
             tag_str.push(c);
         }
 
-        // Tag must be exactly 4 characters
-        if tag_str.len() != 4 {
+        // Tag must be exactly 4 ASCII characters
+        if tag_str.len() != 4 || !tag_str.is_ascii() {
             log::warn!(
-                "Invalid font-variation-settings tag: '{}' (must be 4 characters)",
+                "Invalid font-variation-settings tag: '{}' (must be 4 ASCII characters)",
                 tag_str
             );
             continue;
@@ -601,6 +601,7 @@ fn parse_font_variation_settings(node: SvgNode) -> Vec<FontVariation> {
         };
 
         let tag_bytes = tag_str.as_bytes();
+        // SAFETY: We verified above that tag_str is exactly 4 ASCII bytes
         let tag = [tag_bytes[0], tag_bytes[1], tag_bytes[2], tag_bytes[3]];
 
         variations.push(FontVariation::new(tag, value));
@@ -853,8 +854,8 @@ fn resolve_decoration(
 
         for node in tspan.ancestors() {
             if find_decoration(node, text_decoration) || node.tag_name() == Some(EId::Text) {
-                fill_node = fill_node.map_or(Some(node), Some);
-                stroke_node = stroke_node.map_or(Some(node), Some);
+                fill_node = fill_node.or(Some(node));
+                stroke_node = stroke_node.or(Some(node));
                 break;
             }
         }
@@ -956,8 +957,13 @@ fn convert_writing_mode(text_node: SvgNode) -> WritingMode {
 }
 
 fn path_length(path: &tiny_skia_path::Path) -> f64 {
-    let mut prev_mx = path.points()[0].x;
-    let mut prev_my = path.points()[0].y;
+    let points = path.points();
+    if points.is_empty() {
+        return 0.0;
+    }
+
+    let mut prev_mx = points[0].x;
+    let mut prev_my = points[0].y;
     let mut prev_x = prev_mx;
     let mut prev_y = prev_my;
 

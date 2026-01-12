@@ -1516,7 +1516,10 @@ fn shape_text_with_font(
 
                 glyphs.push(Glyph {
                     byte_idx: ByteIndex::new(idx),
-                    cluster_len: end.checked_sub(start).unwrap_or(0), // TODO: can fail?
+                    cluster_len: end.checked_sub(start).unwrap_or_else(|| {
+                        log::warn!("Invalid cluster bounds: end={} < start={}", end, start);
+                        0
+                    }),
                     text: sub_text[start..end].to_string(),
                     id: GlyphId::new(info.glyph_id as u32),
                     dx: pos.x_offset,

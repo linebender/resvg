@@ -149,7 +149,7 @@ impl FontResolver<'_> {
     /// to find a font that has the correct style and supports the character.
     pub fn default_fallback_selector() -> FallbackSelectionFn<'static> {
         Box::new(|c, exclude_fonts, fontdb| {
-            let base_font_id = exclude_fonts[0];
+            let base_font_id = *exclude_fonts.first()?;
 
             // Iterate over fonts and check if any of them support the specified char.
             for face in fontdb.faces() {
@@ -175,13 +175,13 @@ impl FontResolver<'_> {
                     .families
                     .iter()
                     .find(|f| f.1 == fontdb::Language::EnglishUnitedStates)
-                    .unwrap_or(&base_face.families[0]);
+                    .or_else(|| base_face.families.first())?;
 
                 let new_family = face
                     .families
                     .iter()
                     .find(|f| f.1 == fontdb::Language::EnglishUnitedStates)
-                    .unwrap_or(&base_face.families[0]);
+                    .or_else(|| face.families.first())?;
 
                 log::warn!("Fallback from {} to {}.", base_family.0, new_family.0);
                 return Some(face.id);
