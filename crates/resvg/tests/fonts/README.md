@@ -18,5 +18,5 @@ we can distinguish them from CBDT in tests).
 
 Roboto Flex (Variable Font)
 1. Download: https://github.com/googlefonts/roboto-flex/raw/main/fonts/RobotoFlex%5BGRAD%2CXOPQ%2CXTRA%2CYOPQ%2CYTAS%2CYTDE%2CYTFI%2CYTLC%2CYTUC%2Copsz%2Cslnt%2Cwdth%2Cwght%5D.ttf
-2. Run `pyftsubset RobotoFlex*.ttf --unicodes="U+0020-007E" --layout-features='*' --drop-tables= --output-file=RobotoFlex.subset.ttf`
+2. Run `pyftsubset RobotoFlex*.ttf --unicodes="U+0020-007E" --layout-features='*' --output-file=RobotoFlex.subset.ttf`
 3. Copy OFL license from https://github.com/googlefonts/roboto-flex/blob/main/OFL.txt
