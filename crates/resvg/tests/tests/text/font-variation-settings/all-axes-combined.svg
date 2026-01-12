@@ -1,0 +1,10 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"
+     font-family="Roboto Flex" font-size="32">
+    <title>Multiple custom axes combined</title>
+
+    <text id="text1" x="100" y="110" text-anchor="middle"
+          style="font-variation-settings: 'wght' 800, 'wdth' 50, 'GRAD' 100">Combo</text>
+
+    <!-- image frame -->
+    <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>
