@@ -338,30 +338,87 @@ fn flatten_impl(
                 new_children.push(Node::Group(Box::new(group)));
             } else {
                 // Use span-level variation settings (uniform for all glyphs in span).
-                let outline = if use_hinting {
-                    // Use skrifa for hinted outline extraction
-                    let ppem = hinting_ctx.map(|ctx| ctx.ppem(glyph.font_size()));
-                    extract_outline_skrifa(
-                        &cache.fontdb,
-                        glyph.font,
-                        glyph.id,
-                        &span.variations,
-                        glyph.font_size(),
-                        span.font_optical_sizing,
-                        ppem,
-                        span.hinting,
-                    )
-                } else if needs_variations {
-                    cache.fontdb.outline_with_variations(
-                        glyph.font,
-                        glyph.id,
-                        &span.variations,
-                        glyph.font_size(),
-                        span.font_optical_sizing,
-                    )
+                // Clone Arc<Database> before mutable borrow for the closure
+                let fontdb = cache.fontdb.clone();
+
+                // Compute ppem for hinting (if applicable)
+                let ppem = if use_hinting {
+                    hinting_ctx.map(|ctx| ctx.ppem(glyph.font_size()))
                 } else {
-                    cache.fontdb_outline(glyph.font, glyph.id)
+                    None
                 };
+
+                // For cache key: when auto-opsz is enabled, assume font has opsz axis
+                // This is a safe approximation that may create slightly more cache entries
+                // for fonts without opsz, but avoids expensive axis lookup
+                let has_opsz_axis = span.font_optical_sizing == crate::FontOpticalSizing::Auto;
+
+                // Compute variation hash for cache key
+                let variation_hash = crate::parser::compute_variation_hash(
+                    &span.variations,
+                    span.font_optical_sizing,
+                    glyph.font_size(),
+                    has_opsz_axis,
+                );
+
+                // Build cache key with all parameters affecting outline shape
+                let cache_key = crate::parser::OutlineCacheKey {
+                    font_id: glyph.font,
+                    glyph_id: glyph.id,
+                    ppem_bits: ppem.map(|p| p.to_bits()),
+                    hinting_target: if use_hinting {
+                        Some(span.hinting.target)
+                    } else {
+                        None
+                    },
+                    hinting_mode: if use_hinting {
+                        Some(span.hinting.mode)
+                    } else {
+                        None
+                    },
+                    hinting_engine: if use_hinting {
+                        Some(span.hinting.engine)
+                    } else {
+                        None
+                    },
+                    symmetric_rendering: span.hinting.symmetric_rendering,
+                    preserve_linear_metrics: span.hinting.preserve_linear_metrics,
+                    variation_hash,
+                };
+
+                // Capture values for closure
+                let variations = &span.variations;
+                let font_optical_sizing = span.font_optical_sizing;
+                let hinting_settings = span.hinting;
+                let font_id = glyph.font;
+                let glyph_id = glyph.id;
+                let font_size = glyph.font_size();
+
+                // Get from cache or compute (unified for all outline types)
+                let outline = cache.get_or_compute_outline(cache_key, || {
+                    if use_hinting {
+                        extract_outline_skrifa(
+                            &fontdb,
+                            font_id,
+                            glyph_id,
+                            variations,
+                            font_size,
+                            font_optical_sizing,
+                            ppem,
+                            hinting_settings,
+                        )
+                    } else if needs_variations {
+                        fontdb.outline_with_variations(
+                            font_id,
+                            glyph_id,
+                            variations,
+                            font_size,
+                            font_optical_sizing,
+                        )
+                    } else {
+                        fontdb.outline(font_id, glyph_id)
+                    }
+                });
 
                 if let Some(outline) = outline.and_then(|p| p.transform(glyph.outline_transform()))
                 {

@@ -3,6 +3,8 @@
 
 use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
+#[cfg(feature = "text")]
+use std::num::NonZeroUsize;
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -10,6 +12,8 @@ use std::sync::Arc;
 use fontdb::Database;
 #[cfg(feature = "text")]
 use fontdb::ID;
+#[cfg(feature = "text")]
+use lru::LruCache;
 #[cfg(feature = "text")]
 use skrifa::GlyphId;
 use svgtypes::{Length, LengthUnit as Unit, PaintOrderKind, TransformOrigin};
@@ -42,15 +46,91 @@ pub struct State<'a> {
     pub(crate) opt: &'a Options<'a>,
 }
 
-#[derive(Clone)]
+/// Cache key for glyph outlines that captures all parameters affecting the outline shape.
+#[cfg(feature = "text")]
+#[derive(Clone, Hash, PartialEq, Eq, Debug)]
+pub struct OutlineCacheKey {
+    /// Font database ID
+    pub font_id: ID,
+    /// Glyph ID within the font
+    pub glyph_id: GlyphId,
+    /// PPEM for hinting (None = unhinted), stored as f32::to_bits() for exact matching
+    pub ppem_bits: Option<u32>,
+    /// Hinting target (None = unhinted)
+    pub hinting_target: Option<crate::HintingTarget>,
+    /// Hinting mode (None = unhinted)
+    pub hinting_mode: Option<crate::HintingMode>,
+    /// Hinting engine (None = unhinted)
+    pub hinting_engine: Option<crate::HintingEngine>,
+    /// Symmetric rendering flag
+    pub symmetric_rendering: bool,
+    /// Preserve linear metrics flag
+    pub preserve_linear_metrics: bool,
+    /// Hash of variation coordinates (for consistent lookup)
+    pub variation_hash: u64,
+}
+
+/// Statistics for cache usage tracking.
+#[cfg(feature = "text")]
+#[derive(Clone, Default, Debug)]
+pub struct CacheStats {
+    /// Number of cache hits
+    pub outline_hits: usize,
+    /// Number of cache misses
+    pub outline_misses: usize,
+    /// Number of entries evicted due to LRU
+    pub outline_evictions: usize,
+}
+
+/// Default outline cache capacity (number of entries).
+#[cfg(feature = "text")]
+pub const DEFAULT_OUTLINE_CACHE_CAPACITY: usize = 10_000;
+
+/// Computes a hash of variation coordinates for cache key generation.
+///
+/// This creates a stable hash from font variations and auto-opsz settings
+/// that can be used as part of a cache key.
+#[cfg(feature = "text")]
+pub fn compute_variation_hash(
+    variations: &[FontVariation],
+    font_optical_sizing: FontOpticalSizing,
+    font_size: f32,
+    has_opsz_axis: bool,
+) -> u64 {
+    use std::collections::hash_map::DefaultHasher;
+
+    let mut hasher = DefaultHasher::new();
+
+    // Sort variations by tag for consistent ordering
+    let mut sorted: Vec<_> = variations.iter().collect();
+    sorted.sort_by_key(|v| v.tag);
+
+    for v in sorted {
+        v.tag.hash(&mut hasher);
+        v.value.to_bits().hash(&mut hasher);
+    }
+
+    // Include auto-opsz if applicable
+    if font_optical_sizing == FontOpticalSizing::Auto && has_opsz_axis {
+        b"opsz".hash(&mut hasher);
+        font_size.to_bits().hash(&mut hasher);
+    }
+
+    hasher.finish()
+}
+
 pub struct Cache {
     /// This fontdb is initialized from [`Options::fontdb`] and then populated
     /// over the course of conversion.
     #[cfg(feature = "text")]
     pub fontdb: Arc<Database>,
 
+    /// LRU cache for glyph outlines, keyed by all parameters affecting outline shape.
     #[cfg(feature = "text")]
-    cache_outline: HashMap<(ID, GlyphId), Option<tiny_skia_path::Path>>,
+    cache_outline: LruCache<OutlineCacheKey, Option<tiny_skia_path::Path>>,
+    /// Statistics for cache usage tracking.
+    #[cfg(feature = "text")]
+    cache_stats: CacheStats,
     #[cfg(feature = "text")]
     cache_colr: HashMap<(ID, GlyphId), Option<Tree>>,
     #[cfg(feature = "text")]
@@ -92,13 +172,20 @@ macro_rules! font_lookup {
 }
 
 impl Cache {
-    pub(crate) fn new(#[cfg(feature = "text")] fontdb: Arc<Database>) -> Self {
+    pub(crate) fn new(
+        #[cfg(feature = "text")] fontdb: Arc<Database>,
+        #[cfg(feature = "text")] outline_cache_capacity: usize,
+    ) -> Self {
         Self {
             #[cfg(feature = "text")]
             fontdb,
 
             #[cfg(feature = "text")]
-            cache_outline: HashMap::new(),
+            cache_outline: LruCache::new(
+                NonZeroUsize::new(outline_cache_capacity).unwrap_or(NonZeroUsize::MIN),
+            ),
+            #[cfg(feature = "text")]
+            cache_stats: CacheStats::default(),
             #[cfg(feature = "text")]
             cache_colr: HashMap::new(),
             #[cfg(feature = "text")]
@@ -200,7 +287,39 @@ impl Cache {
         }
     }
 
-    font_lookup!(fontdb_outline, cache_outline, outline, tiny_skia_path::Path);
+    /// Get or compute a glyph outline with full caching support.
+    ///
+    /// This method handles all outline types (simple, variable, hinted) through a unified
+    /// cache keyed by all parameters that affect the outline shape. The `compute` closure
+    /// is only called on cache miss.
+    #[cfg(feature = "text")]
+    pub fn get_or_compute_outline<F>(
+        &mut self,
+        key: OutlineCacheKey,
+        compute: F,
+    ) -> Option<tiny_skia_path::Path>
+    where
+        F: FnOnce() -> Option<tiny_skia_path::Path>,
+    {
+        // Check cache first (get() also updates LRU order)
+        if let Some(cached) = self.cache_outline.get(&key) {
+            self.cache_stats.outline_hits += 1;
+            return cached.clone();
+        }
+
+        // Compute on miss
+        self.cache_stats.outline_misses += 1;
+        let result = compute();
+
+        // Track evictions (if cache is at capacity, next put will evict)
+        if self.cache_outline.len() == self.cache_outline.cap().get() {
+            self.cache_stats.outline_evictions += 1;
+        }
+
+        self.cache_outline.put(key, result.clone());
+        result
+    }
+
     font_lookup!(fontdb_colr, cache_colr, colr, Tree);
     font_lookup!(fontdb_svg, cache_svg, svg, Node);
 
@@ -222,6 +341,41 @@ impl Cache {
                 lookup
             }
         }
+    }
+
+    /// Returns the current cache statistics.
+    #[cfg(feature = "text")]
+    pub fn outline_cache_stats(&self) -> &CacheStats {
+        &self.cache_stats
+    }
+
+    /// Clears all cached outlines and resets statistics.
+    #[cfg(feature = "text")]
+    pub fn clear_outline_cache(&mut self) {
+        self.cache_outline.clear();
+        self.cache_stats = CacheStats::default();
+    }
+
+    /// Resizes the outline cache capacity.
+    ///
+    /// If the new capacity is smaller than the current number of entries,
+    /// the least recently used entries will be evicted.
+    #[cfg(feature = "text")]
+    pub fn resize_outline_cache(&mut self, new_capacity: usize) {
+        self.cache_outline
+            .resize(NonZeroUsize::new(new_capacity).unwrap_or(NonZeroUsize::MIN));
+    }
+
+    /// Returns the current number of cached outline entries.
+    #[cfg(feature = "text")]
+    pub fn outline_cache_len(&self) -> usize {
+        self.cache_outline.len()
+    }
+
+    /// Returns the current outline cache capacity.
+    #[cfg(feature = "text")]
+    pub fn outline_cache_capacity(&self) -> usize {
+        self.cache_outline.cap().get()
     }
 }
 
@@ -399,6 +553,8 @@ pub(crate) fn convert_doc(svg_doc: &svgtree::Document, opt: &Options) -> Result<
     let mut cache = Cache::new(
         #[cfg(feature = "text")]
         opt.fontdb.clone(),
+        #[cfg(feature = "text")]
+        DEFAULT_OUTLINE_CACHE_CAPACITY,
     );
 
     for node in svg_doc.descendants() {
