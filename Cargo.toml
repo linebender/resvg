@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "crates/c-api",
+    "crates/fontdb",
     "crates/resvg",
     "crates/usvg",
     "crates/usvg/codegen",
