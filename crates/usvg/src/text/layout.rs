@@ -45,21 +45,12 @@ pub struct PositionedGlyph {
     /// The ID of the font the glyph should be taken from. Can be used with the
     /// [font database of the tree](crate::Tree::fontdb) this glyph is part of.
     pub font: ID,
-    /// Font variation settings for variable fonts.
-    pub variations: Vec<crate::FontVariation>,
-    /// Font optical sizing mode for auto-opsz computation.
-    pub font_optical_sizing: crate::FontOpticalSizing,
 }
 
 impl PositionedGlyph {
     /// Returns the font size for this glyph.
     pub fn font_size(&self) -> f32 {
         self.font_size
-    }
-
-    /// Returns the font optical sizing mode.
-    pub fn font_optical_sizing(&self) -> crate::FontOpticalSizing {
-        self.font_optical_sizing
     }
 
     /// Returns the transform of glyph.
@@ -161,6 +152,10 @@ pub struct Span {
     pub paint_order: PaintOrder,
     /// The font size of the span.
     pub font_size: NonZeroPositiveF32,
+    /// Font variation settings for variable fonts (uniform for all glyphs in span).
+    pub variations: Vec<crate::FontVariation>,
+    /// Font optical sizing mode for auto-opsz computation.
+    pub font_optical_sizing: crate::FontOpticalSizing,
     /// The visibility of the span.
     pub visible: bool,
     /// The glyphs that make up the span.
@@ -357,6 +352,8 @@ pub(crate) fn layout_text(
                     stroke: span.stroke.clone(),
                     paint_order: span.paint_order,
                     font_size: span.font_size,
+                    variations: span.font.variations.clone(),
+                    font_optical_sizing: span.font_optical_sizing,
                     visible: span.visible,
                     positioned_glyphs,
                     underline,
@@ -974,8 +971,6 @@ fn process_chunk(
                 &glyphs[range],
                 &chunk.text,
                 span.font_size.get(),
-                &span.font.variations,
-                span.font_optical_sizing,
             ));
         }
     }
@@ -1146,13 +1141,7 @@ fn apply_word_spacing(chunk: &TextChunk, clusters: &mut [GlyphCluster]) {
     }
 }
 
-fn form_glyph_clusters(
-    glyphs: &[Glyph],
-    text: &str,
-    font_size: f32,
-    variations: &[crate::FontVariation],
-    font_optical_sizing: crate::FontOpticalSizing,
-) -> GlyphCluster {
+fn form_glyph_clusters(glyphs: &[Glyph], text: &str, font_size: f32) -> GlyphCluster {
     debug_assert!(!glyphs.is_empty());
 
     let mut width = 0.0;
@@ -1182,8 +1171,6 @@ fn form_glyph_clusters(
             font: glyph.font.id,
             text: glyph.text.clone(),
             id: glyph.id,
-            variations: variations.to_vec(),
-            font_optical_sizing,
         });
 
         x += glyph.width as f32;
@@ -1436,23 +1423,17 @@ fn shape_text_with_font(
         if font_optical_sizing == crate::FontOpticalSizing::Auto {
             let has_explicit_opsz = variations.iter().any(|v| v.tag == *b"opsz");
             if !has_explicit_opsz {
-                // Check if font has opsz axis
-                if let Ok(ttf_face) = ttf_parser::Face::parse(font_data, face_index) {
-                    if let Some(axes) = ttf_face.tables().fvar {
-                        let has_opsz_axis = axes
-                            .axes
-                            .into_iter()
-                            .any(|axis| axis.tag == ttf_parser::Tag::from_bytes(b"opsz"));
-                        if has_opsz_axis {
-                            log::debug!(
-                                "Auto-setting opsz={} (font-optical-sizing: auto)",
-                                font_size
-                            );
-                            final_variations.push(rustybuzz::Variation {
-                                tag: Tag::from_bytes(b"opsz"),
-                                value: font_size,
-                            });
-                        }
+                // Check if font has opsz axis using the already parsed rb_font
+                if let Some(axes) = rb_font.tables().fvar {
+                    let has_opsz_axis = axes
+                        .axes
+                        .into_iter()
+                        .any(|axis| axis.tag == ttf_parser::Tag::from_bytes(b"opsz"));
+                    if has_opsz_axis {
+                        final_variations.push(rustybuzz::Variation {
+                            tag: Tag::from_bytes(b"opsz"),
+                            value: font_size,
+                        });
                     }
                 }
             }
@@ -1460,17 +1441,6 @@ fn shape_text_with_font(
 
         // Apply font variations for variable fonts
         if !final_variations.is_empty() {
-            log::debug!(
-                "Applying {} font variations for shaping",
-                final_variations.len()
-            );
-            for v in &final_variations {
-                log::debug!(
-                    "  Setting variation {:?} = {}",
-                    std::str::from_utf8(&v.tag.to_bytes()).unwrap_or("????"),
-                    v.value
-                );
-            }
             rb_font.set_variations(&final_variations);
         }
 

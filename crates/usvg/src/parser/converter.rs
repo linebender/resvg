@@ -57,6 +57,8 @@ pub struct Cache {
     cache_svg: HashMap<(ID, GlyphId), Option<Node>>,
     #[cfg(feature = "text")]
     cache_raster: HashMap<(ID, GlyphId), Option<BitmapImage>>,
+    #[cfg(feature = "text")]
+    cache_has_opsz: HashMap<ID, bool>,
 
     pub clip_paths: HashMap<String, Arc<ClipPath>>,
     pub masks: HashMap<String, Arc<Mask>>,
@@ -105,6 +107,8 @@ impl Cache {
             cache_svg: HashMap::new(),
             #[cfg(feature = "text")]
             cache_raster: HashMap::new(),
+            #[cfg(feature = "text")]
+            cache_has_opsz: HashMap::new(),
 
             clip_paths: HashMap::new(),
             masks: HashMap::new(),
@@ -204,6 +208,16 @@ impl Cache {
     font_lookup!(fontdb_colr, cache_colr, colr, Tree);
     font_lookup!(fontdb_svg, cache_svg, svg, Node);
     font_lookup!(fontdb_raster, cache_raster, raster, BitmapImage);
+
+    #[cfg(feature = "text")]
+    pub(crate) fn has_opsz_axis(&mut self, font: ID) -> bool {
+        if let Some(&cached) = self.cache_has_opsz.get(&font) {
+            return cached;
+        }
+        let has_opsz = self.fontdb.has_opsz_axis(font);
+        self.cache_has_opsz.insert(font, has_opsz);
+        has_opsz
+    }
 }
 
 // TODO: is there a simpler way?
