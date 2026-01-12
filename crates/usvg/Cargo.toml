@@ -36,7 +36,7 @@ simplecss = "0.2"
 siphasher = "1.0" # perfect hash implementation
 
 # text
-fontdb = { version = "0.23.0", default-features = false, optional = true }
+fontdb = { path = "../fontdb", default-features = false, optional = true }
 harfrust = { version = "0.5", optional = true }
 unicode-bidi = { version = "0.3", optional = true }
 unicode-script = { version = "0.5", optional = true }

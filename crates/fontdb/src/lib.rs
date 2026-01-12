@@ -1,79 +1,163 @@
-/*!
-`fontdb` is a simple, in-memory font database with CSS-like queries.
+// Copyright 2020 Yevhenii Reizner (original fontdb, MIT licensed)
+// Copyright 2026 the Resvg Authors (modifications)
+// SPDX-License-Identifier: Apache-2.0 OR MIT
 
-# Features
+//! Vendored and modified version of fontdb 0.23.0 that uses skrifa instead of ttf-parser.
+//!
+//! Original: <https://github.com/RazrFalcon/fontdb> (MIT licensed)
+//!
+//! # Features
+//!
+//! - The database can load fonts from files, directories and raw data (`Vec<u8>`).
+//! - The database can match a font using CSS-like queries. See `Database::query`.
+//! - The database can try to load system fonts.
+//!   Currently, this is implemented by scanning predefined directories.
+//!   The library does not interact with the system API.
+//! - Provides a unique ID for each font face.
+//!
+//! # Font vs Face
+//!
+//! A font is a collection of font faces. Therefore, a font face is a subset of a font.
+//! A simple font (*.ttf/*.otf) usually contains a single font face,
+//! but a font collection (*.ttc) can contain multiple font faces.
+//!
+//! `fontdb` stores and matches font faces, not fonts.
+//! Therefore, after loading a font collection with 5 faces (for example), the database will be populated
+//! with 5 `FaceInfo` objects, all of which will be pointing to the same file or binary data.
+//!
+//! # Performance
+//!
+//! The database performance is largely limited by the storage itself.
+//! Font parsing is handled by skrifa.
+//!
+//! # Safety
+//!
+//! The library relies on memory-mapped files, which is inherently unsafe.
+//! But since we do not keep the files open it should be perfectly safe.
+//!
+//! If you would like to use a persistent memory mapping of the font files,
+//! then you can use the unsafe [`Database::make_shared_face_data`] function.
 
-- The database can load fonts from files, directories and raw data (`Vec<u8>`).
-- The database can match a font using CSS-like queries. See `Database::query`.
-- The database can try to load system fonts.
-  Currently, this is implemented by scanning predefined directories.
-  The library does not interact with the system API.
-- Provides a unique ID for each font face.
-
-# Non-goals
-
-- Advanced font properties querying.<br>
-  The database provides only storage and matching capabilities.
-  For font properties querying you can use [ttf-parser].
-
-- A font fallback mechanism.<br>
-  This library can be used to implement a font fallback mechanism, but it doesn't implement one.
-
-- Application's global database.<br>
-  The database doesn't use `static`, therefore it's up to the caller where it should be stored.
-
-- Font types support other than TrueType.
-
-# Font vs Face
-
-A font is a collection of font faces. Therefore, a font face is a subset of a font.
-A simple font (\*.ttf/\*.otf) usually contains a single font face,
-but a font collection (\*.ttc) can contain multiple font faces.
-
-`fontdb` stores and matches font faces, not fonts.
-Therefore, after loading a font collection with 5 faces (for example), the database will be populated
-with 5 `FaceInfo` objects, all of which will be pointing to the same file or binary data.
-
-# Performance
-
-The database performance is largely limited by the storage itself.
-We are using [ttf-parser], so the parsing should not be a bottleneck.
-
-On my machine with Samsung SSD 860 and Gentoo Linux, it takes ~20ms
-to load 1906 font faces (most of them are from Google Noto collection)
-with a hot disk cache and ~860ms with a cold one.
-
-On Mac Mini M1 it takes just 9ms to load 898 fonts.
-
-# Safety
-
-The library relies on memory-mapped files, which is inherently unsafe.
-But since we do not keep the files open it should be perfectly safe.
-
-If you would like to use a persistent memory mapping of the font files,
-then you can use the unsafe [`Database::make_shared_face_data`] function.
-
-[ttf-parser]: https://github.com/RazrFalcon/ttf-parser
-*/
-
-#![cfg_attr(not(feature = "std"), no_std)]
-#![warn(missing_docs)]
-#![warn(missing_debug_implementations)]
-#![warn(missing_copy_implementations)]
-
-extern crate alloc;
-
-#[cfg(not(feature = "std"))]
-use alloc::{
-    string::{String, ToString},
-    vec::Vec,
-};
-
-pub use ttf_parser::Language;
-pub use ttf_parser::Width as Stretch;
+// Allow unsafe code for mmap operations (from original fontdb)
+#![allow(unsafe_code)]
+#![deny(missing_docs)]
 
 use slotmap::SlotMap;
 use tinyvec::TinyVec;
+
+use skrifa::{FontRef, MetadataProvider, raw::FileRef, raw::TableProvider, string::StringId};
+
+/// A font face language.
+///
+/// Simplified version - we only need to distinguish English US for family name prioritization.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash, Default)]
+pub enum Language {
+    /// English (United States)
+    EnglishUnitedStates,
+    /// Any other language
+    #[default]
+    Unknown,
+}
+
+impl Language {
+    /// Returns the primary language tag.
+    pub fn primary_language(&self) -> &'static str {
+        match self {
+            Language::EnglishUnitedStates => "en",
+            Language::Unknown => "und",
+        }
+    }
+
+    /// Returns the region tag.
+    pub fn region(&self) -> &'static str {
+        match self {
+            Language::EnglishUnitedStates => "US",
+            Language::Unknown => "",
+        }
+    }
+}
+
+/// Convert from BCP-47 language tag to our Language enum
+fn language_from_bcp47(tag: Option<&str>) -> Language {
+    match tag {
+        Some(t) if t.starts_with("en-US") || t == "en" => Language::EnglishUnitedStates,
+        _ => Language::Unknown,
+    }
+}
+
+/// Selects a normal, condensed, or expanded face from a font family.
+#[derive(Clone, Copy, PartialOrd, Ord, PartialEq, Eq, Debug, Hash, Default)]
+pub enum Stretch {
+    /// 50%
+    UltraCondensed,
+    /// 62.5%
+    ExtraCondensed,
+    /// 75%
+    Condensed,
+    /// 87.5%
+    SemiCondensed,
+    /// 100%
+    #[default]
+    Normal,
+    /// 112.5%
+    SemiExpanded,
+    /// 125%
+    Expanded,
+    /// 150%
+    ExtraExpanded,
+    /// 200%
+    UltraExpanded,
+}
+
+impl Stretch {
+    /// Convert to a numeric value for CSS matching calculations.
+    fn to_number(self) -> i32 {
+        match self {
+            Stretch::UltraCondensed => 1,
+            Stretch::ExtraCondensed => 2,
+            Stretch::Condensed => 3,
+            Stretch::SemiCondensed => 4,
+            Stretch::Normal => 5,
+            Stretch::SemiExpanded => 6,
+            Stretch::Expanded => 7,
+            Stretch::ExtraExpanded => 8,
+            Stretch::UltraExpanded => 9,
+        }
+    }
+}
+
+/// Convert from skrifa's Stretch percentage to our Stretch enum
+fn stretch_from_skrifa(s: skrifa::attribute::Stretch) -> Stretch {
+    let pct = s.percentage();
+    if pct <= 56.25 {
+        Stretch::UltraCondensed
+    } else if pct <= 68.75 {
+        Stretch::ExtraCondensed
+    } else if pct <= 81.25 {
+        Stretch::Condensed
+    } else if pct <= 93.75 {
+        Stretch::SemiCondensed
+    } else if pct <= 106.25 {
+        Stretch::Normal
+    } else if pct <= 118.75 {
+        Stretch::SemiExpanded
+    } else if pct <= 137.5 {
+        Stretch::Expanded
+    } else if pct <= 175.0 {
+        Stretch::ExtraExpanded
+    } else {
+        Stretch::UltraExpanded
+    }
+}
+
+/// Get the number of fonts in a font collection (TTC), or 1 for single fonts
+fn fonts_in_collection(data: &[u8]) -> u32 {
+    match FileRef::new(data) {
+        Ok(FileRef::Collection(c)) => c.len(),
+        Ok(FileRef::Font(_)) => 1,
+        Err(_) => 1,
+    }
+}
 
 /// A unique per database face ID.
 ///
@@ -118,8 +202,7 @@ impl core::fmt::Display for ID {
 enum LoadError {
     /// A malformed font.
     ///
-    /// Typically means that [ttf-parser](https://github.com/RazrFalcon/ttf-parser)
-    /// wasn't able to parse it.
+    /// Typically means that skrifa wasn't able to parse it.
     MalformedFont,
     /// A valid TrueType font without a valid *Family Name*.
     UnnamedFont,
@@ -142,7 +225,7 @@ impl core::fmt::Display for LoadError {
             LoadError::MalformedFont => write!(f, "malformed font"),
             LoadError::UnnamedFont => write!(f, "font doesn't have a family name"),
             #[cfg(feature = "std")]
-            LoadError::IoError(ref e) => write!(f, "{}", e),
+            LoadError::IoError(e) => write!(f, "{}", e),
         }
     }
 }
@@ -193,7 +276,7 @@ impl Database {
     ///
     /// Will load all font faces in case of a font collection.
     pub fn load_font_data(&mut self, data: Vec<u8>) {
-        self.load_font_source(Source::Binary(alloc::sync::Arc::new(data)));
+        self.load_font_source(Source::Binary(std::sync::Arc::new(data)));
     }
 
     /// Loads a font from the given source into the `Database` and returns
@@ -202,7 +285,7 @@ impl Database {
     /// Will load all font faces in case of a font collection.
     pub fn load_font_source(&mut self, source: Source) -> TinyVec<[ID; 8]> {
         let ids = source.with_data(|data| {
-            let n = ttf_parser::fonts_in_collection(data).unwrap_or(1);
+            let n = fonts_in_collection(data);
             let mut ids = TinyVec::with_capacity(n as usize);
 
             for index in 0..n {
@@ -233,7 +316,7 @@ impl Database {
     fn load_fonts_from_file(&mut self, path: &std::path::Path, data: &[u8]) {
         let source = Source::File(path.into());
 
-        let n = ttf_parser::fonts_in_collection(data).unwrap_or(1);
+        let n = fonts_in_collection(data);
         for index in 0..n {
             match parse_face_info(source.clone(), data, index) {
                 Ok(info) => {
@@ -474,7 +557,6 @@ impl Database {
             }
         }
     }
-
 
     // Linux.
     #[cfg(all(
@@ -752,10 +834,12 @@ impl Database {
             Source::Binary(data) => {
                 return Some((data.clone(), face_index));
             }
-            Source::File(ref path) => {
+            Source::File(path) => {
                 let file = std::fs::File::open(path).ok()?;
-                let shared_data = std::sync::Arc::new(memmap2::MmapOptions::new().map(&file).ok()?)
-                    as std::sync::Arc<dyn AsRef<[u8]> + Send + Sync>;
+                // SAFETY: We immediately copy data out, not keeping the mmap alive
+                let shared_data =
+                    std::sync::Arc::new(unsafe { memmap2::MmapOptions::new().map(&file).ok()? })
+                        as std::sync::Arc<dyn AsRef<[u8]> + Send + Sync>;
                 (path.clone(), shared_data)
             }
             Source::SharedFile(_, data) => {
@@ -863,7 +947,7 @@ pub struct FaceInfo {
 #[derive(Clone)]
 pub enum Source {
     /// A font's raw data, typically backed by a Vec<u8>.
-    Binary(alloc::sync::Arc<dyn AsRef<[u8]> + Sync + Send>),
+    Binary(std::sync::Arc<dyn AsRef<[u8]> + Sync + Send>),
 
     /// A font's path.
     #[cfg(feature = "fs")]
@@ -903,21 +987,22 @@ impl Source {
     {
         match &self {
             #[cfg(all(feature = "fs", not(feature = "memmap")))]
-            Source::File(ref path) => {
+            Source::File(path) => {
                 let data = std::fs::read(path).ok()?;
 
                 Some(p(&data))
             }
             #[cfg(all(feature = "fs", feature = "memmap"))]
-            Source::File(ref path) => {
+            Source::File(path) => {
                 let file = std::fs::File::open(path).ok()?;
-                let data = unsafe { &memmap2::MmapOptions::new().map(&file).ok()? };
+                // SAFETY: Memory mapping is valid for the duration of this function call
+                let data = unsafe { memmap2::MmapOptions::new().map(&file).ok()? };
 
-                Some(p(data))
+                Some(p(&data))
             }
-            Source::Binary(ref data) => Some(p(data.as_ref().as_ref())),
+            Source::Binary(data) => Some(p(data.as_ref().as_ref())),
             #[cfg(all(feature = "fs", feature = "memmap"))]
-            Source::SharedFile(_, ref data) => Some(p(data.as_ref().as_ref())),
+            Source::SharedFile(_, data) => Some(p(data.as_ref().as_ref())),
         }
     }
 }
@@ -1032,10 +1117,10 @@ impl Default for Style {
 }
 
 fn parse_face_info(source: Source, data: &[u8], index: u32) -> Result<FaceInfo, LoadError> {
-    let raw_face = ttf_parser::RawFace::parse(data, index).map_err(|_| LoadError::MalformedFont)?;
-    let (families, post_script_name) = parse_names(&raw_face).ok_or(LoadError::UnnamedFont)?;
-    let (mut style, weight, stretch) = parse_os2(&raw_face);
-    let (monospaced, italic) = parse_post(&raw_face);
+    let font = FontRef::from_index(data, index).map_err(|_| LoadError::MalformedFont)?;
+    let (families, post_script_name) = parse_names(&font).ok_or(LoadError::UnnamedFont)?;
+    let (mut style, weight, stretch) = parse_os2(&font);
+    let (monospaced, italic) = parse_post(&font);
 
     if style == Style::Normal && italic {
         style = Style::Italic;
@@ -1054,23 +1139,34 @@ fn parse_face_info(source: Source, data: &[u8], index: u32) -> Result<FaceInfo, 
     })
 }
 
-fn parse_names(raw_face: &ttf_parser::RawFace) -> Option<(Vec<(String, Language)>, String)> {
-    const NAME_TAG: ttf_parser::Tag = ttf_parser::Tag::from_bytes(b"name");
-    let name_data = raw_face.table(NAME_TAG)?;
-    let name_table = ttf_parser::name::Table::parse(name_data)?;
+fn parse_names(font: &FontRef) -> Option<(Vec<(String, Language)>, String)> {
+    let mut families = Vec::new();
 
-    let mut families = collect_families(ttf_parser::name_id::TYPOGRAPHIC_FAMILY, &name_table.names);
-
-    // We have to fallback to Family Name when no Typographic Family Name was set.
-    if families.is_empty() {
-        families = collect_families(ttf_parser::name_id::FAMILY, &name_table.names);
+    // Try Typographic Family (ID 16) first
+    for s in font.localized_strings(StringId::TYPOGRAPHIC_FAMILY_NAME) {
+        let lang = language_from_bcp47(s.language());
+        let name: String = s.chars().collect();
+        if !name.is_empty() {
+            families.push((name, lang));
+        }
     }
 
-    // Make English US the first one.
+    // Fallback to Family Name (ID 1)
+    if families.is_empty() {
+        for s in font.localized_strings(StringId::FAMILY_NAME) {
+            let lang = language_from_bcp47(s.language());
+            let name: String = s.chars().collect();
+            if !name.is_empty() {
+                families.push((name, lang));
+            }
+        }
+    }
+
+    // Make English US the first one
     if families.len() > 1 {
         if let Some(index) = families
             .iter()
-            .position(|f| f.1 == Language::English_UnitedStates)
+            .position(|f| f.1 == Language::EnglishUnitedStates)
         {
             if index != 0 {
                 families.swap(0, index);
@@ -1082,126 +1178,47 @@ fn parse_names(raw_face: &ttf_parser::RawFace) -> Option<(Vec<(String, Language)
         return None;
     }
 
-    let post_script_name = name_table
-        .names
-        .into_iter()
-        .find(|name| {
-            name.name_id == ttf_parser::name_id::POST_SCRIPT_NAME && name.is_supported_encoding()
-        })
-        .and_then(|name| name_to_unicode(&name))?;
+    // Get PostScript name
+    let post_script_name = font
+        .localized_strings(StringId::POSTSCRIPT_NAME)
+        .next()
+        .map(|s| s.chars().collect::<String>())
+        .unwrap_or_default();
 
     Some((families, post_script_name))
 }
 
-fn collect_families(name_id: u16, names: &ttf_parser::name::Names) -> Vec<(String, Language)> {
-    let mut families = Vec::new();
-    for name in names.into_iter() {
-        if name.name_id == name_id && name.is_unicode() {
-            if let Some(family) = name_to_unicode(&name) {
-                families.push((family, name.language()));
-            }
-        }
-    }
+fn parse_os2(font: &FontRef) -> (Style, Weight, Stretch) {
+    let attrs = font.attributes();
 
-    // If no Unicode English US family name was found then look for English MacRoman as well.
-    if !families
-        .iter()
-        .any(|f| f.1 == Language::English_UnitedStates)
-    {
-        for name in names.into_iter() {
-            if name.name_id == name_id && name.is_mac_roman() {
-                if let Some(family) = name_to_unicode(&name) {
-                    families.push((family, name.language()));
-                    break;
-                }
-            }
-        }
-    }
-
-    families
-}
-
-fn name_to_unicode(name: &ttf_parser::name::Name) -> Option<String> {
-    if name.is_unicode() {
-        let mut raw_data: Vec<u16> = Vec::new();
-        for c in ttf_parser::LazyArray16::<u16>::new(name.name) {
-            raw_data.push(c);
-        }
-
-        String::from_utf16(&raw_data).ok()
-    } else if name.is_mac_roman() {
-        // We support only MacRoman encoding here, which should be enough in most cases.
-        let mut raw_data = Vec::with_capacity(name.name.len());
-        for b in name.name {
-            raw_data.push(MAC_ROMAN[*b as usize]);
-        }
-
-        String::from_utf16(&raw_data).ok()
-    } else {
-        None
-    }
-}
-
-fn parse_os2(raw_face: &ttf_parser::RawFace) -> (Style, Weight, Stretch) {
-    const OS2_TAG: ttf_parser::Tag = ttf_parser::Tag::from_bytes(b"OS/2");
-    let table = match raw_face
-        .table(OS2_TAG)
-        .and_then(ttf_parser::os2::Table::parse)
-    {
-        Some(table) => table,
-        None => return (Style::Normal, Weight::NORMAL, Stretch::Normal),
+    let style = match attrs.style {
+        skrifa::attribute::Style::Normal => Style::Normal,
+        skrifa::attribute::Style::Italic => Style::Italic,
+        skrifa::attribute::Style::Oblique(_) => Style::Oblique,
     };
 
-    let style = match table.style() {
-        ttf_parser::Style::Normal => Style::Normal,
-        ttf_parser::Style::Italic => Style::Italic,
-        ttf_parser::Style::Oblique => Style::Oblique,
-    };
+    let weight = Weight(attrs.weight.value() as u16);
+    let stretch = stretch_from_skrifa(attrs.stretch);
 
-    let weight = table.weight();
-    let stretch = table.width();
-
-    (style, Weight(weight.to_number()), stretch)
+    (style, weight, stretch)
 }
 
-fn parse_post(raw_face: &ttf_parser::RawFace) -> (bool, bool) {
-    // We need just a single value from the `post` table, while ttf-parser will parse all.
-    // Therefore we have a custom parser.
+fn parse_post(font: &FontRef) -> (bool, bool) {
+    // Check if monospaced using skrifa's metrics
+    let monospaced = font
+        .metrics(
+            skrifa::instance::Size::unscaled(),
+            skrifa::instance::LocationRef::default(),
+        )
+        .is_monospace;
 
-    const POST_TAG: ttf_parser::Tag = ttf_parser::Tag::from_bytes(b"post");
-    let data = match raw_face.table(POST_TAG) {
-        Some(v) => v,
-        None => return (false, false),
-    };
-
-    // All we care about, it that u32 at offset 12 is non-zero.
-    let monospaced = data.get(12..16) != Some(&[0, 0, 0, 0]);
-
-    // Italic angle as f16.16.
-    let italic = data.get(4..8) != Some(&[0, 0, 0, 0]);
+    // Check italic angle from post table
+    let italic = font
+        .post()
+        .map(|post| post.italic_angle().to_f64() != 0.0)
+        .unwrap_or(false);
 
     (monospaced, italic)
-}
-
-trait NameExt {
-    fn is_mac_roman(&self) -> bool;
-    fn is_supported_encoding(&self) -> bool;
-}
-
-impl NameExt for ttf_parser::name::Name<'_> {
-    #[inline]
-    fn is_mac_roman(&self) -> bool {
-        use ttf_parser::PlatformId::Macintosh;
-        // https://docs.microsoft.com/en-us/typography/opentype/spec/name#macintosh-encoding-ids-script-manager-codes
-        const MACINTOSH_ROMAN_ENCODING_ID: u16 = 0;
-
-        self.platform_id == Macintosh && self.encoding_id == MACINTOSH_ROMAN_ENCODING_ID
-    }
-
-    #[inline]
-    fn is_supported_encoding(&self) -> bool {
-        self.is_unicode() || self.is_mac_roman()
-    }
 }
 
 // https://www.w3.org/TR/2018/REC-css-fonts-3-20180920/#font-style-matching
@@ -1340,42 +1357,3 @@ fn find_best_match(candidates: &[&FaceInfo], query: &Query) -> Option<usize> {
     // Return the result.
     matching_set.into_iter().next()
 }
-
-/// Macintosh Roman to UTF-16 encoding table.
-///
-/// https://en.wikipedia.org/wiki/Mac_OS_Roman
-#[rustfmt::skip]
-const MAC_ROMAN: &[u16; 256] = &[
-    0x0000, 0x0001, 0x0002, 0x0003, 0x0004, 0x0005, 0x0006, 0x0007,
-    0x0008, 0x0009, 0x000A, 0x000B, 0x000C, 0x000D, 0x000E, 0x000F,
-    0x0010, 0x2318, 0x21E7, 0x2325, 0x2303, 0x0015, 0x0016, 0x0017,
-    0x0018, 0x0019, 0x001A, 0x001B, 0x001C, 0x001D, 0x001E, 0x001F,
-    0x0020, 0x0021, 0x0022, 0x0023, 0x0024, 0x0025, 0x0026, 0x0027,
-    0x0028, 0x0029, 0x002A, 0x002B, 0x002C, 0x002D, 0x002E, 0x002F,
-    0x0030, 0x0031, 0x0032, 0x0033, 0x0034, 0x0035, 0x0036, 0x0037,
-    0x0038, 0x0039, 0x003A, 0x003B, 0x003C, 0x003D, 0x003E, 0x003F,
-    0x0040, 0x0041, 0x0042, 0x0043, 0x0044, 0x0045, 0x0046, 0x0047,
-    0x0048, 0x0049, 0x004A, 0x004B, 0x004C, 0x004D, 0x004E, 0x004F,
-    0x0050, 0x0051, 0x0052, 0x0053, 0x0054, 0x0055, 0x0056, 0x0057,
-    0x0058, 0x0059, 0x005A, 0x005B, 0x005C, 0x005D, 0x005E, 0x005F,
-    0x0060, 0x0061, 0x0062, 0x0063, 0x0064, 0x0065, 0x0066, 0x0067,
-    0x0068, 0x0069, 0x006A, 0x006B, 0x006C, 0x006D, 0x006E, 0x006F,
-    0x0070, 0x0071, 0x0072, 0x0073, 0x0074, 0x0075, 0x0076, 0x0077,
-    0x0078, 0x0079, 0x007A, 0x007B, 0x007C, 0x007D, 0x007E, 0x007F,
-    0x00C4, 0x00C5, 0x00C7, 0x00C9, 0x00D1, 0x00D6, 0x00DC, 0x00E1,
-    0x00E0, 0x00E2, 0x00E4, 0x00E3, 0x00E5, 0x00E7, 0x00E9, 0x00E8,
-    0x00EA, 0x00EB, 0x00ED, 0x00EC, 0x00EE, 0x00EF, 0x00F1, 0x00F3,
-    0x00F2, 0x00F4, 0x00F6, 0x00F5, 0x00FA, 0x00F9, 0x00FB, 0x00FC,
-    0x2020, 0x00B0, 0x00A2, 0x00A3, 0x00A7, 0x2022, 0x00B6, 0x00DF,
-    0x00AE, 0x00A9, 0x2122, 0x00B4, 0x00A8, 0x2260, 0x00C6, 0x00D8,
-    0x221E, 0x00B1, 0x2264, 0x2265, 0x00A5, 0x00B5, 0x2202, 0x2211,
-    0x220F, 0x03C0, 0x222B, 0x00AA, 0x00BA, 0x03A9, 0x00E6, 0x00F8,
-    0x00BF, 0x00A1, 0x00AC, 0x221A, 0x0192, 0x2248, 0x2206, 0x00AB,
-    0x00BB, 0x2026, 0x00A0, 0x00C0, 0x00C3, 0x00D5, 0x0152, 0x0153,
-    0x2013, 0x2014, 0x201C, 0x201D, 0x2018, 0x2019, 0x00F7, 0x25CA,
-    0x00FF, 0x0178, 0x2044, 0x20AC, 0x2039, 0x203A, 0xFB01, 0xFB02,
-    0x2021, 0x00B7, 0x201A, 0x201E, 0x2030, 0x00C2, 0x00CA, 0x00C1,
-    0x00CB, 0x00C8, 0x00CD, 0x00CE, 0x00CF, 0x00CC, 0x00D3, 0x00D4,
-    0xF8FF, 0x00D2, 0x00DA, 0x00DB, 0x00D9, 0x0131, 0x02C6, 0x02DC,
-    0x00AF, 0x02D8, 0x02D9, 0x02DA, 0x00B8, 0x02DD, 0x02DB, 0x02C7,
-];
