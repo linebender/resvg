@@ -21,6 +21,8 @@ mod text;
 #[cfg(feature = "text")]
 pub(crate) use converter::Cache;
 pub use image::{ImageHrefDataResolverFn, ImageHrefResolver, ImageHrefStringResolverFn};
+#[cfg(feature = "text")]
+pub use options::HintingOptions;
 pub use options::Options;
 pub(crate) use svgtree::{AId, EId};
 
@@ -136,6 +138,8 @@ impl crate::Tree {
                     (opt.font_resolver.select_fallback)(c, used_fonts, db)
                 }),
             },
+            #[cfg(feature = "text")]
+            hinting: opt.hinting,
             ..Options::default()
         };
 

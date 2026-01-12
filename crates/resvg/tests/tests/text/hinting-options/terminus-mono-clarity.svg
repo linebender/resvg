@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:resvg="https://resvg.io/ns"
+     width="300" height="120">
+    <style>.t { font-family: "Terminus (TTF)"; }</style>
+    <!-- Bitmap strikes -->
+    <text class="t" x="5" y="18" font-size="12" text-rendering="optimizeLegibility"
+          resvg:hinting-target="mono">12: The quick brown fox 0123456789</text>
+    <text class="t" x="5" y="40" font-size="14" text-rendering="optimizeLegibility"
+          resvg:hinting-target="mono">14: The quick brown fox 0123456789</text>
+    <!-- Outline fallback sizes -->
+    <text class="t" x="5" y="62" font-size="13" text-rendering="optimizeLegibility"
+          resvg:hinting-target="mono">13: The quick brown fox 0123456789</text>
+    <text class="t" x="5" y="84" font-size="15" text-rendering="optimizeLegibility"
+          resvg:hinting-target="mono">15: The quick brown fox 0123456789</text>
+    <!-- Clarity characters -->
+    <text class="t" x="5" y="106" font-size="14" text-rendering="optimizeLegibility"
+          resvg:hinting-target="mono">Clarity: 0O Q9 Il1 S5 Z2 B8 rn/m</text>
+    <text class="t" x="200" y="118" font-size="10" fill="#666">12,14=bitmap 13,15=outline</text>
+</svg>

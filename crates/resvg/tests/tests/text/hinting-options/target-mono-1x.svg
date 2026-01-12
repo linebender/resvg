@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:resvg="https://resvg.io/ns" width="300" height="100" font-family="Noto Sans">
+    <text x="5" y="22" font-size="16" text-rendering="optimizeLegibility" resvg:hinting-target="mono">Mono 16px: Hamburgefonstiv 0O Il1</text>
+    <text x="5" y="47" font-size="16" text-rendering="optimizeLegibility" resvg:hinting-target="smooth">Smooth 16px: Hamburgefonstiv 0O Il1</text>
+    <text x="5" y="72" font-size="16" text-rendering="geometricPrecision">Unhinted 16px: Hamburgefonstiv 0O Il1</text>
+    <text x="5" y="95" font-size="10" fill="#666">Target comparison at 16px</text>
+</svg>

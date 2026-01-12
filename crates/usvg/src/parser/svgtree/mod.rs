@@ -706,12 +706,14 @@ impl AId {
                 | AId::FloodOpacity
                 | AId::FontFamily
                 | AId::FontKerning // technically not presentation
+                | AId::FontOpticalSizing // technically not presentation
                 | AId::FontSize
                 | AId::FontSizeAdjust
                 | AId::FontStretch
                 | AId::FontStyle
                 | AId::FontVariant
                 | AId::FontWeight
+                | AId::FontVariationSettings
                 | AId::GlyphOrientationHorizontal
                 | AId::GlyphOrientationVertical
                 | AId::ImageRendering
@@ -727,6 +729,11 @@ impl AId {
                 | AId::Opacity
                 | AId::Overflow
                 | AId::PaintOrder
+                | AId::ResvgHintingEngine // resvg extension
+                | AId::ResvgHintingMode // resvg extension
+                | AId::ResvgHintingPreserveLinearMetrics // resvg extension
+                | AId::ResvgHintingSymmetric // resvg extension
+                | AId::ResvgHintingTarget // resvg extension
                 | AId::ShapeRendering
                 | AId::StopColor
                 | AId::StopOpacity
@@ -782,6 +789,7 @@ impl AId {
                 | AId::FloodOpacity
                 | AId::FontFamily
                 | AId::FontKerning
+                | AId::FontOpticalSizing
                 | AId::FontSize
                 | AId::FontStretch
                 | AId::FontStyle

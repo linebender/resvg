@@ -14,11 +14,16 @@ workspace = "../.."
 name = "resvg"
 required-features = ["text", "system-fonts", "memmap-fonts"]
 
+[[example]]
+name = "generate_hinting_comparison"
+required-features = ["text"]
+
 [dependencies]
 gif = { version = "0.14.1", optional = true }
 image-webp = { version = "0.2.4", optional = true }
 log = "0.4"
 pico-args = { version = "0.5", features = ["eq-separator"] }
+png = "0.18"
 rgb = "0.8"
 svgtypes = "0.16.1"
 tiny-skia = "0.11.4"
@@ -27,7 +32,6 @@ zune-jpeg = { version = "0.5.8", optional = true }
 
 [dev-dependencies]
 once_cell = "1.21"
-png = "0.18.0"
 
 [features]
 default = ["text", "system-fonts", "memmap-fonts", "raster-images"]

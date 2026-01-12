@@ -35,6 +35,42 @@ and can focus just on the rendering part.
 - All filters are supported. Including filter functions, like `filter="contrast(50%)"`
 - Recursive elements will be detected and removed
 - `objectBoundingBox` will be replaced with `userSpaceOnUse`
+- Variable fonts are supported via `font-variation-settings` CSS property and automatic
+  mapping of `font-weight`, `font-stretch`, and `font-style` to variation axes
+- Font hinting is supported and controlled by the `text-rendering` property:
+  `geometricPrecision` disables hinting, `optimizeLegibility`/`optimizeSpeed` enable it
+- `font-optical-sizing` is supported for automatic optical size axis adjustment
+
+## Resvg Extensions
+
+usvg supports custom properties for fine-grained control over font hinting.
+These can be specified as SVG attributes (using the `resvg:` namespace) or as
+CSS properties (using the `-resvg-` vendor prefix).
+
+### Hinting Properties
+
+| Property | Values | Default | Description |
+|----------|--------|---------|-------------|
+| `resvg:hinting-target` | `smooth`, `mono` | `smooth` | Target rasterization type |
+| `resvg:hinting-mode` | `normal`, `light`, `lcd`, `vertical-lcd` | `normal` | Hinting strength |
+| `resvg:hinting-engine` | `auto`, `native`, `auto-fallback` | `auto-fallback` | Hinting engine |
+| `resvg:hinting-symmetric` | `true`, `false` | `true` | Symmetric rendering |
+| `resvg:hinting-preserve-linear-metrics` | `true`, `false` | `false` | Preserve glyph spacing |
+
+### Example
+
+```xml
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:resvg="https://github.com/linebender/resvg">
+  <!-- As attributes -->
+  <text resvg:hinting-target="mono">Crisp text</text>
+
+  <!-- As CSS -->
+  <text style="-resvg-hinting-target: mono;">Crisp text</text>
+</svg>
+```
+
+See [`HintingSettings`] for detailed documentation of each property.
 
 ## Limitations
 

@@ -1,0 +1,39 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"
+     font-family="Noto Sans">
+    <title>Hinting comparison at small sizes</title>
+
+    <!-- Left: Hinted (optimizeLegibility) -->
+    <text x="5" y="12" font-size="7" font-weight="bold">HINTED</text>
+    <text x="5" y="28" font-size="8" text-rendering="optimizeLegibility">8px: Hinting</text>
+    <text x="5" y="44" font-size="10" text-rendering="optimizeLegibility">10px: Hinting</text>
+    <text x="5" y="62" font-size="12" text-rendering="optimizeLegibility">12px: Hinting</text>
+    <text x="5" y="82" font-size="14" text-rendering="optimizeLegibility">14px: Hint</text>
+
+    <!-- Right: Unhinted (geometricPrecision) -->
+    <text x="105" y="12" font-size="7" font-weight="bold">UNHINTED</text>
+    <text x="105" y="28" font-size="8" text-rendering="geometricPrecision">8px: Hinting</text>
+    <text x="105" y="44" font-size="10" text-rendering="geometricPrecision">10px: Hinting</text>
+    <text x="105" y="62" font-size="12" text-rendering="geometricPrecision">12px: Hinting</text>
+    <text x="105" y="82" font-size="14" text-rendering="geometricPrecision">14px: Hint</text>
+
+    <!-- Divider -->
+    <line x1="100" y1="5" x2="100" y2="95" stroke="#ccc"/>
+
+    <!-- Confusable characters comparison -->
+    <text x="5" y="110" font-size="8" font-weight="bold">Confusables:</text>
+    <text x="5" y="128" font-size="11" text-rendering="optimizeLegibility">0O Il1 rnm</text>
+    <text x="105" y="128" font-size="11" text-rendering="geometricPrecision">0O Il1 rnm</text>
+
+    <!-- Small text block -->
+    <text x="5" y="150" font-size="9" text-rendering="optimizeLegibility">Quick fox</text>
+    <text x="105" y="150" font-size="9" text-rendering="geometricPrecision">Quick fox</text>
+
+    <text x="5" y="170" font-size="10" font-weight="bold" text-rendering="optimizeLegibility">Bold 10px</text>
+    <text x="105" y="170" font-size="10" font-weight="bold" text-rendering="geometricPrecision">Bold 10px</text>
+
+    <text x="5" y="188" font-size="9" font-style="italic" text-rendering="optimizeLegibility">Italic 9px</text>
+    <text x="105" y="188" font-size="9" font-style="italic" text-rendering="geometricPrecision">Italic 9px</text>
+
+    <!-- image frame -->
+    <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>
