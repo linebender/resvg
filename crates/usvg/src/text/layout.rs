@@ -45,28 +45,12 @@ pub struct PositionedGlyph {
     /// The ID of the font the glyph should be taken from. Can be used with the
     /// [font database of the tree](crate::Tree::fontdb) this glyph is part of.
     pub font: ID,
-    /// Font variation settings for variable fonts.
-    pub variations: Vec<crate::FontVariation>,
-    /// Font optical sizing mode for auto-opsz computation.
-    pub font_optical_sizing: crate::FontOpticalSizing,
-    /// Font hinting settings.
-    pub hinting: crate::HintingSettings,
 }
 
 impl PositionedGlyph {
     /// Returns the font size for this glyph.
     pub fn font_size(&self) -> f32 {
         self.font_size
-    }
-
-    /// Returns the font optical sizing mode.
-    pub fn font_optical_sizing(&self) -> crate::FontOpticalSizing {
-        self.font_optical_sizing
-    }
-
-    /// Returns the hinting settings for this glyph.
-    pub fn hinting(&self) -> crate::HintingSettings {
-        self.hinting
     }
 
     /// Returns the transform of glyph.
@@ -182,6 +166,12 @@ pub struct Span {
     pub paint_order: PaintOrder,
     /// The font size of the span.
     pub font_size: NonZeroPositiveF32,
+    /// Font variation settings for variable fonts (uniform for all glyphs in span).
+    pub variations: Vec<crate::FontVariation>,
+    /// Font optical sizing mode for auto-opsz computation.
+    pub font_optical_sizing: crate::FontOpticalSizing,
+    /// Font hinting settings.
+    pub hinting: crate::HintingSettings,
     /// The visibility of the span.
     pub visible: bool,
     /// The glyphs that make up the span.
@@ -373,11 +363,23 @@ pub(crate) fn layout_text(
                     })
                     .collect();
 
+                // Compute effective variations for this span (including auto-opsz).
+                let effective_variations = compute_effective_variations(
+                    &span.font.variations,
+                    span.font_size.get(),
+                    span.font_optical_sizing,
+                    font.id,
+                    fontdb,
+                );
+
                 spans.push(Span {
                     fill,
                     stroke: span.stroke.clone(),
                     paint_order: span.paint_order,
                     font_size: span.font_size,
+                    variations: effective_variations,
+                    font_optical_sizing: span.font_optical_sizing,
+                    hinting: span.font.hinting,
                     visible: span.visible,
                     positioned_glyphs,
                     underline,
@@ -991,26 +993,10 @@ fn process_chunk(
     let mut clusters = Vec::new();
     for (range, byte_idx) in GlyphClusters::new(&glyphs) {
         if let Some(span) = chunk_span_at(chunk, byte_idx) {
-            // Compute effective variations including auto-opsz to match what was used during shaping.
-            // This ensures the glyph outlines use the same variations as the advance/position calculations.
-            let font_id = fonts_cache
-                .get(&span.font)
-                .map(|f| f.id)
-                .unwrap_or_else(|| glyphs[range.start].font.id);
-            let effective_variations = compute_effective_variations(
-                &span.font.variations,
-                span.font_size.get(),
-                span.font_optical_sizing,
-                font_id,
-                fontdb,
-            );
             clusters.push(form_glyph_clusters(
                 &glyphs[range],
                 &chunk.text,
                 span.font_size.get(),
-                &effective_variations,
-                span.font_optical_sizing,
-                span.font.hinting,
             ));
         }
     }
@@ -1181,14 +1167,7 @@ fn apply_word_spacing(chunk: &TextChunk, clusters: &mut [GlyphCluster]) {
     }
 }
 
-fn form_glyph_clusters(
-    glyphs: &[Glyph],
-    text: &str,
-    font_size: f32,
-    variations: &[crate::FontVariation],
-    font_optical_sizing: crate::FontOpticalSizing,
-    hinting: crate::HintingSettings,
-) -> GlyphCluster {
+fn form_glyph_clusters(glyphs: &[Glyph], text: &str, font_size: f32) -> GlyphCluster {
     debug_assert!(!glyphs.is_empty());
 
     let mut width = 0.0;
@@ -1218,9 +1197,6 @@ fn form_glyph_clusters(
             font: glyph.font.id,
             text: glyph.text.clone(),
             id: glyph.id,
-            variations: variations.to_vec(),
-            font_optical_sizing,
-            hinting,
         });
 
         x += glyph.width as f32;
@@ -1410,31 +1386,12 @@ fn shape_text_with_font(
                     let axes = skrifa_font.axes();
                     let has_opsz_axis = axes.iter().any(|axis| axis.tag() == Tag::new(b"opsz"));
                     if has_opsz_axis {
-                        log::debug!(
-                            "Auto-setting opsz={} (font-optical-sizing: auto)",
-                            font_size
-                        );
                         final_variations.push(harfrust::Variation {
                             tag: Tag::new(b"opsz"),
                             value: font_size,
                         });
                     }
                 }
-            }
-        }
-
-        // Log variations if any
-        if !final_variations.is_empty() {
-            log::debug!(
-                "Applying {} font variations for shaping",
-                final_variations.len()
-            );
-            for v in &final_variations {
-                log::debug!(
-                    "  Setting variation {:?} = {}",
-                    std::str::from_utf8(&v.tag.into_bytes()).unwrap_or("????"),
-                    v.value
-                );
             }
         }
 

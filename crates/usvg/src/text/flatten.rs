@@ -254,17 +254,26 @@ fn flatten_impl(
         // it needs CrispEdges rendering (no anti-aliasing), so we flush the builder
         // when the rendering mode changes.
         let mut span_builder = tiny_skia_path::PathBuilder::new();
-        let mut current_glyph_rendering_mode = rendering_mode;
+
+        // Determine rendering mode for this span based on hinting target.
+        // Mono target always disables anti-aliasing (CrispEdges), regardless of whether
+        // hinting is enabled. This allows comparing hinted vs unhinted mono rendering.
+        let span_rendering_mode = if span.hinting.target == crate::HintingTarget::Mono {
+            ShapeRendering::CrispEdges // No anti-aliasing for mono target
+        } else {
+            rendering_mode
+        };
+        let mut current_glyph_rendering_mode = span_rendering_mode;
+
+        // Check if we need variations for this span (uniform for all glyphs).
+        // For variable fonts, we need to extract the outline with variations applied.
+        // We can't use the cache here since the outline depends on variation values.
+        let needs_variations = !span.variations.is_empty()
+            || span.font_optical_sizing == crate::FontOpticalSizing::Auto;
 
         for glyph in &span.positioned_glyphs {
-            // Determine rendering mode for this glyph based on hinting target
-            // Mono target always disables anti-aliasing (CrispEdges), regardless of whether
-            // hinting is enabled. This allows comparing hinted vs unhinted mono rendering.
-            let glyph_rendering_mode = if glyph.hinting().target == crate::HintingTarget::Mono {
-                ShapeRendering::CrispEdges // No anti-aliasing for mono target
-            } else {
-                rendering_mode
-            };
+            // For mono hinting, all glyphs in the span use the same rendering mode
+            let glyph_rendering_mode = span_rendering_mode;
 
             // If rendering mode changed, flush the current path segment
             if glyph_rendering_mode != current_glyph_rendering_mode {
@@ -328,12 +337,7 @@ fn flatten_impl(
 
                 new_children.push(Node::Group(Box::new(group)));
             } else {
-                // For variable fonts, we need to extract the outline with variations applied.
-                // We can't use the cache here since the outline depends on variation values.
-                // Also handle auto-opsz for variable fonts.
-                let needs_variations = !glyph.variations.is_empty()
-                    || glyph.font_optical_sizing() == crate::FontOpticalSizing::Auto;
-
+                // Use span-level variation settings (uniform for all glyphs in span).
                 let outline = if use_hinting {
                     // Use skrifa for hinted outline extraction
                     let ppem = hinting_ctx.map(|ctx| ctx.ppem(glyph.font_size()));
@@ -341,19 +345,19 @@ fn flatten_impl(
                         &cache.fontdb,
                         glyph.font,
                         glyph.id,
-                        &glyph.variations,
+                        &span.variations,
                         glyph.font_size(),
-                        glyph.font_optical_sizing(),
+                        span.font_optical_sizing,
                         ppem,
-                        glyph.hinting(),
+                        span.hinting,
                     )
                 } else if needs_variations {
                     cache.fontdb.outline_with_variations(
                         glyph.font,
                         glyph.id,
-                        &glyph.variations,
+                        &span.variations,
                         glyph.font_size(),
-                        glyph.font_optical_sizing(),
+                        span.font_optical_sizing,
                     )
                 } else {
                     cache.fontdb_outline(glyph.font, glyph.id)
