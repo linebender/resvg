@@ -20,7 +20,7 @@ mod use_node;
 mod text;
 #[cfg(feature = "text")]
 pub(crate) use converter::{
-    Cache, CacheStats, OutlineCacheKey, DEFAULT_OUTLINE_CACHE_CAPACITY, compute_variation_hash,
+    Cache, CacheStats, DEFAULT_OUTLINE_CACHE_CAPACITY, OutlineCacheKey, compute_variation_hash,
 };
 pub use image::{ImageHrefDataResolverFn, ImageHrefResolver, ImageHrefStringResolverFn};
 #[cfg(feature = "text")]

@@ -10,6 +10,35 @@ This changelog also contains important changes in dependencies.
 
 This release has an MSRV of 1.87.0 for `usvg` and `resvg` and the C API.
 
+### Added
+
+- Hinting support for text rendering with configurable settings via CSS custom properties
+  (`-resvg-hinting-target`, `-resvg-hinting-mode`, `-resvg-hinting-engine`,
+  `-resvg-hinting-symmetric`, `-resvg-hinting-preserve-linear-metrics`).
+- Variable font support with avar-aware axis normalization for correct rendering.
+- LRU cache for glyph outlines with full parameter support (hinting settings, variations, ppem).
+  Dramatically improves performance for text-heavy documents with repeated glyphs.
+- Cache statistics tracking (`CacheStats`) for monitoring outline cache hits/misses/evictions.
+- Cache management methods: `outline_cache_stats()`, `clear_outline_cache()`,
+  `resize_outline_cache()`, `outline_cache_len()`, `outline_cache_capacity()`.
+
+### Changed
+
+- Port text rendering from `ttf-parser`/`rustybuzz` to `skrifa`/`harfrust`.
+- Vendor `fontdb` 0.23.0 as a workspace crate, ported from `ttf-parser` to `skrifa`.
+  This eliminates the `ttf-parser` dependency entirely.
+- Move span-uniform fields (`variations`, `font_optical_sizing`, `hinting`) from
+  `PositionedGlyph` to `Span` for reduced memory usage and better cache efficiency.
+- Unify three outline extraction code paths (simple/variable/hinted) into single cached lookup.
+
+### Fixed
+
+- Remove empty `--drop-tables` flag from README.
+- Fix potential panics on empty slices in font fallback.
+- Add empty path check in `path_length()`.
+- Add ASCII validation for font variation tags.
+- Fix incorrect safety comment on mmap in fontdb.
+
 ## [0.46.0]
 
 This release has an MSRV of 1.87.0 for `usvg` and `resvg` and the C API.
