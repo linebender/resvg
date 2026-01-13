@@ -473,8 +473,8 @@ impl ConvolveMatrixData {
     /// # Panics
     ///
     /// - When position is out of bounds.
-    pub fn get(&self, x: u32, y: u32) -> f32 {
-        self.data[(y * self.columns + x) as usize]
+    pub fn get(&self, x: u32, y: u32) -> Option<f32> {
+        self.data.get((y * self.columns + x) as usize).cloned()
     }
 }
 

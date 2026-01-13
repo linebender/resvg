@@ -920,7 +920,7 @@ fn apply_convolve_matrix(
         demultiply_alpha(pixmap.data_mut().as_rgba_mut());
     }
 
-    convolve_matrix::apply(fe, pixmap.as_image_ref_mut());
+    convolve_matrix::apply(fe, pixmap.as_image_ref_mut())?;
 
     Ok(Image::from_image(pixmap, cs))
 }
@@ -973,7 +973,7 @@ fn apply_displacement_map(
         pixmap1.as_image_ref(),
         pixmap2.as_image_ref(),
         pixmap.as_image_ref_mut(),
-    );
+    )?;
 
     Ok(Image::from_image(pixmap, cs))
 }
