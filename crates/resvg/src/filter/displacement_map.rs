@@ -10,10 +10,6 @@ use usvg::filter::{ColorChannel, DisplacementMap};
 /// - `src` pixels can have any alpha method.
 ///
 /// `sx` and `sy` indicate canvas scale.
-///
-/// # Panics
-///
-/// When `src`, `map` and `dest` have different sizes.
 pub fn apply(
     fe: &DisplacementMap,
     sx: f32,
@@ -21,9 +17,13 @@ pub fn apply(
     src: ImageRef,
     map: ImageRef,
     dest: ImageRefMut,
-) {
-    assert!(src.width == map.width && src.width == dest.width);
-    assert!(src.height == map.height && src.height == dest.height);
+) -> Result<(), super::Error> {
+    if src.width != map.width || src.width != dest.width {
+        return Err(super::Error::InvalidRegion);
+    }
+    if src.height != map.height || src.height != dest.height {
+        return Err(super::Error::InvalidRegion);
+    }
 
     let w = src.width as i32;
     let h = src.height as i32;
@@ -61,4 +61,5 @@ pub fn apply(
             y += 1;
         }
     }
+    Ok(())
 }
