@@ -152,9 +152,9 @@ pub struct Span {
     pub paint_order: PaintOrder,
     /// The font size of the span.
     pub font_size: NonZeroPositiveF32,
-    /// Font variation settings for variable fonts (uniform for all glyphs in span).
+    /// Font variation settings for variable fonts.
     pub variations: Vec<crate::FontVariation>,
-    /// Font optical sizing mode for auto-opsz computation.
+    /// Font optical sizing mode.
     pub font_optical_sizing: crate::FontOpticalSizing,
     /// The visibility of the span.
     pub visible: bool,

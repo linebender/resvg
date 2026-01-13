@@ -263,10 +263,9 @@ fn collect_text_chunks_impl(
             apply_kerning = false;
         }
 
-        // Parse font-optical-sizing (defaults to auto to match browser behavior)
         let font_optical_sizing = match parent.find_attribute::<&str>(AId::FontOpticalSizing) {
             Some("none") => crate::FontOpticalSizing::None,
-            _ => crate::FontOpticalSizing::Auto, // "auto" or missing = Auto (browser default)
+            _ => crate::FontOpticalSizing::Auto, // "auto" or missing (browser default)
         };
 
         let mut text_length =

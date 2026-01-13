@@ -73,7 +73,6 @@ pub(crate) fn flatten(text: &mut Text, cache: &mut Cache) -> Option<(Group, NonZ
 
         // For variable fonts, we need to extract the outline with variations applied.
         // We can't use the cache here since the outline depends on variation values.
-        // Check explicit variations once (span-level, uniform for all glyphs).
         let has_explicit_variations = !span.variations.is_empty();
 
         for glyph in &span.positioned_glyphs {
@@ -267,7 +266,6 @@ impl DatabaseExt for Database {
         self.with_face_data(id, |data, face_index| -> Option<tiny_skia_path::Path> {
             let mut font = ttf_parser::Face::parse(data, face_index).ok()?;
 
-            // Apply explicit font variations
             for v in variations {
                 font.set_variation(ttf_parser::Tag::from_bytes(&v.tag), v.value);
             }
