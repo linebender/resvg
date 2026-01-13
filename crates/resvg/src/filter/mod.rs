@@ -287,7 +287,9 @@ impl Image {
         self,
         color_space: usvg::filter::ColorInterpolation,
     ) -> Result<Self, Error> {
-        if color_space != self.color_space {
+        if color_space == self.color_space {
+            Ok(self)
+        } else {
             let region = self.region;
 
             let mut image = self.take()?;
@@ -302,8 +304,6 @@ impl Image {
                 region,
                 color_space,
             })
-        } else {
-            Ok(self)
         }
     }
 
