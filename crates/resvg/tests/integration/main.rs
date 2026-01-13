@@ -11,10 +11,23 @@ use std::process::Command;
 use std::sync::Arc;
 use usvg::fontdb;
 
+/// Save a tiny_skia::Pixmap as PNG with 96 DPI metadata.
+fn save_pixmap_png_with_dpi(
+    pixmap: &tiny_skia::Pixmap,
+    path: &str,
+) -> Result<(), png::EncodingError> {
+    resvg::save_png_with_dpi(pixmap, std::path::Path::new(path), 96)
+}
+
 #[rustfmt::skip]
 mod render;
 
+#[rustfmt::skip]
+mod render_hinted;
+
 mod extra;
+
+mod hinting;
 
 const IMAGE_SIZE: u32 = 300;
 
@@ -34,11 +47,15 @@ static GLOBAL_FONTDB: Lazy<Arc<fontdb::Database>> = Lazy::new(|| {
 });
 
 pub fn render(name: &str) -> usize {
-    render_inner(name, TestMode::Normal)
+    render_inner(name, TestMode::Normal, HintingMode::Disabled)
+}
+
+pub fn render_hinted(name: &str) -> usize {
+    render_inner(name, TestMode::Normal, HintingMode::Enabled)
 }
 
 pub fn render_extra_with_scale(name: &str, scale: f32) -> usize {
-    render_inner(name, TestMode::Extra(scale))
+    render_inner(name, TestMode::Extra(scale), HintingMode::Disabled)
 }
 
 pub fn render_extra(name: &str) -> usize {
@@ -46,13 +63,40 @@ pub fn render_extra(name: &str) -> usize {
 }
 
 pub fn render_node(name: &str, id: &str) -> usize {
-    render_inner(name, TestMode::Node(id))
+    render_inner(name, TestMode::Node(id), HintingMode::Disabled)
 }
 
-pub fn render_inner(name: &str, test_mode: TestMode) -> usize {
-    let svg_path = format!("tests/{}.svg", name);
-    let png_path = format!("tests/{}.png", name);
+#[derive(Clone, Copy)]
+pub enum HintingMode {
+    Disabled,
+    Enabled,
+}
+
+pub fn render_inner(name: &str, test_mode: TestMode, hinting_mode: HintingMode) -> usize {
+    let (svg_path, png_path, diff_dir) = match hinting_mode {
+        HintingMode::Disabled => (
+            format!("tests/{}.svg", name),
+            format!("tests/{}.png", name),
+            "tests/diffs",
+        ),
+        HintingMode::Enabled => (
+            format!("tests/{}.svg", name),
+            format!("tests-hinted/{}.png", name),
+            "tests/diffs-hinted",
+        ),
+    };
     let make_ref = std::env::var("MAKE_REF").is_ok();
+
+    let hinting_options = match hinting_mode {
+        HintingMode::Disabled => usvg::HintingOptions {
+            enabled: false,
+            dpi: None,
+        },
+        HintingMode::Enabled => usvg::HintingOptions {
+            enabled: true,
+            dpi: Some(96.0),
+        },
+    };
 
     let opt = usvg::Options {
         fontdb: GLOBAL_FONTDB.clone(),
@@ -62,6 +106,8 @@ pub fn render_inner(name: &str, test_mode: TestMode) -> usize {
                 .unwrap()
                 .to_owned(),
         ),
+        #[cfg(feature = "text")]
+        hinting: hinting_options,
         ..usvg::Options::default()
     };
 
@@ -110,7 +156,13 @@ pub fn render_inner(name: &str, test_mode: TestMode) -> usize {
     };
 
     let make_ref_fn = || -> ! {
-        pixmap.save_png(&png_path).unwrap();
+        // Create parent directory if needed (for tests-hinted/)
+        if let Some(parent) = std::path::Path::new(&png_path).parent() {
+            if let Err(e) = std::fs::create_dir_all(parent) {
+                eprintln!("Warning: failed to create directory {:?}: {}", parent, e);
+            }
+        }
+        save_pixmap_png_with_dpi(&pixmap, &png_path).unwrap();
         Command::new("oxipng")
             .args([
                 "-o".to_owned(),
@@ -129,7 +181,7 @@ pub fn render_inner(name: &str, test_mode: TestMode) -> usize {
         if make_ref {
             make_ref_fn();
         } else {
-            panic!("missing reference image");
+            panic!("missing reference image: {}", png_path);
         }
     };
 
@@ -137,8 +189,8 @@ pub fn render_inner(name: &str, test_mode: TestMode) -> usize {
         if make_ref {
             make_ref_fn();
         } else {
-            let _ = std::fs::create_dir_all("tests/diffs");
-            diff_image.save_png(&format!("tests/diffs/{}.png", name.replace("/", "_")));
+            let _ = std::fs::create_dir_all(diff_dir);
+            diff_image.save_png(&format!("{}/{}.png", diff_dir, name.replace("/", "_")));
 
             pixel_diff
         }
@@ -149,6 +201,10 @@ pub fn render_inner(name: &str, test_mode: TestMode) -> usize {
 
 /// Returns `Some` if there is at least one different pixel, and `None` if the images match.
 fn get_diff(expected_image: &TestImage, actual_image: &TestImage) -> Option<(TestImage, usize)> {
+    /// Pixel difference threshold for image comparison.
+    /// Value of 1 means any channel difference > 1 is considered a mismatch.
+    /// This is strict but necessary for detecting subtle font rendering changes.
+    /// Note: May need platform-specific adjustments if tests become flaky.
     const DIFF_THRESHOLD: u8 = 1;
 
     let width = max(expected_image.width, actual_image.width);

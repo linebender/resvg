@@ -1,0 +1,34 @@
+[package]
+name = "fontdb"
+version = "0.23.0"
+authors = ["Yevhenii Reizner <razrfalcon@gmail.com>"]
+edition = "2024"
+rust-version = "1.87.0"
+license = "MIT"
+description = "A simple, in-memory font database with CSS-like queries. Vendored for resvg with skrifa backend."
+repository = "https://github.com/linebender/resvg"
+documentation = "https://docs.rs/fontdb/"
+keywords = ["font", "db", "css", "truetype", "opentype"]
+categories = ["text-processing"]
+
+[dependencies]
+slotmap = "1.0"
+tinyvec = { version = "1.8", features = ["alloc"] }
+skrifa = "0.40"
+log = "0.4"
+
+memmap2 = { version = "0.9", optional = true }
+fontconfig-parser = { version = "0.5.8", optional = true }
+
+[features]
+default = ["std", "fs", "system-fonts", "memmap"]
+# Enables standard library support (always on for this vendored version).
+std = []
+# Enables file system operations (loading fonts from files/directories).
+fs = ["std"]
+# Enables system fonts loading.
+system-fonts = ["fs", "fontconfig"]
+# Enables fontconfig support on Linux.
+fontconfig = ["fontconfig-parser"]
+# Enables font files memory mapping for faster loading.
+memmap = ["fs", "memmap2"]

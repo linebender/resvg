@@ -11,9 +11,12 @@ use crate::{Cache, Font, FontStretch, FontStyle, Text};
 
 pub(crate) mod flatten;
 
-mod colr;
 /// Provides access to the layout of a text node.
 pub mod layout;
+
+// Skrifa-based implementations for font metrics and COLR
+mod skrifa_colr;
+mod skrifa_metrics;
 
 /// A shorthand for [FontResolver]'s font selection function.
 ///
@@ -146,7 +149,7 @@ impl FontResolver<'_> {
     /// to find a font that has the correct style and supports the character.
     pub fn default_fallback_selector() -> FallbackSelectionFn<'static> {
         Box::new(|c, exclude_fonts, fontdb| {
-            let base_font_id = exclude_fonts[0];
+            let base_font_id = *exclude_fonts.first()?;
 
             // Iterate over fonts and check if any of them support the specified char.
             for face in fontdb.faces() {
@@ -171,14 +174,14 @@ impl FontResolver<'_> {
                 let base_family = base_face
                     .families
                     .iter()
-                    .find(|f| f.1 == fontdb::Language::English_UnitedStates)
-                    .unwrap_or(&base_face.families[0]);
+                    .find(|f| f.1 == fontdb::Language::EnglishUnitedStates)
+                    .or_else(|| base_face.families.first())?;
 
                 let new_family = face
                     .families
                     .iter()
-                    .find(|f| f.1 == fontdb::Language::English_UnitedStates)
-                    .unwrap_or(&base_face.families[0]);
+                    .find(|f| f.1 == fontdb::Language::EnglishUnitedStates)
+                    .or_else(|| face.families.first())?;
 
                 log::warn!("Fallback from {} to {}.", base_family.0, new_family.0);
                 return Some(face.id);
@@ -201,13 +204,18 @@ impl std::fmt::Debug for FontResolver<'_> {
 ///    is not based on the outlines of a glyph, but instead the glyph metrics as well
 ///    as decoration spans).
 /// 2. We convert all of the positioned glyphs into outlines.
-pub(crate) fn convert(text: &mut Text, resolver: &FontResolver, cache: &mut Cache) -> Option<()> {
+pub(crate) fn convert(
+    text: &mut Text,
+    resolver: &FontResolver,
+    cache: &mut Cache,
+    hinting_ctx: Option<flatten::HintingContext>,
+) -> Option<()> {
     let (text_fragments, bbox) = layout::layout_text(text, resolver, &mut cache.fontdb)?;
     text.layouted = text_fragments;
     text.bounding_box = bbox.to_rect();
     text.abs_bounding_box = bbox.transform(text.abs_transform)?.to_rect();
 
-    let (group, stroke_bbox) = flatten::flatten(text, cache)?;
+    let (group, stroke_bbox) = flatten::flatten(text, cache, hinting_ctx)?;
     text.flattened = Box::new(group);
     text.stroke_bounding_box = stroke_bbox.to_rect();
     text.abs_stroke_bounding_box = stroke_bbox.transform(text.abs_transform)?.to_rect();

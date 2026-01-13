@@ -16,6 +16,7 @@ SVGinOT = "SVGinOT"
 
 # Match Inside a Word - Case Insensitive
 [default.extend-words]
+wdth = "wdth"
 
 [files]
 # Include .github, .cargo, etc.

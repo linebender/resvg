@@ -8,6 +8,45 @@ use std::sync::Arc;
 use crate::FontResolver;
 use crate::{ImageHrefResolver, ImageRendering, ShapeRendering, Size, TextRendering};
 
+/// Font hinting configuration.
+///
+/// Controls how font outlines are grid-fitted for better rendering at small sizes.
+#[cfg(feature = "text")]
+#[derive(Debug, Clone, Copy)]
+pub struct HintingOptions {
+    /// Whether to enable font hinting.
+    ///
+    /// When enabled, uses skrifa to apply grid-fitting to glyph outlines.
+    /// The actual hinting behavior is controlled by the `text-rendering` CSS property:
+    /// - `optimizeLegibility` / `optimizeSpeed`: Full hinting
+    /// - `geometricPrecision`: No hinting (preserve exact outlines)
+    ///
+    /// Default: `true` (matching browser behavior)
+    pub enabled: bool,
+
+    /// Deprecated: This field is no longer used.
+    ///
+    /// In SVG, font-size is specified in user units (pixels), so ppem equals
+    /// font_size directly. Hinting is applied at the source coordinate scale.
+    /// For pixel-perfect output, render at 1:1 scale or integer zoom factors.
+    ///
+    /// This field is kept for API compatibility but has no effect.
+    pub dpi: Option<f32>,
+}
+
+#[cfg(feature = "text")]
+impl Default for HintingOptions {
+    fn default() -> Self {
+        Self {
+            // Enable hinting by default (matching browser behavior).
+            // CSS text-rendering property controls per-element hinting:
+            // geometricPrecision disables, optimizeLegibility enables.
+            enabled: true,
+            dpi: None,
+        }
+    }
+}
+
 /// Processing options.
 #[derive(Debug)]
 pub struct Options<'a> {
@@ -95,6 +134,14 @@ pub struct Options<'a> {
     /// be the same as this one.
     #[cfg(feature = "text")]
     pub fontdb: Arc<fontdb::Database>,
+
+    /// Font hinting configuration.
+    ///
+    /// Controls grid-fitting of glyph outlines for better rendering at small sizes.
+    /// Available when the `text` feature is enabled.
+    #[cfg(feature = "text")]
+    pub hinting: HintingOptions,
+
     /// A CSS stylesheet that should be injected into the SVG. Can be used to overwrite
     /// certain attributes.
     pub style_sheet: Option<String>,
@@ -118,6 +165,8 @@ impl Default for Options<'_> {
             font_resolver: FontResolver::default(),
             #[cfg(feature = "text")]
             fontdb: Arc::new(fontdb::Database::new()),
+            #[cfg(feature = "text")]
+            hinting: HintingOptions::default(),
             style_sheet: None,
         }
     }

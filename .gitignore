@@ -4,3 +4,4 @@ target
 .vscode
 tools/build-*
 **/diffs
+**/diffs-hinted

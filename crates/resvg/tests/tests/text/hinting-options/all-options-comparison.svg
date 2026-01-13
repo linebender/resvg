@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:resvg="https://resvg.io/ns" width="300" height="200" font-family="Noto Sans" font-size="12">
+    <!-- Target options -->
+    <text x="5" y="18" resvg:hinting-target="smooth">target:smooth</text>
+    <text x="105" y="18" resvg:hinting-target="mono">target:mono</text>
+    <text x="205" y="18" text-rendering="geometricPrecision">unhinted</text>
+    <!-- Mode options -->
+    <text x="5" y="43" resvg:hinting-mode="normal">mode:normal</text>
+    <text x="105" y="43" resvg:hinting-mode="light">mode:light</text>
+    <text x="205" y="43" resvg:hinting-mode="lcd">mode:lcd</text>
+    <!-- Engine options -->
+    <text x="5" y="68" resvg:hinting-engine="auto">engine:auto</text>
+    <text x="105" y="68" resvg:hinting-engine="native">engine:native</text>
+    <text x="205" y="68" resvg:hinting-engine="auto-fallback">engine:fallback</text>
+    <!-- Symmetric options -->
+    <text x="5" y="93" resvg:hinting-symmetric="true">symmetric:true</text>
+    <text x="150" y="93" resvg:hinting-symmetric="false">symmetric:false</text>
+    <!-- Linear metrics options -->
+    <text x="5" y="118" resvg:hinting-preserve-linear-metrics="false">linear:false</text>
+    <text x="150" y="118" resvg:hinting-preserve-linear-metrics="true">linear:true</text>
+    <!-- Vertical LCD -->
+    <text x="5" y="143" resvg:hinting-mode="vertical-lcd">mode:vertical-lcd</text>
+    <!-- Combination example -->
+    <text x="5" y="168" resvg:hinting-target="mono" resvg:hinting-engine="native">Combined: mono + native engine</text>
+    <text x="5" y="193" font-size="10" fill="#666">All hinting options demonstration</text>
+    <rect x="1" y="1" width="298" height="198" fill="none" stroke="black"/>
+</svg>

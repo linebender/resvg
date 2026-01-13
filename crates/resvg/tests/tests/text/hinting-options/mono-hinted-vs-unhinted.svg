@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:resvg="https://resvg.io/ns" width="300" height="100" font-family="Noto Sans" font-size="14">
+    <text x="5" y="22" text-rendering="optimizeLegibility" resvg:hinting-target="mono">Mono hinted: 0O Il1 S5 Z2</text>
+    <text x="5" y="47" text-rendering="geometricPrecision" resvg:hinting-target="mono">Mono unhinted: 0O Il1 S5 Z2</text>
+    <text x="5" y="72" text-rendering="optimizeLegibility" resvg:hinting-target="smooth">Smooth hinted: 0O Il1 S5 Z2</text>
+    <text x="5" y="95" text-rendering="geometricPrecision">Unhinted: 0O Il1 S5 Z2</text>
+</svg>

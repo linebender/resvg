@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:resvg="https://resvg.io/ns"
+     width="300" height="100" font-family="Inter" font-size="14">
+    <text x="5" y="22" text-rendering="optimizeLegibility"
+          resvg:hinting-target="mono" resvg:hinting-engine="auto">Auto engine: Hamburgefonstiv 0O Il1</text>
+    <text x="5" y="47" text-rendering="optimizeLegibility"
+          resvg:hinting-target="mono" resvg:hinting-engine="native">Native engine: Hamburgefonstiv 0O Il1</text>
+    <text x="5" y="72" text-rendering="optimizeLegibility"
+          resvg:hinting-target="mono" resvg:hinting-engine="auto-fallback">Auto-fallback: Hamburgefonstiv 0O Il1</text>
+    <text x="5" y="95" font-size="11" fill="#666">Engine comparison at 14px mono</text>
+</svg>
