@@ -127,10 +127,6 @@ impl Normal {
 /// - `dest` will have an **unpremultiplied alpha**.
 ///
 /// Does nothing when `src` is less than 3x3.
-///
-/// # Panics
-///
-/// - When `src` and `dest` have different sizes.
 pub fn diffuse_lighting(
     fe: &DiffuseLighting,
     light_source: LightSource,
@@ -175,10 +171,6 @@ pub fn diffuse_lighting(
 /// - `dest` will have a **premultiplied alpha**.
 ///
 /// Does nothing when `src` is less than 3x3.
-///
-/// # Panics
-///
-/// - When `src` and `dest` have different sizes.
 pub fn specular_lighting(
     fe: &SpecularLighting,
     light_source: LightSource,
