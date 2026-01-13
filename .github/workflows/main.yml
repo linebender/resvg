@@ -65,7 +65,7 @@ jobs:
       - name: Install toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: 1.82.0
+          toolchain: 1.87.0
 
       - name: Build
         run: cargo build

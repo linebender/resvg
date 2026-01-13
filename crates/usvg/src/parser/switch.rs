@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 use super::svgtree::{AId, SvgNode};
-use super::{converter, Options};
+use super::{Options, converter};
 use crate::{Group, Node};
 
 // Full list can be found here: https://www.w3.org/TR/SVG11/feature.html

@@ -20,7 +20,7 @@ pub fn render_inner(
     pixmap: &mut tiny_skia::PixmapMut,
 ) {
     match image_kind {
-        usvg::ImageKind::SVG(ref tree) => {
+        usvg::ImageKind::SVG(tree) => {
             render_vector(tree, transform, pixmap);
         }
         #[cfg(feature = "raster-images")]
@@ -62,16 +62,16 @@ mod raster_images {
     fn decode_raster(image: &usvg::ImageKind) -> Option<tiny_skia::Pixmap> {
         match image {
             usvg::ImageKind::SVG(_) => None,
-            usvg::ImageKind::JPEG(ref data) => {
+            usvg::ImageKind::JPEG(data) => {
                 decode_jpeg(data).log_none(|| log::warn!("Failed to decode a JPEG image."))
             }
-            usvg::ImageKind::PNG(ref data) => {
+            usvg::ImageKind::PNG(data) => {
                 decode_png(data).log_none(|| log::warn!("Failed to decode a PNG image."))
             }
-            usvg::ImageKind::GIF(ref data) => {
+            usvg::ImageKind::GIF(data) => {
                 decode_gif(data).log_none(|| log::warn!("Failed to decode a GIF image."))
             }
-            usvg::ImageKind::WEBP(ref data) => {
+            usvg::ImageKind::WEBP(data) => {
                 decode_webp(data).log_none(|| log::warn!("Failed to decode a WebP image."))
             }
         }

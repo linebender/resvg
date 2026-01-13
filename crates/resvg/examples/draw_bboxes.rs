@@ -70,7 +70,7 @@ fn collect_bboxes(
     stroke_bboxes: &mut Vec<usvg::Rect>,
 ) {
     for node in parent.children() {
-        if let usvg::Node::Group(ref group) = node {
+        if let usvg::Node::Group(group) = node {
             collect_bboxes(group, bboxes, stroke_bboxes);
         }
 

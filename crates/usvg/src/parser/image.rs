@@ -6,7 +6,7 @@ use std::sync::Arc;
 use svgtypes::{AspectRatio, Length};
 
 use super::svgtree::{AId, SvgNode};
-use super::{converter, OptionLog, Options};
+use super::{OptionLog, Options, converter};
 use crate::{
     ClipPath, Group, Image, ImageKind, ImageRendering, Node, NonZeroRect, Path, Size, Transform,
     Tree, Visibility,

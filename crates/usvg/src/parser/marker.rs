@@ -415,20 +415,12 @@ fn calc_angle(x1: f32, y1: f32, x2: f32, y2: f32, x3: f32, y3: f32, x4: f32, y4:
 
     fn normalize(rad: f32) -> f32 {
         let v = rad % (PI * 2.0);
-        if v < 0.0 {
-            v + PI * 2.0
-        } else {
-            v
-        }
+        if v < 0.0 { v + PI * 2.0 } else { v }
     }
 
     fn vector_angle(vx: f32, vy: f32) -> f32 {
         let rad = vy.atan2(vx);
-        if rad.is_nan() {
-            0.0
-        } else {
-            normalize(rad)
-        }
+        if rad.is_nan() { 0.0 } else { normalize(rad) }
     }
 
     let in_a = vector_angle(x2 - x1, y2 - y1);

@@ -78,6 +78,11 @@ fn text_simple_case() {
 }
 
 #[test]
+fn clip_path_with_transform() {
+    resave("clip-path-with-transform");
+}
+
+#[test]
 fn preserve_id_filter() {
     resave("preserve-id-filter");
 }

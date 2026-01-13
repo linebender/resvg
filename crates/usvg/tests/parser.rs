@@ -45,7 +45,7 @@ fn stylesheet_injection() {
 
     let tree = usvg::Tree::from_str(&svg, &options).unwrap();
 
-    let usvg::Node::Path(ref first) = &tree.root().children()[0] else {
+    let usvg::Node::Path(first) = &tree.root().children()[0] else {
         unreachable!()
     };
 
@@ -55,7 +55,7 @@ fn stylesheet_injection() {
         &usvg::Paint::Color(Color::new_rgb(255, 0, 0))
     );
 
-    let usvg::Node::Path(ref second) = &tree.root().children()[1] else {
+    let usvg::Node::Path(second) = &tree.root().children()[1] else {
         unreachable!()
     };
     assert_eq!(
@@ -63,7 +63,7 @@ fn stylesheet_injection() {
         &usvg::Paint::Color(Color::new_rgb(255, 0, 0))
     );
 
-    let usvg::Node::Path(ref third) = &tree.root().children()[2] else {
+    let usvg::Node::Path(third) = &tree.root().children()[2] else {
         unreachable!()
     };
     assert_eq!(
@@ -71,7 +71,7 @@ fn stylesheet_injection() {
         &usvg::Paint::Color(Color::new_rgb(0, 128, 0))
     );
 
-    let usvg::Node::Path(ref third) = &tree.root().children()[3] else {
+    let usvg::Node::Path(third) = &tree.root().children()[3] else {
         unreachable!()
     };
     assert_eq!(
@@ -79,7 +79,7 @@ fn stylesheet_injection() {
         &usvg::Paint::Color(Color::new_rgb(0, 128, 0))
     );
 
-    let usvg::Node::Path(ref third) = &tree.root().children()[3] else {
+    let usvg::Node::Path(third) = &tree.root().children()[3] else {
         unreachable!()
     };
     assert_eq!(
@@ -113,7 +113,7 @@ fn stylesheet_injection_with_important() {
 
     let tree = usvg::Tree::from_str(&svg, &options).unwrap();
 
-    let usvg::Node::Path(ref first) = &tree.root().children()[0] else {
+    let usvg::Node::Path(first) = &tree.root().children()[0] else {
         unreachable!()
     };
 
@@ -123,7 +123,7 @@ fn stylesheet_injection_with_important() {
         &usvg::Paint::Color(Color::new_rgb(255, 0, 0))
     );
 
-    let usvg::Node::Path(ref second) = &tree.root().children()[1] else {
+    let usvg::Node::Path(second) = &tree.root().children()[1] else {
         unreachable!()
     };
     assert_eq!(
@@ -131,7 +131,7 @@ fn stylesheet_injection_with_important() {
         &usvg::Paint::Color(Color::new_rgb(255, 0, 0))
     );
 
-    let usvg::Node::Path(ref third) = &tree.root().children()[2] else {
+    let usvg::Node::Path(third) = &tree.root().children()[2] else {
         unreachable!()
     };
     assert_eq!(
@@ -139,7 +139,7 @@ fn stylesheet_injection_with_important() {
         &usvg::Paint::Color(Color::new_rgb(255, 0, 0))
     );
 
-    let usvg::Node::Path(ref third) = &tree.root().children()[3] else {
+    let usvg::Node::Path(third) = &tree.root().children()[3] else {
         unreachable!()
     };
     assert_eq!(
@@ -147,7 +147,7 @@ fn stylesheet_injection_with_important() {
         &usvg::Paint::Color(Color::new_rgb(255, 0, 0))
     );
 
-    let usvg::Node::Path(ref third) = &tree.root().children()[4] else {
+    let usvg::Node::Path(third) = &tree.root().children()[4] else {
         unreachable!()
     };
     assert_eq!(
@@ -167,7 +167,7 @@ fn simplify_paths() {
     let tree = usvg::Tree::from_str(&svg, &usvg::Options::default()).unwrap();
     let path = &tree.root().children()[0];
     match path {
-        usvg::Node::Path(ref path) => {
+        usvg::Node::Path(path) => {
             // Make sure we have MLZ and not MLZZZ
             assert_eq!(path.data().verbs().len(), 3);
         }
@@ -249,7 +249,7 @@ fn path_transform() {
     );
 
     let group = match group_node {
-        usvg::Node::Group(ref g) => g,
+        usvg::Node::Group(g) => g,
         _ => unreachable!(),
     };
 
@@ -282,7 +282,7 @@ fn path_transform_nested() {
     );
 
     let group1 = match group_node1 {
-        usvg::Node::Group(ref g) => g,
+        usvg::Node::Group(g) => g,
         _ => unreachable!(),
     };
 
@@ -294,7 +294,7 @@ fn path_transform_nested() {
     );
 
     let group2 = match group_node2 {
-        usvg::Node::Group(ref g) => g,
+        usvg::Node::Group(g) => g,
         _ => unreachable!(),
     };
 
@@ -336,7 +336,7 @@ fn path_transform_in_symbol_no_clip() {
     assert_eq!(group_node1.abs_transform(), usvg::Transform::default());
 
     let group1 = match group_node1 {
-        usvg::Node::Group(ref g) => g,
+        usvg::Node::Group(g) => g,
         _ => unreachable!(),
     };
 
@@ -348,7 +348,7 @@ fn path_transform_in_symbol_no_clip() {
     );
 
     let group2 = match group_node2 {
-        usvg::Node::Group(ref g) => g,
+        usvg::Node::Group(g) => g,
         _ => unreachable!(),
     };
 
@@ -397,7 +397,7 @@ fn path_transform_in_symbol_with_clip() {
     assert_eq!(group_node1.abs_transform(), usvg::Transform::default());
 
     let group1 = match group_node1 {
-        usvg::Node::Group(ref g) => g,
+        usvg::Node::Group(g) => g,
         _ => unreachable!(),
     };
 
@@ -406,7 +406,7 @@ fn path_transform_in_symbol_with_clip() {
     assert_eq!(group_node2.abs_transform(), usvg::Transform::default());
 
     let group2 = match group_node2 {
-        usvg::Node::Group(ref g) => g,
+        usvg::Node::Group(g) => g,
         _ => unreachable!(),
     };
 
@@ -418,7 +418,7 @@ fn path_transform_in_symbol_with_clip() {
     );
 
     let group3 = match group_node3 {
-        usvg::Node::Group(ref g) => g,
+        usvg::Node::Group(g) => g,
         _ => unreachable!(),
     };
 
@@ -467,7 +467,7 @@ fn path_transform_in_svg() {
     );
 
     let group1 = match group_node1 {
-        usvg::Node::Group(ref g) => g,
+        usvg::Node::Group(g) => g,
         _ => unreachable!(),
     };
 
@@ -480,7 +480,7 @@ fn path_transform_in_svg() {
     );
 
     let group2 = match group_node2 {
-        usvg::Node::Group(ref g) => g,
+        usvg::Node::Group(g) => g,
         _ => unreachable!(),
     };
 

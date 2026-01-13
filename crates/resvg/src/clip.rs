@@ -35,7 +35,7 @@ fn draw_children(
 ) {
     for child in parent.children() {
         match child {
-            usvg::Node::Path(ref path) => {
+            usvg::Node::Path(path) => {
                 if !path.is_visible() {
                     continue;
                 }
@@ -47,10 +47,10 @@ fn draw_children(
 
                 crate::path::fill_path(path, mode, &ctx, transform, pixmap);
             }
-            usvg::Node::Text(ref text) => {
+            usvg::Node::Text(text) => {
                 draw_children(text.flattened(), mode, transform, pixmap);
             }
-            usvg::Node::Group(ref group) => {
+            usvg::Node::Group(group) => {
                 let transform = transform.pre_concat(group.transform());
 
                 if let Some(clip) = group.clip_path() {

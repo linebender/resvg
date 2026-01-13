@@ -763,9 +763,9 @@ impl PartialEq for Paint {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::Color(lc), Self::Color(rc)) => lc == rc,
-            (Self::LinearGradient(ref lg1), Self::LinearGradient(ref lg2)) => Arc::ptr_eq(lg1, lg2),
-            (Self::RadialGradient(ref rg1), Self::RadialGradient(ref rg2)) => Arc::ptr_eq(rg1, rg2),
-            (Self::Pattern(ref p1), Self::Pattern(ref p2)) => Arc::ptr_eq(p1, p2),
+            (Self::LinearGradient(lg1), Self::LinearGradient(lg2)) => Arc::ptr_eq(lg1, lg2),
+            (Self::RadialGradient(rg1), Self::RadialGradient(rg2)) => Arc::ptr_eq(rg1, rg2),
+            (Self::Pattern(p1), Self::Pattern(p2)) => Arc::ptr_eq(p1, p2),
             _ => false,
         }
     }
@@ -899,10 +899,10 @@ impl Node {
     /// Returns node's ID.
     pub fn id(&self) -> &str {
         match self {
-            Node::Group(ref e) => e.id.as_str(),
-            Node::Path(ref e) => e.id.as_str(),
-            Node::Image(ref e) => e.id.as_str(),
-            Node::Text(ref e) => e.id.as_str(),
+            Node::Group(e) => e.id.as_str(),
+            Node::Path(e) => e.id.as_str(),
+            Node::Image(e) => e.id.as_str(),
+            Node::Text(e) => e.id.as_str(),
         }
     }
 
@@ -911,52 +911,52 @@ impl Node {
     /// This method is cheap since absolute transforms are already resolved.
     pub fn abs_transform(&self) -> Transform {
         match self {
-            Node::Group(ref group) => group.abs_transform(),
-            Node::Path(ref path) => path.abs_transform(),
-            Node::Image(ref image) => image.abs_transform(),
-            Node::Text(ref text) => text.abs_transform(),
+            Node::Group(group) => group.abs_transform(),
+            Node::Path(path) => path.abs_transform(),
+            Node::Image(image) => image.abs_transform(),
+            Node::Text(text) => text.abs_transform(),
         }
     }
 
     /// Returns node's bounding box in object coordinates, if any.
     pub fn bounding_box(&self) -> Rect {
         match self {
-            Node::Group(ref group) => group.bounding_box(),
-            Node::Path(ref path) => path.bounding_box(),
-            Node::Image(ref image) => image.bounding_box(),
-            Node::Text(ref text) => text.bounding_box(),
+            Node::Group(group) => group.bounding_box(),
+            Node::Path(path) => path.bounding_box(),
+            Node::Image(image) => image.bounding_box(),
+            Node::Text(text) => text.bounding_box(),
         }
     }
 
     /// Returns node's bounding box in canvas coordinates, if any.
     pub fn abs_bounding_box(&self) -> Rect {
         match self {
-            Node::Group(ref group) => group.abs_bounding_box(),
-            Node::Path(ref path) => path.abs_bounding_box(),
-            Node::Image(ref image) => image.abs_bounding_box(),
-            Node::Text(ref text) => text.abs_bounding_box(),
+            Node::Group(group) => group.abs_bounding_box(),
+            Node::Path(path) => path.abs_bounding_box(),
+            Node::Image(image) => image.abs_bounding_box(),
+            Node::Text(text) => text.abs_bounding_box(),
         }
     }
 
     /// Returns node's bounding box, including stroke, in object coordinates, if any.
     pub fn stroke_bounding_box(&self) -> Rect {
         match self {
-            Node::Group(ref group) => group.stroke_bounding_box(),
-            Node::Path(ref path) => path.stroke_bounding_box(),
+            Node::Group(group) => group.stroke_bounding_box(),
+            Node::Path(path) => path.stroke_bounding_box(),
             // Image cannot be stroked.
-            Node::Image(ref image) => image.bounding_box(),
-            Node::Text(ref text) => text.stroke_bounding_box(),
+            Node::Image(image) => image.bounding_box(),
+            Node::Text(text) => text.stroke_bounding_box(),
         }
     }
 
     /// Returns node's bounding box, including stroke, in canvas coordinates, if any.
     pub fn abs_stroke_bounding_box(&self) -> Rect {
         match self {
-            Node::Group(ref group) => group.abs_stroke_bounding_box(),
-            Node::Path(ref path) => path.abs_stroke_bounding_box(),
+            Node::Group(group) => group.abs_stroke_bounding_box(),
+            Node::Path(path) => path.abs_stroke_bounding_box(),
             // Image cannot be stroked.
-            Node::Image(ref image) => image.abs_bounding_box(),
-            Node::Text(ref text) => text.abs_stroke_bounding_box(),
+            Node::Image(image) => image.abs_bounding_box(),
+            Node::Text(text) => text.abs_stroke_bounding_box(),
         }
     }
 
@@ -968,11 +968,11 @@ impl Node {
     /// See [`Group::layer_bounding_box`] for details.
     pub fn abs_layer_bounding_box(&self) -> Option<NonZeroRect> {
         match self {
-            Node::Group(ref group) => Some(group.abs_layer_bounding_box()),
+            Node::Group(group) => Some(group.abs_layer_bounding_box()),
             // Hor/ver path without stroke can return None. This is expected.
-            Node::Path(ref path) => path.abs_bounding_box().to_non_zero_rect(),
-            Node::Image(ref image) => image.abs_bounding_box().to_non_zero_rect(),
-            Node::Text(ref text) => text.abs_bounding_box().to_non_zero_rect(),
+            Node::Path(path) => path.abs_bounding_box().to_non_zero_rect(),
+            Node::Image(image) => image.abs_bounding_box().to_non_zero_rect(),
+            Node::Text(text) => text.abs_bounding_box().to_non_zero_rect(),
         }
     }
 
@@ -991,7 +991,7 @@ impl Node {
     ///     for node in parent.children() {
     ///         // do stuff...
     ///
-    ///         if let usvg::Node::Group(ref g) = node {
+    ///         if let usvg::Node::Group(g) = node {
     ///             all_nodes(g);
     ///         }
     ///
@@ -1002,10 +1002,10 @@ impl Node {
     /// ```
     pub fn subroots<F: FnMut(&Group)>(&self, mut f: F) {
         match self {
-            Node::Group(ref group) => group.subroots(&mut f),
-            Node::Path(ref path) => path.subroots(&mut f),
-            Node::Image(ref image) => image.subroots(&mut f),
-            Node::Text(ref text) => text.subroots(&mut f),
+            Node::Group(group) => group.subroots(&mut f),
+            Node::Path(path) => path.subroots(&mut f),
+            Node::Image(image) => image.subroots(&mut f),
+            Node::Text(text) => text.subroots(&mut f),
         }
     }
 }
@@ -1441,10 +1441,10 @@ impl Path {
     }
 
     fn subroots(&self, f: &mut dyn FnMut(&Group)) {
-        if let Some(Paint::Pattern(ref patt)) = self.fill.as_ref().map(|f| &f.paint) {
+        if let Some(Paint::Pattern(patt)) = self.fill.as_ref().map(|f| &f.paint) {
             f(patt.root());
         }
-        if let Some(Paint::Pattern(ref patt)) = self.stroke.as_ref().map(|f| &f.paint) {
+        if let Some(Paint::Pattern(patt)) = self.stroke.as_ref().map(|f| &f.paint) {
             f(patt.root());
         }
     }
@@ -1468,14 +1468,14 @@ pub enum ImageKind {
 impl ImageKind {
     pub(crate) fn actual_size(&self) -> Option<Size> {
         match self {
-            ImageKind::JPEG(ref data)
-            | ImageKind::PNG(ref data)
-            | ImageKind::GIF(ref data)
-            | ImageKind::WEBP(ref data) => imagesize::blob_size(data)
+            ImageKind::JPEG(data)
+            | ImageKind::PNG(data)
+            | ImageKind::GIF(data)
+            | ImageKind::WEBP(data) => imagesize::blob_size(data)
                 .ok()
                 .and_then(|size| Size::from_wh(size.width as f32, size.height as f32))
                 .log_none(|| log::warn!("Image has an invalid size. Skipped.")),
-            ImageKind::SVG(ref svg) => Some(svg.size),
+            ImageKind::SVG(svg) => Some(svg.size),
         }
     }
 }
@@ -1701,7 +1701,7 @@ fn node_by_id<'a>(parent: &'a Group, id: &str) -> Option<&'a Node> {
             return Some(child);
         }
 
-        if let Node::Group(ref g) = child {
+        if let Node::Group(g) = child {
             if let Some(n) = node_by_id(g, id) {
                 return Some(n);
             }
@@ -1719,8 +1719,8 @@ fn has_text_nodes(root: &Group) -> bool {
 
         let mut has_text = false;
 
-        if let Node::Image(ref image) = node {
-            if let ImageKind::SVG(ref tree) = image.kind {
+        if let Node::Image(image) = node {
+            if let ImageKind::SVG(tree) = &image.kind {
                 if has_text_nodes(&tree.root) {
                     has_text = true;
                 }
@@ -1746,8 +1746,8 @@ fn loop_over_paint_servers(parent: &Group, f: &mut dyn FnMut(&Paint)) {
 
     for node in &parent.children {
         match node {
-            Node::Group(ref group) => loop_over_paint_servers(group, f),
-            Node::Path(ref path) => {
+            Node::Group(group) => loop_over_paint_servers(group, f),
+            Node::Path(path) => {
                 push(path.fill.as_ref().map(|f| &f.paint), f);
                 push(path.stroke.as_ref().map(|f| &f.paint), f);
             }
@@ -1763,13 +1763,13 @@ fn loop_over_paint_servers(parent: &Group, f: &mut dyn FnMut(&Paint)) {
 impl Group {
     pub(crate) fn collect_clip_paths(&self, clip_paths: &mut Vec<Arc<ClipPath>>) {
         for node in self.children() {
-            if let Node::Group(ref g) = node {
-                if let Some(ref clip) = g.clip_path {
+            if let Node::Group(g) = node {
+                if let Some(clip) = &g.clip_path {
                     if !clip_paths.iter().any(|other| Arc::ptr_eq(clip, other)) {
                         clip_paths.push(clip.clone());
                     }
 
-                    if let Some(ref sub_clip) = clip.clip_path {
+                    if let Some(sub_clip) = &clip.clip_path {
                         if !clip_paths.iter().any(|other| Arc::ptr_eq(sub_clip, other)) {
                             clip_paths.push(sub_clip.clone());
                         }
@@ -1779,7 +1779,7 @@ impl Group {
 
             node.subroots(|subroot| subroot.collect_clip_paths(clip_paths));
 
-            if let Node::Group(ref g) = node {
+            if let Node::Group(g) = node {
                 g.collect_clip_paths(clip_paths);
             }
         }
@@ -1787,13 +1787,13 @@ impl Group {
 
     pub(crate) fn collect_masks(&self, masks: &mut Vec<Arc<Mask>>) {
         for node in self.children() {
-            if let Node::Group(ref g) = node {
-                if let Some(ref mask) = g.mask {
+            if let Node::Group(g) = node {
+                if let Some(mask) = &g.mask {
                     if !masks.iter().any(|other| Arc::ptr_eq(mask, other)) {
                         masks.push(mask.clone());
                     }
 
-                    if let Some(ref sub_mask) = mask.mask {
+                    if let Some(sub_mask) = &mask.mask {
                         if !masks.iter().any(|other| Arc::ptr_eq(sub_mask, other)) {
                             masks.push(sub_mask.clone());
                         }
@@ -1803,7 +1803,7 @@ impl Group {
 
             node.subroots(|subroot| subroot.collect_masks(masks));
 
-            if let Node::Group(ref g) = node {
+            if let Node::Group(g) = node {
                 g.collect_masks(masks);
             }
         }
@@ -1811,7 +1811,7 @@ impl Group {
 
     pub(crate) fn collect_filters(&self, filters: &mut Vec<Arc<filter::Filter>>) {
         for node in self.children() {
-            if let Node::Group(ref g) = node {
+            if let Node::Group(g) = node {
                 for filter in g.filters() {
                     if !filters.iter().any(|other| Arc::ptr_eq(filter, other)) {
                         filters.push(filter.clone());
@@ -1821,7 +1821,7 @@ impl Group {
 
             node.subroots(|subroot| subroot.collect_filters(filters));
 
-            if let Node::Group(ref g) = node {
+            if let Node::Group(g) = node {
                 g.collect_filters(filters);
             }
         }
@@ -1831,7 +1831,7 @@ impl Group {
         let mut bbox = BBox::default();
         for child in &self.children {
             let mut c_bbox = child.bounding_box();
-            if let Node::Group(ref group) = child {
+            if let Node::Group(group) = child {
                 if let Some(r) = c_bbox.transform(group.transform) {
                     c_bbox = r;
                 }
@@ -1852,7 +1852,7 @@ impl Group {
         for child in &self.children {
             {
                 let mut c_bbox = child.bounding_box();
-                if let Node::Group(ref group) = child {
+                if let Node::Group(group) = child {
                     if let Some(r) = c_bbox.transform(group.transform) {
                         c_bbox = r;
                     }
@@ -1865,7 +1865,7 @@ impl Group {
 
             {
                 let mut c_bbox = child.stroke_bounding_box();
-                if let Node::Group(ref group) = child {
+                if let Node::Group(group) = child {
                     if let Some(r) = c_bbox.transform(group.transform) {
                         c_bbox = r;
                     }
@@ -1876,7 +1876,7 @@ impl Group {
 
             abs_stroke_bbox = abs_stroke_bbox.expand(child.abs_stroke_bounding_box());
 
-            if let Node::Group(ref group) = child {
+            if let Node::Group(group) = child {
                 let r = group.layer_bounding_box;
                 if let Some(r) = r.transform(group.transform) {
                     layer_bbox = layer_bbox.expand(r);

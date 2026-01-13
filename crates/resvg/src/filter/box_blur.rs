@@ -113,21 +113,13 @@ fn box_blur_vert(blur_radius: usize, backbuf: &ImageRefMut, frontbuf: &mut Image
         // Get the pixel at the specified index, or the first pixel of the column
         // if the index is beyond the top edge of the image
         let get_top = |i| {
-            if i < col_start {
-                fv
-            } else {
-                backbuf.data[i]
-            }
+            if i < col_start { fv } else { backbuf.data[i] }
         };
 
         // Get the pixel at the specified index, or the last pixel of the column
         // if the index is beyond the bottom edge of the image
         let get_bottom = |i| {
-            if i > col_end {
-                lv
-            } else {
-                backbuf.data[i]
-            }
+            if i > col_end { lv } else { backbuf.data[i] }
         };
 
         for j in 0..cmp::min(blur_radius, height) {
@@ -238,21 +230,13 @@ fn box_blur_horz(blur_radius: usize, backbuf: &ImageRefMut, frontbuf: &mut Image
         // Get the pixel at the specified index, or the first pixel of the row
         // if the index is beyond the left edge of the image
         let get_left = |i| {
-            if i < row_start {
-                fv
-            } else {
-                backbuf.data[i]
-            }
+            if i < row_start { fv } else { backbuf.data[i] }
         };
 
         // Get the pixel at the specified index, or the last pixel of the row
         // if the index is beyond the right edge of the image
         let get_right = |i| {
-            if i > row_end {
-                lv
-            } else {
-                backbuf.data[i]
-            }
+            if i > row_end { lv } else { backbuf.data[i] }
         };
 
         for j in 0..cmp::min(blur_radius, width) {

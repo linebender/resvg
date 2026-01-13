@@ -2,7 +2,7 @@
 ![Build Status](https://github.com/linebender/resvg/workflows/Build/badge.svg)
 [![Crates.io](https://img.shields.io/crates/v/resvg.svg)](https://crates.io/crates/resvg)
 [![Documentation](https://docs.rs/resvg/badge.svg)](https://docs.rs/resvg)
-[![Rust 1.82.0+](https://img.shields.io/badge/rust-1.82.0+-orange.svg)](https://www.rust-lang.org)
+[![Rust 1.87.0+](https://img.shields.io/badge/rust-1.87.0+-orange.svg)](https://www.rust-lang.org)
 
 *resvg* is an [SVG](https://en.wikipedia.org/wiki/Scalable_Vector_Graphics) rendering library.
 

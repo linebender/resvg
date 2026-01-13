@@ -10,5 +10,5 @@ name = "codegen"
 path = "main.rs"
 
 [dependencies]
-phf_codegen = "0.7.22"
+phf_codegen = "0.7.24"
 itertools = "0.14"

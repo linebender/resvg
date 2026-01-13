@@ -121,11 +121,7 @@ fn resolve_tref_text(xml: &roxmltree::Document, href: &str) -> Option<String> {
         .filter(|n| n.is_text())
         .filter_map(|n| n.text())
         .collect();
-    if text.is_empty() {
-        None
-    } else {
-        Some(text)
-    }
+    if text.is_empty() { None } else { Some(text) }
 }
 
 #[derive(Clone, Copy, PartialEq, Debug)]

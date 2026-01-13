@@ -48,13 +48,13 @@ pub fn fill_path(
         usvg::Paint::Color(c) => {
             paint.set_color_rgba8(c.red, c.green, c.blue, fill.opacity().to_u8());
         }
-        usvg::Paint::LinearGradient(ref lg) => {
+        usvg::Paint::LinearGradient(lg) => {
             paint.shader = convert_linear_gradient(lg, fill.opacity())?;
         }
-        usvg::Paint::RadialGradient(ref rg) => {
+        usvg::Paint::RadialGradient(rg) => {
             paint.shader = convert_radial_gradient(rg, fill.opacity())?;
         }
-        usvg::Paint::Pattern(ref pattern) => {
+        usvg::Paint::Pattern(pattern) => {
             let (patt_pix, patt_ts) = render_pattern_pixmap(pattern, ctx, transform)?;
 
             pattern_pixmap = patt_pix;
@@ -88,13 +88,13 @@ fn stroke_path(
         usvg::Paint::Color(c) => {
             paint.set_color_rgba8(c.red, c.green, c.blue, stroke.opacity().to_u8());
         }
-        usvg::Paint::LinearGradient(ref lg) => {
+        usvg::Paint::LinearGradient(lg) => {
             paint.shader = convert_linear_gradient(lg, stroke.opacity())?;
         }
-        usvg::Paint::RadialGradient(ref rg) => {
+        usvg::Paint::RadialGradient(rg) => {
             paint.shader = convert_radial_gradient(rg, stroke.opacity())?;
         }
-        usvg::Paint::Pattern(ref pattern) => {
+        usvg::Paint::Pattern(pattern) => {
             let (patt_pix, patt_ts) = render_pattern_pixmap(pattern, ctx, transform)?;
 
             pattern_pixmap = patt_pix;

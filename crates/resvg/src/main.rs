@@ -434,7 +434,7 @@ fn list_fonts(args: &CliArgs) {
     println!("monospace: {}", fontdb.family_name(&Family::Monospace));
 
     for face in fontdb.faces() {
-        if let fontdb::Source::File(ref path) = &face.source {
+        if let fontdb::Source::File(path) = &face.source {
             let families: Vec<_> = face
                 .families
                 .iter()
@@ -632,7 +632,7 @@ fn query_all_impl(parent: &usvg::Group) -> usize {
     let mut count = 0;
     for node in parent.children() {
         if node.id().is_empty() {
-            if let usvg::Node::Group(ref group) = node {
+            if let usvg::Node::Group(group) = node {
                 count += query_all_impl(group);
             }
             continue;
@@ -658,7 +658,7 @@ fn query_all_impl(parent: &usvg::Group) -> usize {
             round_len(bbox.height())
         );
 
-        if let usvg::Node::Group(ref group) = node {
+        if let usvg::Node::Group(group) = node {
             count += query_all_impl(group);
         }
     }
