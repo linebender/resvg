@@ -747,8 +747,7 @@ fn apply_composite(
             pixmap1.as_image_ref(),
             pixmap2.as_image_ref(),
             pixmap.as_image_ref_mut(),
-        )
-        .map_err(|_e| Error::InvalidRegion)?;
+        )?;
 
         return Ok(Image::from_image(pixmap, cs));
     }

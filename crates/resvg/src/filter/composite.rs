@@ -1,7 +1,7 @@
 // Copyright 2020 the Resvg Authors
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use super::{f32_bound, ImageRef, ImageRefMut};
+use super::{f32_bound, Error, ImageRef, ImageRefMut};
 use rgb::RGBA8;
 use usvg::ApproxZeroUlps;
 
@@ -17,13 +17,13 @@ pub fn arithmetic(
     src1: ImageRef,
     src2: ImageRef,
     dest: ImageRefMut,
-) -> Result<(), String> {
+) -> Result<(), Error> {
     if src1.width != src2.width || src1.width != dest.width {
-        return Err("Width mismatch".to_string());
+        return Err(Error::InvalidRegion);
     }
 
     if src1.height != src2.height || src1.height != dest.height {
-        return Err("Height mismatch".to_string());
+        return Err(Error::InvalidRegion);
     }
 
     let calc = |i1, i2, max| {
