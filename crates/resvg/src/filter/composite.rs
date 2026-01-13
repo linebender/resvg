@@ -9,10 +9,6 @@ use usvg::ApproxZeroUlps;
 ///
 /// - `src1` and `src2` image pixels should have a **premultiplied alpha**.
 /// - `dest` image pixels will have a **premultiplied alpha**.
-///
-/// # Panics
-///
-/// When `src1`, `src2` and `dest` have different sizes.
 pub fn arithmetic(
     k1: f32,
     k2: f32,
