@@ -6,6 +6,7 @@
 */
 
 #![forbid(unsafe_code)]
+#![forbid(clippy::missing_panics_doc)]
 #![warn(missing_docs)]
 #![allow(clippy::field_reassign_with_default)]
 #![allow(clippy::identity_op)]
@@ -37,7 +38,7 @@ pub fn render(
     transform: tiny_skia::Transform,
     pixmap: &mut tiny_skia::PixmapMut,
 ) -> Option<()> {
-    let target_size = tiny_skia::IntSize::from_wh(pixmap.width(), pixmap.height()).unwrap();
+    let target_size = tiny_skia::IntSize::from_wh(pixmap.width(), pixmap.height())?;
     let max_bbox = tiny_skia::IntRect::from_xywh(
         (-(target_size.width() as i32)).checked_add(2)?,
         (-(target_size.height() as i32)).checked_add(2)?,
@@ -67,14 +68,13 @@ pub fn render_node(
 ) -> Option<()> {
     let bbox = node.abs_layer_bounding_box()?;
 
-    let target_size = tiny_skia::IntSize::from_wh(pixmap.width(), pixmap.height()).unwrap();
+    let target_size = tiny_skia::IntSize::from_wh(pixmap.width(), pixmap.height())?;
     let max_bbox = tiny_skia::IntRect::from_xywh(
         -(target_size.width() as i32) * 2,
         -(target_size.height() as i32) * 2,
         target_size.width() * 5,
         target_size.height() * 5,
-    )
-    .unwrap();
+    )?;
 
     transform = transform.pre_translate(-bbox.x(), -bbox.y());
 
