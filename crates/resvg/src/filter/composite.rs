@@ -21,9 +21,13 @@ pub fn arithmetic(
     src1: ImageRef,
     src2: ImageRef,
     dest: ImageRefMut,
-) {
-    assert!(src1.width == src2.width && src1.width == dest.width);
-    assert!(src1.height == src2.height && src1.height == dest.height);
+) -> Result<(), crate::filter::Error> {
+    if src1.width != src2.width || src1.width != dest.width {
+        return Err(crate::filter::Error::InvalidRegion);
+    }
+    if src1.height != src2.height || src1.height != dest.height {
+        return Err(crate::filter::Error::InvalidRegion);
+    }
 
     let calc = |i1, i2, max| {
         let i1 = i1 as f32 / 255.0;
@@ -49,4 +53,5 @@ pub fn arithmetic(
 
         i += 1;
     }
+    Ok(())
 }

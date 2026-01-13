@@ -747,7 +747,7 @@ fn apply_composite(
             pixmap1.as_image_ref(),
             pixmap2.as_image_ref(),
             pixmap.as_image_ref_mut(),
-        );
+        )?;
 
         return Ok(Image::from_image(pixmap, cs));
     }
@@ -1026,7 +1026,7 @@ fn apply_diffuse_lighting(
         light_source,
         input.as_ref().as_image_ref(),
         pixmap.as_image_ref_mut(),
-    );
+    )?;
 
     Ok(Image::from_image(pixmap, cs))
 }
@@ -1047,7 +1047,7 @@ fn apply_specular_lighting(
         light_source,
         input.as_ref().as_image_ref(),
         pixmap.as_image_ref_mut(),
-    );
+    )?;
 
     Ok(Image::from_image(pixmap, cs))
 }
