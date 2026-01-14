@@ -348,7 +348,8 @@ pub fn apply(
     match result {
         Ok(_) => {}
         Err(Error::InvalidRegion) => {
-            log::warn!("Filter has an invalid region.");
+            let id = filter.id();
+            log::warn!("Filter '{id}' has an invalid region.");
         }
         Err(Error::NoResults) => {}
     }
