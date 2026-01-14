@@ -38,10 +38,10 @@ pub fn render(
 ) {
     let target_size = tiny_skia::IntSize::from_wh(pixmap.width(), pixmap.height()).unwrap();
     let max_bbox = tiny_skia::IntRect::from_xywh(
-        -(target_size.width() as i32) * 2,
-        -(target_size.height() as i32) * 2,
-        target_size.width() * 5,
-        target_size.height() * 5,
+        -((target_size.width() as i32) * 2).max(1024),
+        -((target_size.height() as i32) * 2).max(1024),
+        (target_size.width() * 5).max(1024*2),
+        (target_size.height() * 5).max(1024*2),
     )
     .unwrap();
 
