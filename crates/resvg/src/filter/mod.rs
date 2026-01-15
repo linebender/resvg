@@ -287,7 +287,9 @@ impl Image {
         self,
         color_space: usvg::filter::ColorInterpolation,
     ) -> Result<Self, Error> {
-        if color_space != self.color_space {
+        if color_space == self.color_space {
+            Ok(self)
+        } else {
             let region = self.region;
 
             let mut image = self.take()?;
@@ -302,8 +304,6 @@ impl Image {
                 region,
                 color_space,
             })
-        } else {
-            Ok(self)
         }
     }
 
@@ -348,7 +348,8 @@ pub fn apply(
     match result {
         Ok(_) => {}
         Err(Error::InvalidRegion) => {
-            log::warn!("Filter has an invalid region.");
+            let id = filter.id();
+            log::warn!("Filter '{id}' has an invalid region.");
         }
         Err(Error::NoResults) => {}
     }
@@ -747,7 +748,7 @@ fn apply_composite(
             pixmap1.as_image_ref(),
             pixmap2.as_image_ref(),
             pixmap.as_image_ref_mut(),
-        );
+        )?;
 
         return Ok(Image::from_image(pixmap, cs));
     }
@@ -920,7 +921,7 @@ fn apply_convolve_matrix(
         demultiply_alpha(pixmap.data_mut().as_rgba_mut());
     }
 
-    convolve_matrix::apply(fe, pixmap.as_image_ref_mut());
+    convolve_matrix::apply(fe, pixmap.as_image_ref_mut())?;
 
     Ok(Image::from_image(pixmap, cs))
 }
@@ -973,7 +974,7 @@ fn apply_displacement_map(
         pixmap1.as_image_ref(),
         pixmap2.as_image_ref(),
         pixmap.as_image_ref_mut(),
-    );
+    )?;
 
     Ok(Image::from_image(pixmap, cs))
 }
@@ -1026,7 +1027,7 @@ fn apply_diffuse_lighting(
         light_source,
         input.as_ref().as_image_ref(),
         pixmap.as_image_ref_mut(),
-    );
+    )?;
 
     Ok(Image::from_image(pixmap, cs))
 }
@@ -1047,7 +1048,7 @@ fn apply_specular_lighting(
         light_source,
         input.as_ref().as_image_ref(),
         pixmap.as_image_ref_mut(),
-    );
+    )?;
 
     Ok(Image::from_image(pixmap, cs))
 }
