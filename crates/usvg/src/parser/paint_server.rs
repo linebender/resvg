@@ -92,6 +92,7 @@ fn convert_radial(node: SvgNode, state: &converter::State) -> Option<ServerOrCol
 
     let units = convert_units(node, AId::GradientUnits, Units::ObjectBoundingBox);
     let r = resolve_number(node, AId::R, units, state, Length::new(50.0, Unit::Percent));
+    let fr = resolve_number(node, AId::Fr, units, state, Length::zero());
 
     // 'A value of zero will cause the area to be painted as a single color
     // using the color and opacity of the last gradient stop.'
@@ -130,6 +131,7 @@ fn convert_radial(node: SvgNode, state: &converter::State) -> Option<ServerOrCol
         r: PositiveF32::new(r).unwrap(),
         fx,
         fy,
+        fr: PositiveF32::new(fr).unwrap_or(PositiveF32::ZERO),
         base: BaseGradient {
             id,
             units,
@@ -855,6 +857,7 @@ fn process_context_paint(
                 r: rg.r,
                 fx: rg.fx,
                 fy: rg.fy,
+                fr: rg.fr,
                 base: BaseGradient {
                     id: cache.gen_radial_gradient_id(),
                     units: rg.units,
@@ -989,6 +992,7 @@ impl Paint {
                         r: rg.r,
                         fx: rg.fx,
                         fy: rg.fy,
+                        fr: rg.fr,
                         base: BaseGradient {
                             id: cache.gen_radial_gradient_id(),
                             units: Units::UserSpaceOnUse,

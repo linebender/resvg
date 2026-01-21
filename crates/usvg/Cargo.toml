@@ -23,7 +23,7 @@ log = "0.4"
 pico-args = { version = "0.5", features = ["eq-separator"] }
 strict-num = "0.1.1"
 svgtypes = "0.16.1"
-tiny-skia-path = "0.11.4"
+tiny-skia-path = "0.12.0"
 xmlwriter = "0.1"
 
 # parser

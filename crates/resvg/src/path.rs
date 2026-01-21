@@ -140,6 +140,7 @@ fn convert_radial_gradient(
 
     let shader = tiny_skia::RadialGradient::new(
         (gradient.fx(), gradient.fy()).into(),
+        gradient.fr().get(),
         (gradient.cx(), gradient.cy()).into(),
         gradient.r().get(),
         points,

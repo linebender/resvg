@@ -362,6 +362,7 @@ pub struct RadialGradient {
     pub(crate) r: PositiveF32,
     pub(crate) fx: f32,
     pub(crate) fy: f32,
+    pub(crate) fr: PositiveF32,
 }
 
 impl RadialGradient {
@@ -388,6 +389,11 @@ impl RadialGradient {
     /// `fy` coordinate.
     pub fn fy(&self) -> f32 {
         self.fy
+    }
+
+    /// Focal ragius.
+    pub fn fr(&self) -> PositiveF32 {
+        self.fr
     }
 }
 
