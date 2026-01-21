@@ -8,7 +8,8 @@ This changelog also contains important changes in dependencies.
 
 ## [Unreleased]
 
-This release has an MSRV of 1.87.0 for `usvg` and `resvg` and the C API.
+- This release has an MSRV of 1.87.0 for `usvg` and `resvg` and the C API.
+- Focal radius supported for Radial Gradients. (#1014 by @wmedrano)
 
 ## [0.46.0]
 

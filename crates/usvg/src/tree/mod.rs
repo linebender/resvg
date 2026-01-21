@@ -391,7 +391,7 @@ impl RadialGradient {
         self.fy
     }
 
-    /// Focal ragius.
+    /// Focal radius.
     pub fn fr(&self) -> PositiveF32 {
         self.fr
     }
