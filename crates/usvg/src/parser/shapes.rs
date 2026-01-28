@@ -31,8 +31,8 @@ pub(crate) fn convert_path(node: SvgNode) -> Option<Arc<Path>> {
             Ok(v) => v,
             Err(e) => {
                 log::warn!("Error during path parsing: {e}");
-                break
-            },
+                break;
+            }
         };
 
         match segment {

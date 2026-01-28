@@ -891,7 +891,7 @@ impl<'a, 'input: 'a> FromValue<'a, 'input> for Transform {
             Err(e) => {
                 log::warn!("Error parsing the transform: {e}");
                 return None;
-            },
+            }
         };
 
         let ts = Transform::from_row(
