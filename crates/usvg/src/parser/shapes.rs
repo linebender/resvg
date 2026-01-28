@@ -29,7 +29,10 @@ pub(crate) fn convert_path(node: SvgNode) -> Option<Arc<Path>> {
     for segment in svgtypes::SimplifyingPathParser::from(value) {
         let segment = match segment {
             Ok(v) => v,
-            Err(_) => break,
+            Err(e) => {
+                log::warn!("Error during path parsing: {e}");
+                break
+            },
         };
 
         match segment {
