@@ -1558,14 +1558,14 @@ fn shape_text_with_font(
             // Determine if this is a connected script (cursive writing systems).
             let first_char = sub_text.chars().next().unwrap();
             let is_connected_script = matches!(
-                    first_char.script(),
-                    unicode_script::Script::Arabic
-                        | unicode_script::Script::Syriac
-                        | unicode_script::Script::Nko
-                        | unicode_script::Script::Manichaean
-                        | unicode_script::Script::Mongolian
-                        | unicode_script::Script::Phags_Pa
-                );
+                first_char.script(),
+                unicode_script::Script::Arabic
+                    | unicode_script::Script::Syriac
+                    | unicode_script::Script::Nko
+                    | unicode_script::Script::Manichaean
+                    | unicode_script::Script::Mongolian
+                    | unicode_script::Script::Phags_Pa
+            );
 
             let ltr = levels[run.start].is_ltr();
             let hb_direction = if ltr {
