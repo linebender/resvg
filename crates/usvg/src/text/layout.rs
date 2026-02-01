@@ -1486,7 +1486,7 @@ fn shape_text_with_font(
             return None;
         };
 
-         const CJK_LANGUAGES: &[fontdb::Language] = &[
+        const CJK_LANGUAGES: &[fontdb::Language] = &[
             fontdb::Language::Chinese_PeoplesRepublicOfChina,
             fontdb::Language::Chinese_HongKongSAR,
             fontdb::Language::Chinese_MacaoSAR,
@@ -1557,15 +1557,16 @@ fn shape_text_with_font(
 
             // Determine if this is a connected script (cursive writing systems).
             let first_char = sub_text.chars().next().unwrap();
-            let is_connected_script = !is_cjk_font && matches!(
-                first_char.script(),
-                unicode_script::Script::Arabic
-                    | unicode_script::Script::Syriac
-                    | unicode_script::Script::Nko
-                    | unicode_script::Script::Manichaean
-                    | unicode_script::Script::Mongolian
-                    | unicode_script::Script::Phags_Pa
-            );
+            let is_connected_script = !is_cjk_font
+                && matches!(
+                    first_char.script(),
+                    unicode_script::Script::Arabic
+                        | unicode_script::Script::Syriac
+                        | unicode_script::Script::Nko
+                        | unicode_script::Script::Manichaean
+                        | unicode_script::Script::Mongolian
+                        | unicode_script::Script::Phags_Pa
+                );
 
             let ltr = levels[run.start].is_ltr();
             let hb_direction = if ltr {
@@ -1619,21 +1620,22 @@ fn shape_text_with_font(
             let output_vertical = rustybuzz::shape(&rb_font, &features, buffer_vertical);
 
             // Select appropriate results based on writing mode
-            let (positions, sub_positions, infos, sub_infos) = if writing_mode == WritingMode::TopToBottom {
-                (
-                    output_vertical.glyph_positions(),
-                    output_horizontal.glyph_positions(),
-                    output_vertical.glyph_infos(),
-                    output_horizontal.glyph_infos()
-                )
-            } else {
-                (
-                    output_horizontal.glyph_positions(),
-                    output_vertical.glyph_positions(),
-                    output_horizontal.glyph_infos(),
-                    output_vertical.glyph_infos()
-                )
-            };
+            let (positions, sub_positions, infos, sub_infos) =
+                if writing_mode == WritingMode::TopToBottom {
+                    (
+                        output_vertical.glyph_positions(),
+                        output_horizontal.glyph_positions(),
+                        output_vertical.glyph_infos(),
+                        output_horizontal.glyph_infos(),
+                    )
+                } else {
+                    (
+                        output_horizontal.glyph_positions(),
+                        output_vertical.glyph_positions(),
+                        output_horizontal.glyph_infos(),
+                        output_vertical.glyph_infos(),
+                    )
+                };
 
             let mut pre_pos = rustybuzz::GlyphPosition::default();
             let mut vertical_sub = 0;
@@ -1656,28 +1658,32 @@ fn shape_text_with_font(
                 .map_or(sub_text.len(), |info| info.cluster as usize);
 
                 let mut glyph_replaced = false;
-                let mut text_orientation: unicode_vo::Orientation = unicode_vo::Orientation::Rotated;
-                if !is_connected_script{
-                    let text_str  = &sub_text[start..end];
+                let mut text_orientation: unicode_vo::Orientation =
+                    unicode_vo::Orientation::Rotated;
+                if !is_connected_script {
+                    let text_str = &sub_text[start..end];
 
                     if let Some(first_char) = text_str.chars().next() {
                         // Determine text orientation based on first character
                         text_orientation = unicode_vo::char_orientation(first_char);
 
                         // Get relative glyph ID for comparison (only for non-rotated text)
-                        let relative_glyph_id = if text_orientation != unicode_vo::Orientation::Rotated {
-                            Some(sub_info.glyph_id)
-                        } else {
-                            None // Skip comparison for rotated text
-                        };
+                        let relative_glyph_id =
+                            if text_orientation != unicode_vo::Orientation::Rotated {
+                                Some(sub_info.glyph_id)
+                            } else {
+                                None // Skip comparison for rotated text
+                            };
 
                         // Check if glyph was replaced in vertical mode
-                        glyph_replaced = relative_glyph_id.map_or(false, |h_id| h_id != info.glyph_id);
+                        glyph_replaced =
+                            relative_glyph_id.map_or(false, |h_id| h_id != info.glyph_id);
 
                     }
                 }
 
-                let (mut glyph_x_offset, mut glyph_y_offset, mut glyph_width) =  (pos.x_offset, pos.y_offset, pos.x_advance);
+                let (mut glyph_x_offset, mut glyph_y_offset, mut glyph_width) =
+                    (pos.x_offset, pos.y_offset, pos.x_advance);
 
                 if writing_mode == WritingMode::TopToBottom {
                     // Vertical text layout
@@ -1703,7 +1709,6 @@ fn shape_text_with_font(
                     // Store current position for next iteration comparison
                     pre_pos = pos;
                 }
-
 
                 glyphs.push(Glyph {
                     byte_idx: ByteIndex::new(idx),
