@@ -1062,10 +1062,9 @@ fn apply_writing_mode(writing_mode: WritingMode, clusters: &mut [GlyphCluster]) 
             // Generally require a different glyph than in the code charts when used in vertical texts.
             // As a fallback, the character can be displayed with the code chart glyph rotated 90 degrees clockwise.
             unicode_vo::Orientation::TransformedOrRotated => (replaced, -90.0),
-            // Same as Tu except that, as a fallback, the character can be displayed with the code chart glyph upright.
-            unicode_vo::Orientation::TransformedOrUpright => {
-                (true, if replaced { -90.0 } else { 90.0 })
-            }
+            // Same as Tu except that, as a fallback, the character can be displayed with the code chart glyph upright (same as U).
+            // The replacement glyph for TU is usually moved to the center position, so the processing method is consistent.
+            unicode_vo::Orientation::TransformedOrUpright => (true, -90.0),
             // As a fallback, all non-U, TU, and TR types are classified as R.
             _ => (false, 0.0),
         };
