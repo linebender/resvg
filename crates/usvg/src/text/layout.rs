@@ -181,6 +181,8 @@ struct GlyphCluster {
     descent: f32,
     has_relative_shift: bool,
     glyphs: Vec<PositionedGlyph>,
+    glyphs_orientation: unicode_vo::Orientation,
+    glyphs_replaced: bool,
     transform: Transform,
     path_transform: Transform,
     visible: bool,
@@ -911,6 +913,7 @@ fn process_chunk(
             span.small_caps,
             span.apply_kerning,
             &span.font.variations,
+            span.writing_mode,
             span.font_size.get(),
             span.font_optical_sizing,
             resolver,
@@ -971,6 +974,7 @@ fn process_chunk(
                 &glyphs[range],
                 &chunk.text,
                 span.font_size.get(),
+                span.writing_mode,
             ));
         }
     }
@@ -1039,31 +1043,54 @@ fn apply_length_adjust(chunk: &TextChunk, clusters: &mut [GlyphCluster]) {
 }
 
 /// Rotates clusters according to
-/// [Unicode Vertical_Orientation Property](https://www.unicode.org/reports/tr50/tr50-19.html).
+/// [UAX#50 Unicode Vertical Text Layout](https://unicode.org/reports/tr50).
 fn apply_writing_mode(writing_mode: WritingMode, clusters: &mut [GlyphCluster]) {
     if writing_mode != WritingMode::TopToBottom {
         return;
     }
 
     for cluster in clusters {
-        let orientation = unicode_vo::char_orientation(cluster.codepoint);
-        if orientation == unicode_vo::Orientation::Upright {
+        let orientation = cluster.glyphs_orientation;
+        // Whether the single glyph were replaced with vertical variants.
+        // The Connected script (like Arabic) always set to false to avoid breaking the algorithm.
+        let replaced = cluster.glyphs_replaced;
+
+        let (needs_rotation, angle) = match orientation {
+            // Characters which are displayed upright, with the same orientation that appears in the code charts.
+            unicode_vo::Orientation::Upright => (true, -90.0),
+            // Characters which are not just upright or sideways
+            // Generally require a different glyph than in the code charts when used in vertical texts.
+            // As a fallback, the character can be displayed with the code chart glyph rotated 90 degrees clockwise.
+            unicode_vo::Orientation::TransformedOrRotated => (replaced, -90.0),
+            // Same as Tu except that, as a fallback, the character can be displayed with the code chart glyph upright.
+            unicode_vo::Orientation::TransformedOrUpright => {
+                (true, if replaced { -90.0 } else { 90.0 })
+            }
+            // As a fallback, all non-U, TU, and TR types are classified as R.
+            _ => (false, 0.0),
+        };
+
+        if needs_rotation {
+            let vertical_center = (cluster.ascent + cluster.descent) / 2.0;
+            let horizontal_center = cluster.width / 2.0;
+
             let mut ts = Transform::default();
             // Position glyph in the center of vertical axis.
-            ts = ts.pre_translate(0.0, (cluster.ascent + cluster.descent) / 2.0);
-            // Rotate by 90 degrees in the center.
-            ts = ts.pre_rotate_at(
-                -90.0,
-                cluster.width / 2.0,
-                -(cluster.ascent + cluster.descent) / 2.0,
-            );
+            ts = ts.pre_translate(0.0, vertical_center);
+            // Rotate by 90/-90 degrees in the center.
+            ts = ts.pre_rotate_at(angle, horizontal_center, -vertical_center);
 
             cluster.path_transform = ts;
 
             // Move "baseline" to the middle and make height equal to width.
-            cluster.ascent = cluster.width / 2.0;
-            cluster.descent = -cluster.width / 2.0;
-        } else {
+            let half_width = cluster.width / 2.0;
+            cluster.ascent = half_width;
+            cluster.descent = -half_width;
+        } else if matches!(
+            orientation,
+            // Characters which are displayed sideways, rotated 90 degrees clockwise compared to the code charts.
+            unicode_vo::Orientation::TransformedOrRotated | _
+        ) {
             // Could not find a spec that explains this,
             // but this is how other applications are shifting the "rotated" characters
             // in the top-to-bottom mode.
@@ -1141,16 +1168,28 @@ fn apply_word_spacing(chunk: &TextChunk, clusters: &mut [GlyphCluster]) {
     }
 }
 
-fn form_glyph_clusters(glyphs: &[Glyph], text: &str, font_size: f32) -> GlyphCluster {
+fn form_glyph_clusters(
+    glyphs: &[Glyph],
+    text: &str,
+    font_size: f32,
+    writing_mode: WritingMode,
+) -> GlyphCluster {
     debug_assert!(!glyphs.is_empty());
 
     let mut width = 0.0;
     let mut x: f32 = 0.0;
 
+    // Whole glyphs should in the same orientation.
+    let mut glyphs_orientation = unicode_vo::Orientation::Rotated;
+    let mut glyphs_replaced = false;
+
     let mut positioned_glyphs = vec![];
 
     for glyph in glyphs {
         let sx = glyph.font.scale(font_size);
+
+        glyphs_orientation = glyph.text_orientation;
+        glyphs_replaced = glyph.glyph_replaced;
 
         // Apply offset.
         //
@@ -1158,7 +1197,24 @@ fn form_glyph_clusters(glyphs: &[Glyph], text: &str, font_size: f32) -> GlyphClu
         // but the later one will have an offset from the "current position".
         // So we have to keep an advance.
         // TODO: should be done only inside a single text span
-        let ts = Transform::from_translate(x + glyph.dx as f32, -glyph.dy as f32);
+        let horizontal_transform = Transform::from_translate(x + glyph.dx as f32, -glyph.dy as f32);
+        let vertical_sub_transform = Transform::from_translate(0.0, glyph.vertical_sub as f32);
+
+        let ts = if writing_mode == WritingMode::TopToBottom {
+            // Vertical writing mode handling
+            // See detail in fn `apply_writing_mode`.
+            match glyphs_orientation {
+                unicode_vo::Orientation::Rotated => horizontal_transform,
+                unicode_vo::Orientation::TransformedOrRotated if glyphs_replaced => {
+                    vertical_sub_transform
+                }
+                unicode_vo::Orientation::TransformedOrRotated => horizontal_transform,
+                _ => vertical_sub_transform, // Covers Upright, TransformedOrUpright, etc.
+            }
+        } else {
+            // Horizontal writing mode - always use horizontal positioning
+            horizontal_transform
+        };
 
         positioned_glyphs.push(PositionedGlyph {
             glyph_ts: ts,
@@ -1175,7 +1231,21 @@ fn form_glyph_clusters(glyphs: &[Glyph], text: &str, font_size: f32) -> GlyphClu
 
         x += glyph.width as f32;
 
-        let glyph_width = glyph.width as f32 * sx;
+        // GlyphCluster.width is visual width in logical coordinates
+        let glyph_width = if writing_mode == WritingMode::TopToBottom {
+            // In vertical writing mode:
+            // - Rotated glyphs (Latin, Cyrillic, etc.) use their original width (set in fn `shape_text_with_font`).
+            //   (will be rotated 90 degrees)
+            // - Upright glyphs (CJK, etc.) use vertical advance (dy * 2)
+            if glyph.text_orientation == unicode_vo::Orientation::Rotated {
+                glyph.width as f32 * sx // Use original width for rotated characters
+            } else {
+                glyph.dx.abs() as f32 * 2.0 * sx // Vertical advance for upright characters
+            }
+        } else {
+            // Horizontal writing mode - use standard glyph width
+            glyph.width as f32 * sx
+        };
         if glyph_width > width {
             width = glyph_width;
         }
@@ -1194,6 +1264,8 @@ fn form_glyph_clusters(glyphs: &[Glyph], text: &str, font_size: f32) -> GlyphClu
         transform: Transform::default(),
         path_transform: Transform::default(),
         glyphs: positioned_glyphs,
+        glyphs_orientation,
+        glyphs_replaced,
         visible: true,
     }
 }
@@ -1296,6 +1368,7 @@ pub(crate) fn shape_text(
     small_caps: bool,
     apply_kerning: bool,
     variations: &[crate::FontVariation],
+    writing_mode: WritingMode,
     font_size: f32,
     font_optical_sizing: crate::FontOpticalSizing,
     resolver: &FontResolver,
@@ -1307,6 +1380,7 @@ pub(crate) fn shape_text(
         small_caps,
         apply_kerning,
         variations,
+        writing_mode,
         font_size,
         font_optical_sizing,
         fontdb,
@@ -1341,6 +1415,7 @@ pub(crate) fn shape_text(
                 small_caps,
                 apply_kerning,
                 variations,
+                writing_mode,
                 font_size,
                 font_optical_sizing,
                 fontdb,
@@ -1401,11 +1476,35 @@ fn shape_text_with_font(
     small_caps: bool,
     apply_kerning: bool,
     variations: &[crate::FontVariation],
+    writing_mode: WritingMode,
     font_size: f32,
     font_optical_sizing: crate::FontOpticalSizing,
     fontdb: &fontdb::Database,
 ) -> Option<Vec<Glyph>> {
     fontdb.with_face_data(font.id, |font_data, face_index| -> Option<Vec<Glyph>> {
+        let Some(font_face) = fontdb.face(font.id) else {
+            log::warn!("Failed to load font: {:?}", font.id);
+            return None;
+        };
+
+         const CJK_LANGUAGES: &[fontdb::Language] = &[
+            fontdb::Language::Chinese_PeoplesRepublicOfChina,
+            fontdb::Language::Chinese_HongKongSAR,
+            fontdb::Language::Chinese_MacaoSAR,
+            fontdb::Language::Chinese_Taiwan,
+            fontdb::Language::Chinese_Singapore,
+            fontdb::Language::Japanese_Japan,
+            fontdb::Language::Korean_Korea,
+            fontdb::Language::Vietnamese_Vietnam,
+        ];
+
+        // Perhaps one could use `unicode_script::Script::Han` to obtain the text language.
+        // But in practice, this is not advisable as it is prone to misjudgment.
+        // If possible, libraries such as lingua-rs, CLD2, Whatlang, and Whichlang should be utilized.
+        let is_cjk_font = font_face
+            .families
+            .iter()
+            .any(|family| CJK_LANGUAGES.contains(&family.1));
         let mut rb_font = rustybuzz::Face::from_slice(font_data, face_index)?;
 
         // Build the list of variations to apply
@@ -1457,6 +1556,18 @@ fn shape_text_with_font(
                 continue;
             }
 
+            // Determine if this is a connected script (cursive writing systems).
+            let first_char = sub_text.chars().next().unwrap();
+            let is_connected_script = !is_cjk_font && matches!(
+                first_char.script(),
+                unicode_script::Script::Arabic
+                    | unicode_script::Script::Syriac
+                    | unicode_script::Script::Nko
+                    | unicode_script::Script::Manichaean
+                    | unicode_script::Script::Mongolian
+                    | unicode_script::Script::Phags_Pa
+            );
+
             let ltr = levels[run.start].is_ltr();
             let hb_direction = if ltr {
                 rustybuzz::Direction::LeftToRight
@@ -1464,9 +1575,21 @@ fn shape_text_with_font(
                 rustybuzz::Direction::RightToLeft
             };
 
-            let mut buffer = rustybuzz::UnicodeBuffer::new();
-            buffer.push_str(sub_text);
-            buffer.set_direction(hb_direction);
+            // Most characters are rotated (R) in the vertical direction.
+            // RustyBuzz processes vertical content, the rendering effect is inconsistent with Chrome.
+            // It is necessary to continue obtaining the horizontal direction as a backup.
+            let mut buffer_horizontal = rustybuzz::UnicodeBuffer::new();
+            buffer_horizontal.push_str(sub_text);
+            buffer_horizontal.set_direction(hb_direction);
+            // Ogham script uses BottomToTop in vertical orientation, but not implemented currently
+            // See: https://www.w3.org/TR/2019/CR-css-writing-modes-4-20190730/#script-orientations
+            let mut buffer_vertical = rustybuzz::UnicodeBuffer::new();
+            buffer_vertical.push_str(sub_text);
+            buffer_vertical.set_direction(if is_connected_script {
+                rustybuzz::Direction::RightToLeft
+            } else {
+                rustybuzz::Direction::TopToBottom
+            });
 
             let mut features = Vec::new();
             if small_caps {
@@ -1477,14 +1600,50 @@ fn shape_text_with_font(
                 features.push(rustybuzz::Feature::new(Tag::from_bytes(b"kern"), 0, ..));
             }
 
-            let output = rustybuzz::shape(&rb_font, &features, buffer);
+            // Add vertical layout features for CJK fonts
+            if is_cjk_font {
+                if writing_mode == WritingMode::TopToBottom {
+                    features.push(rustybuzz::Feature::new(Tag::from_bytes(b"vhal"), 1, ..));
+                } else {
+                    features.push(rustybuzz::Feature::new(Tag::from_bytes(b"kern"), 0, ..));
+                    features.push(rustybuzz::Feature::new(Tag::from_bytes(b"halt"), 1, ..));
+                }
+            }
 
-            let positions = output.glyph_positions();
-            let infos = output.glyph_infos();
+            // Note: rustybuzz automatically applies 'vert' and 'vkrn' features for vertical text
+            // 'vert' - glyphs to be presented upright
+            // 'vrtr' - glyphs to be presented sideways (rotate 90°)
+            // Use 'vrtr' when text-orientation: 'text-orientation' is required
 
-            for i in 0..output.len() {
+            // Perform text shaping for both orientations
+            let output_horizontal = rustybuzz::shape(&rb_font, &features, buffer_horizontal);
+            let output_vertical = rustybuzz::shape(&rb_font, &features, buffer_vertical);
+
+            // Select appropriate results based on writing mode
+            let (positions, sub_positions, infos, sub_infos) = if writing_mode == WritingMode::TopToBottom {
+                (
+                    output_vertical.glyph_positions(),
+                    output_horizontal.glyph_positions(),
+                    output_vertical.glyph_infos(),
+                    output_horizontal.glyph_infos()
+                )
+            } else {
+                (
+                    output_horizontal.glyph_positions(),
+                    output_vertical.glyph_positions(),
+                    output_horizontal.glyph_infos(),
+                    output_vertical.glyph_infos()
+                )
+            };
+
+            let mut pre_pos = rustybuzz::GlyphPosition::default();
+            let mut vertical_sub = 0;
+
+            for i in 0..output_horizontal.len() {
                 let pos = positions[i];
+                let sub_pos = sub_positions[i];
                 let info = infos[i];
+                let sub_info = sub_infos[i];
                 let idx = run.start + info.cluster as usize;
 
                 let start = info.cluster as usize;
@@ -1497,14 +1656,67 @@ fn shape_text_with_font(
                 .and_then(|last| infos.get(last))
                 .map_or(sub_text.len(), |info| info.cluster as usize);
 
+                let mut glyph_replaced = false;
+                let mut text_orientation: unicode_vo::Orientation = unicode_vo::Orientation::Rotated;
+                if !is_connected_script{
+                    let text_str  = &sub_text[start..end];
+
+                    if let Some(first_char) = text_str.chars().next() {
+                        // Determine text orientation based on first character
+                        text_orientation = unicode_vo::char_orientation(first_char);
+
+                        // Get relative glyph ID for comparison (only for non-rotated text)
+                        let relative_glyph_id = if text_orientation != unicode_vo::Orientation::Rotated {
+                            Some(sub_info.glyph_id)
+                        } else {
+                            None // Skip comparison for rotated text
+                        };
+
+                        // Check if glyph was replaced in vertical mode
+                        glyph_replaced = relative_glyph_id.map_or(false, |h_id| h_id != info.glyph_id);
+
+                    }
+                }
+
+                let (mut glyph_x_offset, mut glyph_y_offset, mut glyph_width) =  (pos.x_offset, pos.y_offset, pos.x_advance);
+
+                if writing_mode == WritingMode::TopToBottom {
+                    // Vertical text layout
+                    if text_orientation == unicode_vo::Orientation::Rotated {
+                        // Rotated glyphs (Latin, Cyrillic, etc.) in vertical text
+                        // Use horizontal positioning from opposite layout mode
+                        glyph_x_offset = sub_pos.x_offset;
+                        glyph_y_offset = sub_pos.y_offset;
+                        glyph_width = sub_pos.x_advance;
+                    } else if i > 0 && is_cjk_font {
+                        // CJK vertical typography adjustments
+                        // Current implementation supports half-width character vertical adjustment
+
+                        // Calculate relative positioning from previous glyph
+                        let vertical_offset = pre_pos.y_offset - pos.y_offset;
+                        let vertical_advance = pre_pos.y_advance - pos.y_advance;
+
+                        if vertical_offset != 0 && vertical_advance != vertical_offset {
+                            vertical_sub = vertical_offset;
+                        }
+                    }
+
+                    // Store current position for next iteration comparison
+                    pre_pos = pos;
+                }
+
+
                 glyphs.push(Glyph {
                     byte_idx: ByteIndex::new(idx),
                     cluster_len: end.checked_sub(start).unwrap_or(0), // TODO: can fail?
                     text: sub_text[start..end].to_string(),
                     id: GlyphId(info.glyph_id as u16),
-                    dx: pos.x_offset,
-                    dy: pos.y_offset,
-                    width: pos.x_advance,
+                    dx: glyph_x_offset,
+                    dy: glyph_y_offset,
+                    width: glyph_width,
+                    vertical_sub,
+                    text_orientation,
+                    glyph_replaced,
                     font: font.clone(),
                 });
             }
@@ -1607,6 +1819,15 @@ pub(crate) struct Glyph {
 
     /// The glyph width / X-advance in font units.
     pub(crate) width: i32,
+
+    /// The glyph Y-axis minus in vertical mode.
+    pub(crate) vertical_sub: i32,
+
+    /// The text orientation.
+    pub(crate) text_orientation: unicode_vo::Orientation,
+
+    /// Whether the glyph was replaced by another glyph.
+    pub(crate) glyph_replaced: bool,
 
     /// Reference to the source font.
     ///
