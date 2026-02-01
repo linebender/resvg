@@ -1557,8 +1557,7 @@ fn shape_text_with_font(
 
             // Determine if this is a connected script (cursive writing systems).
             let first_char = sub_text.chars().next().unwrap();
-            let is_connected_script = !is_cjk_font
-                && matches!(
+            let is_connected_script = matches!(
                     first_char.script(),
                     unicode_script::Script::Arabic
                         | unicode_script::Script::Syriac
@@ -1678,7 +1677,6 @@ fn shape_text_with_font(
                         // Check if glyph was replaced in vertical mode
                         glyph_replaced =
                             relative_glyph_id.map_or(false, |h_id| h_id != info.glyph_id);
-
                     }
                 }
 
