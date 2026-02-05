@@ -1633,8 +1633,10 @@ use crate::render;
 #[test] fn text_textPath_with_coordinates_on_textPath() { assert_eq!(render("tests/text/textPath/with-coordinates-on-textPath"), 0); }
 #[test] fn text_textPath_with_filter() { assert_eq!(render("tests/text/textPath/with-filter"), 0); }
 #[test] fn text_textPath_with_invalid_path_and_xlink_href() { assert_eq!(render("tests/text/textPath/with-invalid-path-and-xlink-href"), 0); }
+#[test] fn text_textPath_with_empty_path_fallback() { assert_eq!(render("tests/text/textPath/with-empty-path-fallback"), 0); }
 #[test] fn text_textPath_with_letter_spacing() { assert_eq!(render("tests/text/textPath/with-letter-spacing"), 0); }
 #[test] fn text_textPath_with_path_and_xlink_href() { assert_eq!(render("tests/text/textPath/with-path-and-xlink-href"), 0); }
+#[test] fn text_textPath_with_href_and_xlink_href() { assert_eq!(render("tests/text/textPath/with-href-and-xlink-href"), 0); }
 #[test] fn text_textPath_with_path() { assert_eq!(render("tests/text/textPath/with-path"), 0); }
 #[test] fn text_textPath_with_rotate() { assert_eq!(render("tests/text/textPath/with-rotate"), 0); }
 #[test] fn text_textPath_with_text_anchor() { assert_eq!(render("tests/text/textPath/with-text-anchor"), 0); }

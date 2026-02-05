@@ -71,6 +71,7 @@ pub struct Cache {
     radial_gradient_index: usize,
     pattern_index: usize,
     clip_path_index: usize,
+    text_path_index: usize,
     mask_index: usize,
     filter_index: usize,
     image_index: usize,
@@ -120,6 +121,7 @@ impl Cache {
             radial_gradient_index: 0,
             pattern_index: 0,
             clip_path_index: 0,
+            text_path_index: 0,
             mask_index: 0,
             filter_index: 0,
             image_index: 0,
@@ -164,6 +166,20 @@ impl Cache {
         loop {
             self.clip_path_index += 1;
             let new_id = format!("clipPath{}", self.clip_path_index);
+            let new_hash = string_hash(&new_id);
+            if !self.all_ids.contains(&new_hash) {
+                return NonEmptyString::new(new_id).unwrap();
+            }
+        }
+    }
+
+    pub(crate) fn gen_text_path_id(&mut self) -> NonEmptyString {
+        // Used by inline `<textPath path="...">` when the element has no ID.
+        // The writer emits a synthesized `<path id="...">` and references it from
+        // `<textPath xlink:href="#...">`, so this generated ID must be stable and unique.
+        loop {
+            self.text_path_index += 1;
+            let new_id = format!("textPathPath{}", self.text_path_index);
             let new_hash = string_hash(&new_id);
             if !self.all_ids.contains(&new_hash) {
                 return NonEmptyString::new(new_id).unwrap();
@@ -396,22 +412,12 @@ pub(crate) fn convert_doc(svg_doc: &svgtree::Document, opt: &Options) -> Result<
         opt.fontdb.clone(),
     );
 
+    // ID generators use this set for collision checks.
+    // For synthesized text-path IDs we need to avoid conflicts with *any* existing SVG element ID,
+    // so we collect all non-empty IDs, not only clip/filter/paint/image resources.
     for node in svg_doc.descendants() {
-        if let Some(tag) = node.tag_name() {
-            if matches!(
-                tag,
-                EId::ClipPath
-                    | EId::Filter
-                    | EId::LinearGradient
-                    | EId::Mask
-                    | EId::Pattern
-                    | EId::RadialGradient
-                    | EId::Image
-            ) {
-                if !node.element_id().is_empty() {
-                    cache.all_ids.insert(string_hash(node.element_id()));
-                }
-            }
+        if !node.element_id().is_empty() {
+            cache.all_ids.insert(string_hash(node.element_id()));
         }
     }
 
