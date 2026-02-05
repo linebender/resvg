@@ -1,6 +1,6 @@
 [package]
 name = "resvg"
-version = "0.46.0"
+version = "0.47.0"
 keywords = ["svg", "render", "raster"]
 license.workspace = true
 edition = "2024"
@@ -22,7 +22,7 @@ pico-args = { version = "0.5", features = ["eq-separator"] }
 rgb = "0.8"
 svgtypes = "0.16.1"
 tiny-skia = "0.12.0"
-usvg = { path = "../usvg", version = "0.46.0", default-features = false }
+usvg = { path = "../usvg", version = "0.47.0", default-features = false }
 zune-jpeg = { version = "0.5.8", optional = true }
 
 [dev-dependencies]

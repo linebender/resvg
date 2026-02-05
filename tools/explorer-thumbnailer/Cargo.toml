@@ -1,6 +1,6 @@
 [package]
 name = "explorer-thumbnailer"
-version = "0.46.0"
+version = "0.47.0"
 license.workspace = true
 edition = "2021"
 publish = false

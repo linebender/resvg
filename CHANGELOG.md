@@ -8,8 +8,18 @@ This changelog also contains important changes in dependencies.
 
 ## [Unreleased]
 
-- This release has an MSRV of 1.87.0 for `usvg` and `resvg` and the C API.
-- Focal radius supported for Radial Gradients. (#1014 by @wmedrano)
+This release has an MSRV of 1.87.0 for `usvg` and `resvg` and the C API.
+
+## [0.47.0] 2026-02-05
+
+This release has an MSRV of 1.87.0 for `usvg` and `resvg` and the C API.
+
+### Added
+- Focal radius (`fr`) supported for Radial Gradients. (#1014 by @wmedrano)
+- Support for variable fonts based on font-variation-settings CSS property. (#997 by @oetiker)
+
+### Changed
+- `tiny-skia` has a major version bump from 0.11 to 0.12.
 
 ## [0.46.0]
 
@@ -1330,7 +1340,8 @@ This release has an MSRV of 1.65 for `usvg` and 1.67.1 for `resvg` and the C API
 
 [#897]: https://github.com/linebender/resvg/pull/897
 
-[Unreleased]: https://github.com/linebender/resvg/compare/v0.46.0...HEAD
+[Unreleased]: https://github.com/linebender/resvg/compare/v0.47.0...HEAD
+[0.47.0]: https://github.com/linebender/resvg/compare/v0.46.0...v0.47.0
 [0.46.0]: https://github.com/linebender/resvg/compare/v0.45.1...v0.46.0
 [0.45.1]: https://github.com/linebender/resvg/compare/v0.45.0...v0.45.1
 [0.45.0]: https://github.com/linebender/resvg/compare/v0.44.0...v0.45.0
