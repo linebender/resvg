@@ -72,7 +72,6 @@ jobs:
           cd ..
           env XZ_OPT="-9e" tar \
               --exclude=".git" \
-              --exclude=".gitignore" \
               --exclude="resvg-$VERSION/.github" \
               --exclude="resvg-$VERSION/version-bump.md" \
               --exclude="resvg-$VERSION/docs" \
