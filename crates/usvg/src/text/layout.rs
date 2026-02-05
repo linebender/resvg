@@ -7,8 +7,10 @@ use std::sync::Arc;
 
 use fontdb::{Database, ID};
 use kurbo::{ParamCurve, ParamCurveArclen, ParamCurveDeriv};
-use rustybuzz::ttf_parser;
-use rustybuzz::ttf_parser::{GlyphId, Tag};
+use skrifa::MetadataProvider;
+use skrifa::instance::Location;
+use skrifa::prelude::Size;
+use skrifa::raw::TableProvider;
 use strict_num::NonZeroPositiveF32;
 use tiny_skia_path::{NonZeroRect, Transform};
 use unicode_script::UnicodeScript;
@@ -16,8 +18,8 @@ use unicode_script::UnicodeScript;
 use crate::tree::{BBox, IsValidLength};
 use crate::{
     AlignmentBaseline, ApproxZeroUlps, BaselineShift, DominantBaseline, Fill, FillRule, Font,
-    FontResolver, LengthAdjust, PaintOrder, Path, ShapeRendering, Stroke, Text, TextAnchor,
-    TextChunk, TextDecorationStyle, TextFlow, TextPath, TextSpan, WritingMode,
+    FontResolver, GlyphId, LengthAdjust, PaintOrder, Path, ShapeRendering, Stroke, Text,
+    TextAnchor, TextChunk, TextDecorationStyle, TextFlow, TextPath, TextSpan, WritingMode,
 };
 
 /// A glyph that has already been positioned correctly.
@@ -73,7 +75,7 @@ impl PositionedGlyph {
 
     /// Returns the transform for the glyph, assuming that a CBTD-based raster glyph
     /// is being used.
-    pub fn cbdt_transform(&self, x: f32, y: f32, pixels_per_em: f32, height: f32) -> Transform {
+    pub fn cbdt_transform(&self, x: f32, y: f32, pixels_per_em: f32) -> Transform {
         self.transform()
             .pre_concat(Transform::from_scale(
                 self.units_per_em as f32 / pixels_per_em,
@@ -82,7 +84,7 @@ impl PositionedGlyph {
             // Right now, the top-left corner of the image would be placed in
             // on the "text cursor", but we want the bottom-left corner to be there,
             // so we need to shift it up and also apply the x/y offset.
-            .pre_translate(x, -height - y)
+            .pre_translate(x, -y)
     }
 
     /// Returns the transform for the glyph, assuming that a sbix-based raster glyph
@@ -1207,43 +1209,47 @@ impl DatabaseExt for Database {
     #[inline(never)]
     fn load_font(&self, id: ID) -> Option<ResolvedFont> {
         self.with_face_data(id, |data, face_index| -> Option<ResolvedFont> {
-            let font = ttf_parser::Face::parse(data, face_index).ok()?;
+            let font = skrifa::FontRef::from_index(data, face_index).ok()?;
 
-            let units_per_em = NonZeroU16::new(font.units_per_em())?;
+            // FIXME: Set size and location
+            let location = &Location::default();
+            let coords = location.coords(); // TODO: expose effective_coords
+            let metrics = font.metrics(Size::unscaled(), location);
 
-            let ascent = font.ascender();
-            let descent = font.descender();
+            let units_per_em = NonZeroU16::new(metrics.units_per_em)?;
+            let ascent = metrics.ascent;
+            let descent = metrics.descent;
 
-            let x_height = font
-                .x_height()
-                .and_then(|x| u16::try_from(x).ok())
+            let x_height = metrics
+                .x_height
+                .and_then(|x| u16::try_from(x as i16).ok())
                 .and_then(NonZeroU16::new);
             let x_height = match x_height {
                 Some(height) => height,
                 None => {
                     // If not set - fallback to height * 45%.
                     // 45% is what Firefox uses.
-                    u16::try_from((f32::from(ascent - descent) * 0.45) as i32)
+                    u16::try_from(((ascent - descent) * 0.45) as i32)
                         .ok()
                         .and_then(NonZeroU16::new)?
                 }
             };
 
-            let line_through = font.strikeout_metrics();
+            let line_through = metrics.strikeout;
             let line_through_position = match line_through {
-                Some(metrics) => metrics.position,
+                Some(metrics) => metrics.offset as i16,
                 None => x_height.get() as i16 / 2,
             };
 
-            let (underline_position, underline_thickness) = match font.underline_metrics() {
+            let (underline_position, underline_thickness) = match metrics.underline {
                 Some(metrics) => {
-                    let thickness = u16::try_from(metrics.thickness)
+                    let thickness = u16::try_from(metrics.thickness as i16)
                         .ok()
                         .and_then(NonZeroU16::new)
-                        // `ttf_parser` guarantees that units_per_em is >= 16
+                        // `skrifa` guarantees that units_per_em is > 0
                         .unwrap_or_else(|| NonZeroU16::new(units_per_em.get() / 12).unwrap());
 
-                    (metrics.position, thickness)
+                    (metrics.offset as i16, thickness)
                 }
                 None => (
                     -(units_per_em.get() as i16) / 9,
@@ -1254,19 +1260,26 @@ impl DatabaseExt for Database {
             // 0.2 and 0.4 are generic offsets used by some applications (Inkscape/librsvg).
             let mut subscript_offset = (units_per_em.get() as f32 / 0.2).round() as i16;
             let mut superscript_offset = (units_per_em.get() as f32 / 0.4).round() as i16;
-            if let Some(metrics) = font.subscript_metrics() {
-                subscript_offset = metrics.y_offset;
-            }
 
-            if let Some(metrics) = font.superscript_metrics() {
-                superscript_offset = metrics.y_offset;
+            // TODO: Consider upstreaming into skrifa
+            if let Ok(os2) = font.os2() {
+                subscript_offset = os2.y_subscript_y_offset();
+                superscript_offset = os2.y_superscript_y_offset();
+            }
+            if let (Ok(mvar), true) = (font.mvar(), !coords.is_empty()) {
+                use skrifa::raw::tables::mvar::tags::*;
+                let metric_delta =
+                    |tag| mvar.metric_delta(tag, coords).unwrap_or_default().to_f32();
+
+                subscript_offset += metric_delta(SBYO) as i16;
+                superscript_offset += metric_delta(SPYO) as i16;
             }
 
             Some(ResolvedFont {
                 id,
                 units_per_em,
-                ascent,
-                descent,
+                ascent: ascent as i16,
+                descent: descent as i16,
                 x_height,
                 underline_position,
                 underline_thickness,
@@ -1280,8 +1293,9 @@ impl DatabaseExt for Database {
     #[inline(never)]
     fn has_char(&self, id: ID, c: char) -> bool {
         let res = self.with_face_data(id, |font_data, face_index| -> Option<bool> {
-            let font = ttf_parser::Face::parse(font_data, face_index).ok()?;
-            font.glyph_index(c)?;
+            let font = skrifa::FontRef::from_index(font_data, face_index).ok()?;
+            let char_map = skrifa::charmap::Charmap::new(&font);
+            char_map.map(c)?;
             Some(true)
         });
 
@@ -1406,13 +1420,16 @@ fn shape_text_with_font(
     fontdb: &fontdb::Database,
 ) -> Option<Vec<Glyph>> {
     fontdb.with_face_data(font.id, |font_data, face_index| -> Option<Vec<Glyph>> {
-        let mut rb_font = rustybuzz::Face::from_slice(font_data, face_index)?;
+        use harfrust::{Feature, ShaperData, ShaperInstance, Tag, UnicodeBuffer, Variation};
+        const OPSZ: Tag = Tag::from_be_bytes(*b"opsz");
+
+        let hr_font = harfrust::FontRef::from_index(font_data, face_index).ok()?;
 
         // Build the list of variations to apply
-        let mut final_variations: Vec<rustybuzz::Variation> = variations
+        let mut variations: Vec<Variation> = variations
             .iter()
-            .map(|v| rustybuzz::Variation {
-                tag: Tag::from_bytes(&v.tag),
+            .map(|v| Variation {
+                tag: Tag::from_be_bytes(v.tag),
                 value: v.value,
             })
             .collect();
@@ -1424,24 +1441,16 @@ fn shape_text_with_font(
             let has_explicit_opsz = variations.iter().any(|v| v.tag == *b"opsz");
             if !has_explicit_opsz {
                 // Check if font has opsz axis using the already parsed rb_font
-                if let Some(axes) = rb_font.tables().fvar {
-                    let has_opsz_axis = axes
-                        .axes
-                        .into_iter()
-                        .any(|axis| axis.tag == ttf_parser::Tag::from_bytes(b"opsz"));
+                if let Ok(axes) = hr_font.fvar().and_then(|fvar| fvar.axes()) {
+                    let has_opsz_axis = axes.into_iter().any(|axis| axis.axis_tag() == OPSZ);
                     if has_opsz_axis {
-                        final_variations.push(rustybuzz::Variation {
-                            tag: Tag::from_bytes(b"opsz"),
+                        variations.push(Variation {
+                            tag: OPSZ,
                             value: font_size,
                         });
                     }
                 }
             }
-        }
-
-        // Apply font variations for variable fonts
-        if !final_variations.is_empty() {
-            rb_font.set_variations(&final_variations);
         }
 
         let bidi_info = unicode_bidi::BidiInfo::new(text, Some(unicode_bidi::Level::ltr()));
@@ -1458,26 +1467,39 @@ fn shape_text_with_font(
             }
 
             let ltr = levels[run.start].is_ltr();
-            let hb_direction = if ltr {
-                rustybuzz::Direction::LeftToRight
+            let direction = if ltr {
+                harfrust::Direction::LeftToRight
             } else {
-                rustybuzz::Direction::RightToLeft
+                harfrust::Direction::RightToLeft
             };
 
-            let mut buffer = rustybuzz::UnicodeBuffer::new();
+            let mut buffer = UnicodeBuffer::new();
             buffer.push_str(sub_text);
-            buffer.set_direction(hb_direction);
+            buffer.set_direction(direction);
+
+            // TODO: explicitly set language?
+            buffer.guess_segment_properties();
 
             let mut features = Vec::new();
             if small_caps {
-                features.push(rustybuzz::Feature::new(Tag::from_bytes(b"smcp"), 1, ..));
+                features.push(Feature::new(Tag::new(b"smcp"), 1, ..));
             }
 
             if !apply_kerning {
-                features.push(rustybuzz::Feature::new(Tag::from_bytes(b"kern"), 0, ..));
+                features.push(Feature::new(Tag::new(b"kern"), 0, ..));
             }
 
-            let output = rustybuzz::shape(&rb_font, &features, buffer);
+            let shaper_data = ShaperData::new(&hr_font);
+            let instance_data = ShaperInstance::from_variations(&hr_font, &variations);
+            let shaper = shaper_data
+                // Initialize the builder for the given font
+                .shaper(&hr_font)
+                // Set the instance
+                .instance(Some(&instance_data))
+                // Build the shaper
+                .build();
+
+            let output = shaper.shape(buffer, &features);
 
             let positions = output.glyph_positions();
             let infos = output.glyph_infos();
