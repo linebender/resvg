@@ -6,6 +6,8 @@ use std::sync::Arc;
 
 use crate::GlyphId;
 use fontdb::{Database, ID};
+use harfrust::{FontRef, Tag};
+use skrifa::AxisCollection;
 use skrifa::MetadataProvider;
 use skrifa::bitmap::{BitmapData, BitmapFormat};
 use skrifa::instance::Location;
@@ -13,12 +15,15 @@ use skrifa::outline::{DrawSettings, OutlinePen};
 use skrifa::prelude::LocationRef;
 use skrifa::raw::TableProvider as _;
 use skrifa::raw::types::BoundingBox;
+use skrifa::setting::Setting;
 use svgtypes::Color;
 use tiny_skia_path::{NonZeroRect, Size, Transform};
 use xmlwriter::XmlWriter;
 
 use crate::text::colr::GlyphPainter;
 use crate::*;
+
+const OPSZ: Tag = Tag::from_be_bytes(*b"opsz");
 
 fn resolve_rendering_mode(text: &Text) -> ShapeRendering {
     match text.rendering_mode {
@@ -135,27 +140,22 @@ pub(crate) fn flatten(text: &mut Text, cache: &mut Cache) -> Option<(Group, NonZ
 
                 new_children.push(Node::Group(Box::new(group)));
             } else {
-                let outline = cache.fontdb_outline(glyph.font, glyph.id);
-
-                // TODO: fontations variations
-                //
                 // Only bypass cache if: explicit variations OR (auto opsz AND font has opsz axis)
-                //
-                // let need_variations = has_explicit_variations
-                //     || (span.font_optical_sizing == crate::FontOpticalSizing::Auto
-                //         && cache.has_opsz_axis(glyph.font));
-                //
-                // let outline = if needs_variations {
-                //     cache.fontdb.outline_with_variations(
-                //         glyph.font,
-                //         glyph.id,
-                //         &span.variations,
-                //         glyph.font_size(),
-                //         span.font_optical_sizing,
-                //     )
-                // } else {
-                //     cache.fontdb_outline(glyph.font, glyph.id)
-                // };
+                let needs_variations = has_explicit_variations
+                    || (span.font_optical_sizing == crate::FontOpticalSizing::Auto
+                        && cache.has_opsz_axis(glyph.font));
+
+                let outline = if needs_variations {
+                    cache.fontdb.outline_with_variations(
+                        glyph.font,
+                        glyph.id,
+                        &span.variations,
+                        glyph.font_size(),
+                        span.font_optical_sizing,
+                    )
+                } else {
+                    cache.fontdb_outline(glyph.font, glyph.id)
+                };
 
                 if let Some(outline) = outline.and_then(|p| p.transform(glyph.outline_transform()))
                 {
@@ -268,6 +268,7 @@ impl DatabaseExt for Database {
         })?
     }
 
+    #[inline(never)]
     fn outline_with_variations(
         &self,
         id: ID,
@@ -276,70 +277,63 @@ impl DatabaseExt for Database {
         font_size: f32,
         font_optical_sizing: crate::FontOpticalSizing,
     ) -> Option<tiny_skia_path::Path> {
-        todo!()
+        self.with_face_data(id, |data, face_index| -> Option<tiny_skia_path::Path> {
+            let font = FontRef::from_index(data, face_index).ok()?;
+
+            let mut variations: Vec<Setting<f32>> = variations
+                .iter()
+                .map(|v| Setting {
+                    selector: Tag::from_be_bytes(v.tag),
+                    value: v.value,
+                })
+                .collect();
+
+            // Auto-set opsz if font-optical-sizing is auto and not explicitly set
+            if font_optical_sizing == crate::FontOpticalSizing::Auto {
+                let has_explicit_opsz = variations.iter().any(|v| v.selector == *b"opsz");
+                if !has_explicit_opsz {
+                    // Check if font has opsz axis
+                    if let Ok(axes) = font.fvar().and_then(|fvar| fvar.axes()) {
+                        let has_opsz_axis = axes.into_iter().any(|axis| axis.axis_tag() == OPSZ);
+                        if has_opsz_axis {
+                            variations.push(Setting {
+                                selector: OPSZ,
+                                value: font_size,
+                            })
+                        }
+                    }
+                }
+            }
+
+            let mut builder = PathBuilder {
+                builder: tiny_skia_path::PathBuilder::new(),
+            };
+
+            let size = skrifa::prelude::Size::unscaled();
+            let axes = AxisCollection::new(&font);
+            let location = axes.location(&variations);
+            let outline = font.outline_glyphs().get(glyph_id.into())?;
+            outline
+                .draw(DrawSettings::unhinted(size, &location), &mut builder)
+                .ok()?;
+
+            builder.builder.finish()
+        })?
     }
 
     fn has_opsz_axis(&self, id: ID) -> bool {
-        todo!()
+        self.with_face_data(id, |data, face_index| -> Option<bool> {
+            const OPSZ: Tag = Tag::from_be_bytes(*b"opsz");
+            let font = FontRef::from_index(data, face_index).ok()?;
+            let has_opsz = font
+                .fvar()
+                .and_then(|fvar| fvar.axes())
+                .is_ok_and(|axes| axes.into_iter().any(|axis| axis.axis_tag() == OPSZ));
+            Some(has_opsz)
+        })
+        .flatten()
+        .unwrap_or(false)
     }
-
-    // #[inline(never)]
-    // fn outline_with_variations(
-    //     &self,
-    //     id: ID,
-    //     glyph_id: GlyphId,
-    //     variations: &[crate::FontVariation],
-    //     font_size: f32,
-    //     font_optical_sizing: crate::FontOpticalSizing,
-    // ) -> Option<tiny_skia_path::Path> {
-    //     self.with_face_data(id, |data, face_index| -> Option<tiny_skia_path::Path> {
-    //         let mut font = ttf_parser::Face::parse(data, face_index).ok()?;
-
-    //         for v in variations {
-    //             font.set_variation(ttf_parser::Tag::from_bytes(&v.tag), v.value);
-    //         }
-
-    //         // Auto-set opsz if font-optical-sizing is auto and not explicitly set
-    //         if font_optical_sizing == crate::FontOpticalSizing::Auto {
-    //             let has_explicit_opsz = variations.iter().any(|v| v.tag == *b"opsz");
-    //             if !has_explicit_opsz {
-    //                 // Check if font has opsz axis
-    //                 if let Some(axes) = font.tables().fvar {
-    //                     let has_opsz_axis = axes
-    //                         .axes
-    //                         .into_iter()
-    //                         .any(|axis| axis.tag == ttf_parser::Tag::from_bytes(b"opsz"));
-    //                     if has_opsz_axis {
-    //                         font.set_variation(ttf_parser::Tag::from_bytes(b"opsz"), font_size);
-    //                     }
-    //                 }
-    //             }
-    //         }
-
-    //         let mut builder = PathBuilder {
-    //             builder: tiny_skia_path::PathBuilder::new(),
-    //         };
-
-    //         font.outline_glyph(glyph_id, &mut builder)?;
-    //         builder.builder.finish()
-    //     })?
-    // }
-
-    // TODO: fontations variable fonts
-    //
-    // fn has_opsz_axis(&self, id: ID) -> bool {
-    //     self.with_face_data(id, |data, face_index| -> Option<bool> {
-    //         let font = ttf_parser::Face::parse(data, face_index).ok()?;
-    //         let has_opsz = font.tables().fvar.map_or(false, |axes| {
-    //             axes.axes
-    //                 .into_iter()
-    //                 .any(|axis| axis.tag == ttf_parser::Tag::from_bytes(b"opsz"))
-    //         });
-    //         Some(has_opsz)
-    //     })
-    //     .flatten()
-    //     .unwrap_or(false)
-    // }
 
     fn raster(&self, id: ID, glyph_id: GlyphId) -> Option<BitmapImage> {
         self.with_face_data(id, |data, face_index| -> Option<BitmapImage> {

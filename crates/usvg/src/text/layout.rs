@@ -1421,6 +1421,7 @@ fn shape_text_with_font(
 ) -> Option<Vec<Glyph>> {
     fontdb.with_face_data(font.id, |font_data, face_index| -> Option<Vec<Glyph>> {
         use harfrust::{Feature, ShaperData, ShaperInstance, Tag, UnicodeBuffer, Variation};
+        const OPSZ: Tag = Tag::from_be_bytes(*b"opsz");
 
         let hr_font = harfrust::FontRef::from_index(font_data, face_index).ok()?;
 
@@ -1432,8 +1433,6 @@ fn shape_text_with_font(
                 value: v.value,
             })
             .collect();
-
-        const OPSZ: Tag = Tag::from_be_bytes(*b"opsz");
 
         // Automatic optical sizing: if font-optical-sizing is auto and the font has
         // an 'opsz' axis that isn't explicitly set, auto-set it to match font size.
