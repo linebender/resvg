@@ -11,16 +11,16 @@ use fontdb::Database;
 #[cfg(feature = "text")]
 use fontdb::ID;
 #[cfg(feature = "text")]
-use rustybuzz::ttf_parser::GlyphId;
+use skrifa::GlyphId;
 use svgtypes::{Length, LengthUnit as Unit, PaintOrderKind, TransformOrigin};
 use tiny_skia_path::PathBuilder;
 
 use super::svgtree::{self, AId, EId, FromValue, SvgNode};
 use super::units::{self, convert_length};
 use super::{Error, Options, marker};
-#[cfg(feature = "text")]
-use crate::flatten::BitmapImage;
 use crate::parser::paint_server::process_paint;
+#[cfg(feature = "text")]
+use crate::text::flatten::BitmapImage;
 #[cfg(feature = "text")]
 use crate::text::flatten::DatabaseExt;
 use crate::*;

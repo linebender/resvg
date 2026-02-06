@@ -11,7 +11,9 @@ use crate::{Cache, Font, FontStretch, FontStyle, Text};
 
 pub(crate) mod flatten;
 
-mod colr;
+mod skrifa_colr;
+mod skrifa_metrics;
+
 /// Provides access to the layout of a text node.
 pub mod layout;
 
@@ -171,13 +173,13 @@ impl FontResolver<'_> {
                 let base_family = base_face
                     .families
                     .iter()
-                    .find(|f| f.1 == fontdb::Language::English_UnitedStates)
+                    .find(|f| f.1 == fontdb::Language::EnglishUnitedStates)
                     .unwrap_or(&base_face.families[0]);
 
                 let new_family = face
                     .families
                     .iter()
-                    .find(|f| f.1 == fontdb::Language::English_UnitedStates)
+                    .find(|f| f.1 == fontdb::Language::EnglishUnitedStates)
                     .unwrap_or(&base_face.families[0]);
 
                 log::warn!("Fallback from {} to {}.", base_family.0, new_family.0);
