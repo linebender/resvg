@@ -242,6 +242,8 @@ fn collect_text_chunks_impl(
             parent.find_attribute(AId::PaintOrder).unwrap_or_default();
         let paint_order = super::converter::svg_paint_order_to_usvg(raw_paint_order);
 
+        let writing_mode = convert_writing_mode(parent);
+
         let mut dominant_baseline = parent
             .find_attribute(AId::DominantBaseline)
             .unwrap_or_default();
@@ -299,6 +301,7 @@ fn collect_text_chunks_impl(
             baseline_shift: convert_baseline_shift(parent, state),
             letter_spacing: parent.resolve_length(AId::LetterSpacing, state, 0.0),
             word_spacing: parent.resolve_length(AId::WordSpacing, state, 0.0),
+            writing_mode,
             text_length,
             length_adjust: parent.find_attribute(AId::LengthAdjust).unwrap_or_default(),
         };
