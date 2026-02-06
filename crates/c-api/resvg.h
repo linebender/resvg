@@ -14,9 +14,9 @@
 #include <stdint.h>
 
 #define RESVG_MAJOR_VERSION 0
-#define RESVG_MINOR_VERSION 46
+#define RESVG_MINOR_VERSION 47
 #define RESVG_PATCH_VERSION 0
-#define RESVG_VERSION "0.46.0"
+#define RESVG_VERSION "0.47.0"
 
 /**
  * @brief List of possible errors.
