@@ -1,7 +1,7 @@
 // Copyright 2020 the Resvg Authors
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use super::{ImageRef, ImageRefMut, f32_bound};
+use super::{Error, ImageRef, ImageRefMut, f32_bound};
 use rgb::RGBA8;
 use usvg::ApproxZeroUlps;
 
@@ -9,10 +9,6 @@ use usvg::ApproxZeroUlps;
 ///
 /// - `src1` and `src2` image pixels should have a **premultiplied alpha**.
 /// - `dest` image pixels will have a **premultiplied alpha**.
-///
-/// # Panics
-///
-/// When `src1`, `src2` and `dest` have different sizes.
 pub fn arithmetic(
     k1: f32,
     k2: f32,
@@ -21,9 +17,14 @@ pub fn arithmetic(
     src1: ImageRef,
     src2: ImageRef,
     dest: ImageRefMut,
-) {
-    assert!(src1.width == src2.width && src1.width == dest.width);
-    assert!(src1.height == src2.height && src1.height == dest.height);
+) -> Result<(), Error> {
+    if src1.width != src2.width || src1.width != dest.width {
+        return Err(Error::InvalidRegion);
+    }
+
+    if src1.height != src2.height || src1.height != dest.height {
+        return Err(Error::InvalidRegion);
+    }
 
     let calc = |i1, i2, max| {
         let i1 = i1 as f32 / 255.0;
@@ -49,4 +50,5 @@ pub fn arithmetic(
 
         i += 1;
     }
+    Ok(())
 }
