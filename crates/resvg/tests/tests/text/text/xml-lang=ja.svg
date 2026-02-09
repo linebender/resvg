@@ -1,18 +1,17 @@
-<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"
-     font-family="Noto Sans" font-size="26">
-    <title>xml:lang=ja</title>
-    <desc>https://heistak.github.io/your-code-displays-japanese-wrong/</desc>
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" font-family="Source Han Sans HW SC"
+      font-size="26">
+      <title>xml:lang=ja</title>
+      <desc>https://heistak.github.io/your-code-displays-japanese-wrong/</desc>
 
-    <path id="crosshair" d="M 20 100 L 180 100 M 100 20 L 100 180"
-          stroke="gray" stroke-width="0.5"/>
+      <path id="crosshair" d="M 20 100 L 180 100 M 100 20 L 100 180" stroke="gray" stroke-width="0.5" />
 
-    <!-- Default (will usually fallback to Chinese) -->
-    <text id="text1" x="100" y="48" text-anchor="middle">刃直海角骨入</text>
-    <!-- Japanese -->
-    <text id="text2" x="100" y="98" text-anchor="middle" xml:lang="ja">刃直海角骨入</text>
-    <!-- Traditional Chinese -->
-    <text id="text3" x="100" y="148" text-anchor="middle" xml:lang="zh-HANT">刃直海角骨入</text>
+      <!-- Default (will usually fallback to Chinese) -->
+      <text id="text1" x="100" y="48" text-anchor="middle">刃直海角骨入</text>
+      <!-- Japanese -->
+      <text id="text2" x="100" y="98" text-anchor="middle" xml:lang="ja">刃直海角骨入</text>
+      <!-- Traditional Chinese -->
+      <text id="text3" x="100" y="148" text-anchor="middle" xml:lang="zh-HANT">刃直海角骨入</text>
 
-    <!-- image frame -->
-    <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+      <!-- image frame -->
+      <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black" />
 </svg>

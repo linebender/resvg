@@ -20,3 +20,7 @@ Roboto Flex (Variable Font)
 1. Download: https://github.com/googlefonts/roboto-flex/raw/main/fonts/RobotoFlex%5BGRAD%2CXOPQ%2CXTRA%2CYOPQ%2CYTAS%2CYTDE%2CYTFI%2CYTLC%2CYTUC%2Copsz%2Cslnt%2Cwdth%2Cwght%5D.ttf
 2. Run `pyftsubset RobotoFlex*.ttf --unicodes="U+0020-007E" --layout-features='*' --output-file=RobotoFlex.subset.ttf`
 3. Copy OFL license from https://github.com/googlefonts/roboto-flex/blob/main/OFL.txt
+
+Source Han Sans HW SC (CJK)
+1. Download: https://github.com/adobe-fonts/source-han-sans/releases/download/2.005R/14_SourceHanSansHWSC.zip
+2. Run `pyftsubset SourceHanSansHWSC-Regular.otf --unicodes="U+4E2D,U+5165,U+5203,U+56FD,U+5E38,U+65E5,U+672C,U+6D77,U+76F4,U+89D2,U+9577,U+975E,U+9AA8,U+0020-007F,U+0100-017F,U+0600-06FF,U+3040-309F,U+30A0-30FF,U+3000-303F,U+FE30-FE4F,U+FF00-FFEF,U+2000-206F,U+AC00,U+0100-017F,U+1EA0-1EFF" --output-file=SourceHanSansHWSC-Regular.subset.ttf`

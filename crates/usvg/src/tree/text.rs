@@ -346,6 +346,7 @@ pub struct TextSpan {
     pub(crate) visible: bool,
     pub(crate) letter_spacing: f32,
     pub(crate) word_spacing: f32,
+    pub(crate) writing_mode: WritingMode,
     pub(crate) text_length: Option<f32>,
     pub(crate) length_adjust: LengthAdjust,
 }

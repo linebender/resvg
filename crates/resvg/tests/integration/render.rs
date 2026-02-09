@@ -1485,6 +1485,8 @@ use crate::render;
 #[test] fn text_font_weight_normal() { assert_eq!(render("tests/text/font-weight/normal"), 0); }
 #[test] fn text_glyph_orientation_horizontal_simple_case() { assert_eq!(render("tests/text/glyph-orientation-horizontal/simple-case"), 0); }
 #[test] fn text_glyph_orientation_vertical_simple_case() { assert_eq!(render("tests/text/glyph-orientation-vertical/simple-case"), 0); }
+#[test] fn text_glyph_orientation_vertical_text_cjk() { assert_eq!(render("tests/text/glyph-orientation-vertical/text-cjk"), 0); }
+#[test] fn text_glyph_orientation_vertical_symbol_text() { assert_eq!(render("tests/text/glyph-orientation-vertical/symbol-text"), 0); }
 #[test] fn text_kerning_0() { assert_eq!(render("tests/text/kerning/0"), 0); }
 #[test] fn text_kerning_10percent() { assert_eq!(render("tests/text/kerning/10percent"), 0); }
 #[test] fn text_lengthAdjust_spacingAndGlyphs() { assert_eq!(render("tests/text/lengthAdjust/spacingAndGlyphs"), 0); }
