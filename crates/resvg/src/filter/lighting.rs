@@ -127,17 +127,15 @@ impl Normal {
 /// - `dest` will have an **unpremultiplied alpha**.
 ///
 /// Does nothing when `src` is less than 3x3.
-///
-/// # Panics
-///
-/// - When `src` and `dest` have different sizes.
 pub fn diffuse_lighting(
     fe: &DiffuseLighting,
     light_source: LightSource,
     src: ImageRef,
     dest: ImageRefMut,
-) {
-    assert!(src.width == dest.width && src.height == dest.height);
+) -> Result<(), crate::filter::Error> {
+    if src.width != dest.width || src.height != dest.height {
+        return Err(crate::filter::Error::InvalidRegion);
+    }
 
     let light_factor = |normal: Normal, light_vector: Vector3| {
         let k = if normal.normal.approx_zero() {
@@ -164,6 +162,7 @@ pub fn diffuse_lighting(
         src,
         dest,
     );
+    Ok(())
 }
 
 /// Renders a specular lighting.
@@ -172,17 +171,15 @@ pub fn diffuse_lighting(
 /// - `dest` will have a **premultiplied alpha**.
 ///
 /// Does nothing when `src` is less than 3x3.
-///
-/// # Panics
-///
-/// - When `src` and `dest` have different sizes.
 pub fn specular_lighting(
     fe: &SpecularLighting,
     light_source: LightSource,
     src: ImageRef,
     dest: ImageRefMut,
-) {
-    assert!(src.width == dest.width && src.height == dest.height);
+) -> Result<(), crate::filter::Error> {
+    if src.width != dest.width || src.height != dest.height {
+        return Err(crate::filter::Error::InvalidRegion);
+    }
 
     let light_factor = |normal: Normal, light_vector: Vector3| {
         let h = light_vector + Vector3::new(0.0, 0.0, 1.0);
@@ -226,6 +223,7 @@ pub fn specular_lighting(
         src,
         dest,
     );
+    Ok(())
 }
 
 fn apply(
