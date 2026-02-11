@@ -7,7 +7,8 @@
 #   -g "!src/special_directory"
 
 # Check all the standard Rust source files
-output=$(rg "^// Copyright (19|20)[\d]{2} (.+ and )?the Resvg Authors( and .+)?$\n^// SPDX-License-Identifier: Apache-2\.0 OR MIT$\n\n" --files-without-match --multiline -g "*.{rs,c,cpp,h}" .)
+# Exclude vendored fontdb (has its own copyright from original author)
+output=$(rg "^// Copyright (19|20)[\d]{2} (.+ and )?the Resvg Authors( and .+)?$\n^// SPDX-License-Identifier: Apache-2\.0 OR MIT$\n\n" --files-without-match --multiline -g "*.{rs,c,cpp,h}" -g "!crates/fontdb/*" .)
 
 if [ -n "$output" ]; then
 	echo -e "The following files lack the correct copyright header:\n"
