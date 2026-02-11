@@ -547,3 +547,113 @@ fn no_text_nodes() {
     let tree = usvg::Tree::from_str(&svg, &usvg::Options::default()).unwrap();
     assert!(!tree.has_text_nodes());
 }
+
+/// Tests that the CSS `light-dark()` function is correctly parsed.
+/// Draw.io exports SVGs with `light-dark()` for dark mode support.
+/// usvg should extract the first (light-mode) value.
+#[test]
+fn light_dark_css_function() {
+    // Test with simple color values
+    let svg = r#"<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>
+        <rect id='rect1' x='10' y='10' width='80' height='80'
+              style='fill: light-dark(red, blue)'/>
+    </svg>"#;
+
+    let tree = usvg::Tree::from_str(&svg, &usvg::Options::default()).unwrap();
+    let usvg::Node::Path(ref path) = &tree.root().children()[0] else {
+        unreachable!()
+    };
+
+    // Should extract "red" (the first/light-mode value)
+    assert_eq!(
+        path.fill().unwrap().paint(),
+        &usvg::Paint::Color(Color::new_rgb(255, 0, 0))
+    );
+}
+
+/// Tests that `light-dark()` with rgb() function arguments is correctly parsed.
+#[test]
+fn light_dark_css_function_with_rgb() {
+    let svg = r#"<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 121 61'>
+        <g fill='black' font-family='Helvetica' text-anchor='middle' font-size='12px'
+           style='fill: light-dark(rgb(0, 128, 0), rgb(255, 255, 255));'>
+            <rect x='10' y='10' width='80' height='40'/>
+        </g>
+    </svg>"#;
+
+    let tree = usvg::Tree::from_str(&svg, &usvg::Options::default()).unwrap();
+
+    let usvg::Node::Group(ref group) = &tree.root().children()[0] else {
+        unreachable!()
+    };
+    let usvg::Node::Path(ref path) = &group.children()[0] else {
+        unreachable!()
+    };
+
+    // Should extract rgb(0, 128, 0) which is green
+    assert_eq!(
+        path.fill().unwrap().paint(),
+        &usvg::Paint::Color(Color::new_rgb(0, 128, 0))
+    );
+}
+
+#[test]
+fn light_dark_css_function_with_dark_scheme() {
+    use usvg::Color;
+
+    let svg = r#"<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>
+        <g style='fill: light-dark(red, blue)'>
+            <rect x='10' y='10' width='80' height='40'/>
+        </g>
+    </svg>"#;
+
+    let opt = usvg::Options {
+        color_scheme: usvg::ColorScheme::Dark,
+        ..Default::default()
+    };
+    let tree = usvg::Tree::from_str(&svg, &opt).unwrap();
+
+    let usvg::Node::Group(ref group) = &tree.root().children()[0] else {
+        unreachable!()
+    };
+    let usvg::Node::Path(ref path) = &group.children()[0] else {
+        unreachable!()
+    };
+
+    // With Dark scheme, should extract the second value (blue)
+    assert_eq!(
+        path.fill().unwrap().paint(),
+        &usvg::Paint::Color(Color::new_rgb(0, 0, 255))
+    );
+}
+
+/// Regression test: Tree::from_data_nested should inherit color_scheme from parent Options.
+/// This is used when resolving <image href="..."> that reference other SVG files.
+#[test]
+fn nested_svg_inherits_color_scheme() {
+    use usvg::Color;
+
+    // A nested SVG using light-dark() - this would be embedded via <image href="data:...">
+    let nested_svg = br#"<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>
+        <rect style='fill: light-dark(red, blue)' width='100' height='100'/>
+    </svg>"#;
+
+    // Test with Dark color scheme
+    let opt = usvg::Options {
+        color_scheme: usvg::ColorScheme::Dark,
+        ..Default::default()
+    };
+
+    // from_data_nested should inherit color_scheme from opt
+    let tree = usvg::Tree::from_data_nested(nested_svg, &opt).unwrap();
+
+    let usvg::Node::Path(ref path) = &tree.root().children()[0] else {
+        unreachable!()
+    };
+
+    // With Dark scheme inherited, should extract blue (the second value)
+    assert_eq!(
+        path.fill().unwrap().paint(),
+        &usvg::Paint::Color(Color::new_rgb(0, 0, 255))
+    );
+}

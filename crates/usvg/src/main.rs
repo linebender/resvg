@@ -102,6 +102,8 @@ OPTIONS:
   --transforms-precision NUM        Set the transform values numeric precision.
                                     Smaller precision can lead to a malformed output in some cases
                                     [values: 2..8 (inclusive)] [default: 8]
+  --color-scheme SCHEME             Sets the color scheme for resolving CSS light-dark() function
+                                    [default: light] [possible values: light, dark]
   --quiet                           Disables warnings
 
 ARGS:
@@ -139,6 +141,7 @@ struct Args {
     coordinates_precision: Option<u8>,
     transforms_precision: Option<u8>,
     style_sheet: Option<PathBuf>,
+    color_scheme: usvg::ColorScheme,
 
     quiet: bool,
 
@@ -209,6 +212,9 @@ fn collect_args() -> Result<Args, pico_args::Error> {
             .opt_value_from_fn("--coordinates-precision", parse_precision)?,
         transforms_precision: input.opt_value_from_fn("--transforms-precision", parse_precision)?,
         style_sheet: input.opt_value_from_str("--stylesheet").unwrap_or_default(),
+        color_scheme: input
+            .opt_value_from_fn("--color-scheme", parse_color_scheme)?
+            .unwrap_or_default(),
 
         quiet: input.contains("--quiet"),
 
@@ -282,6 +288,14 @@ fn parse_precision(s: &str) -> Result<u8, String> {
         Ok(n)
     } else {
         Err("precision NUM cannot be smaller than 2 or larger than 8".to_string())
+    }
+}
+
+fn parse_color_scheme(s: &str) -> Result<usvg::ColorScheme, String> {
+    match s.to_lowercase().as_str() {
+        "light" => Ok(usvg::ColorScheme::Light),
+        "dark" => Ok(usvg::ColorScheme::Dark),
+        _ => Err("invalid color scheme, expected 'light' or 'dark'".to_string()),
     }
 }
 
@@ -432,6 +446,7 @@ fn process(args: Args) -> Result<(), String> {
         font_resolver: usvg::FontResolver::default(),
         fontdb: Arc::new(fontdb),
         style_sheet,
+        color_scheme: args.color_scheme,
     };
 
     let input_svg = match in_svg {
