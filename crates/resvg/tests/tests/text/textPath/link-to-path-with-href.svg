@@ -1,0 +1,15 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <title>Link to `path` via `href` (SVG 2)</title>
+
+    <path id="pathForText1" d="M 20 100 C 35 135 85 135 100 100 C 115 65 165 65 180 100"
+          fill="none" stroke="gray"/>
+
+    <text id="text1" font-family="Noto Sans" font-size="21">
+        <textPath id="textPath1" href="#pathForText1">
+            Text along a path
+        </textPath>
+    </text>
+
+    <!-- image frame -->
+    <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>
