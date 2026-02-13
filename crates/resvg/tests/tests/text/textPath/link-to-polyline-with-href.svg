@@ -1,0 +1,15 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <title>Link to `polyline` via `href` (SVG 2)</title>
+
+    <polyline id="polylineForText1" points="20,120 60,60 100,140 140,60 180,120"
+              fill="none" stroke="gray"/>
+
+    <text id="text1" font-family="Noto Sans" font-size="21">
+        <textPath id="textPath1" href="#polylineForText1">
+            Text along a polyline
+        </textPath>
+    </text>
+
+    <!-- image frame -->
+    <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>

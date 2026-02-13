@@ -1,0 +1,14 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <title>Link to `circle` via `href` (SVG 2)</title>
+
+    <circle id="circleForText1" cx="100" cy="100" r="65" fill="none" stroke="gray"/>
+
+    <text id="text1" font-family="Noto Sans" font-size="21">
+        <textPath id="textPath1" href="#circleForText1">
+            Text along a circle
+        </textPath>
+    </text>
+
+    <!-- image frame -->
+    <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>
