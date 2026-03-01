@@ -485,10 +485,10 @@ pub struct TextPath {
 }
 
 impl TextPath {
-    /// Path reference ID used by text-on-path.
+    /// Element's ID.
     ///
-    /// Usually taken from a referenced SVG element ID.
-    /// For inline `textPath path="..."` without an ID, usvg generates an internal one.
+    /// Taken from the SVG itself or generated internally in case the path
+    /// has no ID.
     pub fn id(&self) -> &str {
         self.id.get()
     }

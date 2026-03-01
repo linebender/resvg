@@ -174,9 +174,6 @@ impl Cache {
     }
 
     pub(crate) fn gen_text_path_id(&mut self) -> NonEmptyString {
-        // Used by inline `<textPath path="...">` when the element has no ID.
-        // The writer emits a synthesized `<path id="...">` and references it from
-        // `<textPath xlink:href="#...">`, so this generated ID must be stable and unique.
         loop {
             self.text_path_index += 1;
             let new_id = format!("textPathPath{}", self.text_path_index);
