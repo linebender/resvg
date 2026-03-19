@@ -598,7 +598,7 @@ pub(crate) fn convert_element(node: SvgNode, state: &State, cache: &mut Cache, p
         return;
     }
 
-    if let Some(g) = convert_group(node, state, false, cache, parent, &|cache, g| {
+    if let Some(g) = convert_group(node, None, state, false, cache, parent, &|cache, g| {
         convert_element_impl(tag_name, node, state, cache, g);
     }) {
         parent.children.push(Node::Group(Box::new(g)));
@@ -679,7 +679,7 @@ pub(crate) fn convert_clip_path_elements(
             continue;
         }
 
-        if let Some(g) = convert_group(node, state, false, cache, parent, &|cache, g| {
+        if let Some(g) = convert_group(node, None, state, false, cache, parent, &|cache, g| {
             convert_clip_path_elements_impl(tag_name, node, state, cache, g);
         }) {
             parent.children.push(Node::Group(Box::new(g)));
@@ -738,6 +738,7 @@ impl<'a, 'input: 'a> FromValue<'a, 'input> for Isolation {
 // TODO: explain
 pub(crate) fn convert_group(
     node: SvgNode,
+    transform: Option<Transform>,
     state: &State,
     force: bool,
     cache: &mut Cache,
@@ -752,7 +753,7 @@ pub(crate) fn convert_group(
         Opacity::ONE
     };
 
-    let transform = node.resolve_transform(AId::Transform, state);
+    let transform = transform.unwrap_or_else(|| node.resolve_transform(AId::Transform, state));
     let blend_mode: BlendMode = node.attribute(AId::MixBlendMode).unwrap_or_default();
     let isolation: Isolation = node.attribute(AId::Isolation).unwrap_or_default();
     let isolate = isolation == Isolation::Isolate;
