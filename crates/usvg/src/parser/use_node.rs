@@ -84,9 +84,8 @@ pub(crate) fn convert(
         }
 
         if let Some(clip_rect) = get_clip_rect(node, child, &use_state) {
-            orig_ts = orig_ts.pre_concat(new_ts);
             let mut g = clip_element(node, clip_rect, orig_ts, &use_state, cache);
-            g.abs_transform = parent.abs_transform.pre_concat(orig_ts);
+            g.abs_transform = parent.abs_transform.pre_concat(orig_ts).pre_concat(new_ts);
 
             // Make group for `use`.
             if let Some(mut g2) = converter::convert_group(
@@ -97,7 +96,7 @@ pub(crate) fn convert(
                 cache,
                 &mut g,
                 &|cache, g2| {
-                    convert_children(child, Transform::default(), &use_state, cache, false, g2);
+                    convert_children(child, new_ts, &use_state, cache, false, g2);
                 },
             ) {
                 // We must reset transform, because it was already set

@@ -390,7 +390,9 @@ fn path_transform_in_symbol_with_clip() {
     //     </defs>
     //     <g id="use1" clip-path="url(#clipPath1)" transform="matrix(1 0 0 1 20 0)">
     //         <g>
-    //             <path fill="#000000" stroke="none" d="M 0 0 L 10 0 L 10 10 L 0 10 Z"/>
+    //             <g>
+    //                 <path fill="#000000" stroke="none" d="M 0 0 L 10 0 L 10 10 L 0 10 Z"/>
+    //             </g>
     //         </g>
     //     </g>
     // </svg>
@@ -422,7 +424,20 @@ fn path_transform_in_symbol_with_clip() {
         _ => unreachable!(),
     };
 
-    let path = &group2.children()[0];
+    let group_node3 = &group2.children()[0];
+    assert!(matches!(group_node3, usvg::Node::Group(_)));
+
+    let group3 = match group_node3 {
+        usvg::Node::Group(g) => g,
+        _ => unreachable!(),
+    };
+
+    assert_eq!(
+        group3.abs_transform(),
+        usvg::Transform::from_translate(20.0, 0.0)
+    );
+
+    let path = &group3.children()[0];
     assert!(matches!(path, usvg::Node::Path(_)));
     assert_eq!(
         path.abs_transform(),
