@@ -344,7 +344,7 @@ fn path_transform_in_symbol_no_clip() {
     assert!(matches!(group_node2, usvg::Node::Group(_)));
     assert_eq!(
         group_node2.abs_transform(),
-        usvg::Transform::from_translate(20.0, 0.0)
+        usvg::Transform::from_translate(0.0, 0.0)
     );
 
     let group2 = match group_node2 {
@@ -352,11 +352,16 @@ fn path_transform_in_symbol_no_clip() {
         _ => unreachable!(),
     };
 
+    assert_eq!(
+        group2.transform(),
+        usvg::Transform::from_translate(20.0, 0.0)
+    );
+
     let path = &group2.children()[0];
     assert!(matches!(path, usvg::Node::Path(_)));
     assert_eq!(
         path.abs_transform(),
-        usvg::Transform::from_translate(20.0, 0.0)
+        usvg::Transform::from_translate(0.0, 0.0)
     );
 }
 
@@ -414,7 +419,7 @@ fn path_transform_in_symbol_with_clip() {
     assert!(matches!(group_node3, usvg::Node::Group(_)));
     assert_eq!(
         group_node3.abs_transform(),
-        usvg::Transform::from_translate(20.0, 0.0)
+        usvg::Transform::from_translate(0.0, 0.0)
     );
 
     let group3 = match group_node3 {
@@ -422,11 +427,16 @@ fn path_transform_in_symbol_with_clip() {
         _ => unreachable!(),
     };
 
+    assert_eq!(
+        group3.transform(),
+        usvg::Transform::from_translate(20.0, 0.0)
+    );
+
     let path = &group3.children()[0];
     assert!(matches!(path, usvg::Node::Path(_)));
     assert_eq!(
         path.abs_transform(),
-        usvg::Transform::from_translate(20.0, 0.0)
+        usvg::Transform::from_translate(0.0, 0.0)
     );
 }
 
@@ -546,4 +556,49 @@ fn no_text_nodes() {
 
     let tree = usvg::Tree::from_str(&svg, &usvg::Options::default()).unwrap();
     assert!(!tree.has_text_nodes());
+}
+
+#[test]
+fn group_abs_transform_should_only_need_to_apply_transform_once() {
+    let svg = "
+      <svg
+        id='svg1'
+        viewBox='-100 -100 200 200'
+        xmlns='http://www.w3.org/2000/svg'
+        xmlns:xlink='http://www.w3.org/1999/xlink'
+      >
+        <title>`context-fill` with transform (SVG 2)</title>
+        <g id='point'>
+          <path d='m0,0 v-98 l15,83z' style='fill:#337599;' />
+          <path
+            d='m0,0 v-98 l-15,83z'
+            style='fill:#9fc9df; stroke:#337599; stroke-width:0.5;'
+          />
+        </g>
+        <use xlink:href='#point' transform='scale(0.5)' />
+      </svg>
+    ";
+
+    let tree = usvg::Tree::from_str(&svg, &usvg::Options::default()).unwrap();
+
+    let children = tree.root().children();
+
+    let usvg::Node::Group(group_node) = &children[0] else {
+        unreachable!()
+    };
+    let groups = group_node.children();
+
+    let usvg::Node::Group(original_group) = &groups[0] else {
+        unreachable!()
+    };
+
+    assert_eq!(original_group.transform().get_scale(), (1.0, 1.0));
+    assert_eq!(original_group.abs_transform().get_scale(), (1.0, 1.0));
+
+    let usvg::Node::Group(use_group) = &groups[1] else {
+        unreachable!()
+    };
+
+    assert_eq!(use_group.transform().get_scale(), (0.5, 0.5));
+    assert_eq!(use_group.abs_transform().get_scale(), (0.5, 0.5));
 }

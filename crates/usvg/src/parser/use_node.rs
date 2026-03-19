@@ -269,10 +269,6 @@ fn convert_children(
     is_context_element: bool,
     parent: &mut Group,
 ) {
-    // Temporarily adjust absolute transform so `convert_group` would account for `transform`.
-    let old_abs_transform = parent.abs_transform;
-    parent.abs_transform = parent.abs_transform.pre_concat(transform);
-
     let required = !transform.is_identity();
     if let Some(mut g) =
         converter::convert_group(node, state, required, cache, parent, &|cache, g| {
@@ -287,8 +283,6 @@ fn convert_children(
         g.transform = transform;
         parent.children.push(Node::Group(Box::new(g)));
     }
-
-    parent.abs_transform = old_abs_transform;
 }
 
 fn get_clip_rect(
