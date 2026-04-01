@@ -547,3 +547,46 @@ fn no_text_nodes() {
     let tree = usvg::Tree::from_str(&svg, &usvg::Options::default()).unwrap();
     assert!(!tree.has_text_nodes());
 }
+
+#[test]
+fn text_as_path_should_inherit_group_transform() {
+    let svg = "
+    <svg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'>
+        <g transform='translate(20 20)'>
+            <g transform='translate(20 20)'>
+                <text x='32' y='100'>Text</text>
+            </g>
+        </g>
+    </svg>
+    ";
+
+    let mut opts = usvg::Options::default();
+    let fontdb = opts.fontdb_mut();
+    fontdb.load_system_fonts();
+
+    let tree = usvg::Tree::from_str(&svg, &opts).unwrap();
+
+    let usvg::Node::Group(group0) = &tree.root().children()[0] else {
+        unreachable!()
+    };
+    let usvg::Node::Group(group1) = &group0.children()[0] else {
+        unreachable!()
+    };
+    let usvg::Node::Text(text) = &group1.children()[0] else {
+        unreachable!()
+    };
+    let usvg::Node::Path(path) = &text.flattened().children()[0] else {
+        unreachable!()
+    };
+
+    let t = path.abs_transform();
+
+    assert_eq!(t.tx, 40.0);
+    assert_eq!(t.ty, 40.0);
+
+    assert_ne!(path.bounding_box(), path.abs_bounding_box());
+    assert_eq!(
+        path.bounding_box().transform(t).unwrap(),
+        path.abs_bounding_box()
+    );
+}

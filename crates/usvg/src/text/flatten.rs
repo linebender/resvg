@@ -26,6 +26,7 @@ fn push_outline_paths(
     builder: &mut tiny_skia_path::PathBuilder,
     new_children: &mut Vec<Node>,
     rendering_mode: ShapeRendering,
+    abs_transform: Transform,
 ) {
     let builder = mem::replace(builder, tiny_skia_path::PathBuilder::new());
 
@@ -38,7 +39,7 @@ fn push_outline_paths(
             span.paint_order,
             rendering_mode,
             Arc::new(p),
-            Transform::default(),
+            abs_transform,
         )
     }) {
         new_children.push(Node::Path(Box::new(path)));
@@ -48,6 +49,7 @@ fn push_outline_paths(
 pub(crate) fn flatten(text: &mut Text, cache: &mut Cache) -> Option<(Group, NonZeroRect)> {
     let mut new_children = vec![];
 
+    let abs_transform = text.abs_transform;
     let rendering_mode = resolve_rendering_mode(text);
 
     for span in &text.layouted {
@@ -90,13 +92,18 @@ pub(crate) fn flatten(text: &mut Text, cache: &mut Cache) -> Option<(Group, NonZ
             }
             // An SVG glyph. Will return the usvg node containing the glyph descriptions.
             else if let Some(node) = cache.fontdb_svg(glyph.font, glyph.id) {
-                push_outline_paths(span, &mut span_builder, &mut new_children, rendering_mode);
+                push_outline_paths(
+                    span,
+                    &mut span_builder,
+                    &mut new_children,
+                    rendering_mode,
+                    abs_transform,
+                );
 
                 let mut group = Group {
                     transform: glyph.svg_transform(),
                     ..Group::empty()
                 };
-                // TODO: Probably need to update abs_transform of children?
                 group.children.push(node);
                 group.calculate_bounding_boxes();
 
@@ -104,7 +111,13 @@ pub(crate) fn flatten(text: &mut Text, cache: &mut Cache) -> Option<(Group, NonZ
             }
             // A bitmap glyph.
             else if let Some(img) = cache.fontdb_raster(glyph.font, glyph.id) {
-                push_outline_paths(span, &mut span_builder, &mut new_children, rendering_mode);
+                push_outline_paths(
+                    span,
+                    &mut span_builder,
+                    &mut new_children,
+                    rendering_mode,
+                    abs_transform,
+                );
 
                 let transform = if img.is_sbix {
                     glyph.sbix_transform(
@@ -157,7 +170,13 @@ pub(crate) fn flatten(text: &mut Text, cache: &mut Cache) -> Option<(Group, NonZ
             }
         }
 
-        push_outline_paths(span, &mut span_builder, &mut new_children, rendering_mode);
+        push_outline_paths(
+            span,
+            &mut span_builder,
+            &mut new_children,
+            rendering_mode,
+            abs_transform,
+        );
 
         if let Some(path) = span.line_through.as_ref() {
             let mut path = path.clone();
