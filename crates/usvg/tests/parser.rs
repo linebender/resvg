@@ -561,8 +561,10 @@ fn text_as_path_should_inherit_group_transform() {
     ";
 
     let mut opts = usvg::Options::default();
-    let fontdb = opts.fontdb_mut();
-    fontdb.load_system_fonts();
+    // Maybe the `fonts` dir should be moved to `assets/fonts` dir
+    opts.fontdb_mut()
+        .load_fonts_dir(env!("CARGO_MANIFEST_DIR").to_string() + "/../resvg/tests/fonts");
+    opts.font_family = "Noto Sans".to_string();
 
     let tree = usvg::Tree::from_str(&svg, &opts).unwrap();
 
