@@ -1396,13 +1396,6 @@ pub(crate) fn shape_text(
             )
             .unwrap_or_default();
 
-            let all_matched = fallback_glyphs.iter().all(|g| !g.is_missing());
-            if all_matched {
-                // Replace all glyphs when all of them were matched.
-                glyphs = fallback_glyphs;
-                break 'outer;
-            }
-
             // We assume, that shaping with an any font will produce the same amount of glyphs.
             // This is incorrect, but good enough for now.
             if glyphs.len() != fallback_glyphs.len() {
