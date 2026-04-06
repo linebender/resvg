@@ -15,9 +15,9 @@ use unicode_script::UnicodeScript;
 
 use crate::tree::{BBox, IsValidLength};
 use crate::{
-    AlignmentBaseline, ApproxZeroUlps, BaselineShift, DominantBaseline, Fill, FillRule, Font,
-    FontResolver, LengthAdjust, PaintOrder, Path, ShapeRendering, Stroke, Text, TextAnchor,
-    TextChunk, TextDecorationStyle, TextFlow, TextPath, TextSpan, WritingMode,
+    AlignmentBaseline, ApproxZeroUlps, BaselineShift, DominantBaseline, FallbackRequest, Fill,
+    FillRule, Font, FontResolver, LengthAdjust, PaintOrder, Path, ShapeRendering, Stroke, Text,
+    TextAnchor, TextChunk, TextDecorationStyle, TextFlow, TextPath, TextSpan, WritingMode,
 };
 
 /// A glyph that has already been positioned correctly.
@@ -254,7 +254,7 @@ pub(crate) fn layout_text(
         }
 
         for span in &chunk.spans {
-            let font = match fonts_cache.get(&span.font) {
+            let font = match span_font(span, &clusters, &fonts_cache, fontdb.as_ref()) {
                 Some(v) => v,
                 None => continue,
             };
@@ -264,7 +264,7 @@ pub(crate) fn layout_text(
             let mut span_ts = text_ts;
             span_ts = span_ts.pre_translate(x, y);
             if let TextFlow::Linear = chunk.text_flow {
-                let shift = resolve_baseline(span, font, text_node.writing_mode);
+                let shift = resolve_baseline(span, &font, text_node.writing_mode);
 
                 // In case of a horizontal flow, shift transform and not clusters,
                 // because clusters can be rotated and an additional shift will lead
@@ -287,7 +287,7 @@ pub(crate) fn layout_text(
                 };
 
                 if let Some(path) =
-                    convert_decoration(offset, span, font, decoration, &decoration_spans, span_ts)
+                    convert_decoration(offset, span, &font, decoration, &decoration_spans, span_ts)
                 {
                     bbox = bbox.expand(path.data.bounds());
                     underline = Some(path);
@@ -301,7 +301,7 @@ pub(crate) fn layout_text(
                 };
 
                 if let Some(path) =
-                    convert_decoration(offset, span, font, decoration, &decoration_spans, span_ts)
+                    convert_decoration(offset, span, &font, decoration, &decoration_spans, span_ts)
                 {
                     bbox = bbox.expand(path.data.bounds());
                     overline = Some(path);
@@ -315,7 +315,7 @@ pub(crate) fn layout_text(
                 };
 
                 if let Some(path) =
-                    convert_decoration(offset, span, font, decoration, &decoration_spans, span_ts)
+                    convert_decoration(offset, span, &font, decoration, &decoration_spans, span_ts)
                 {
                     bbox = bbox.expand(path.data.bounds());
                     line_through = Some(path);
@@ -415,6 +415,28 @@ fn convert_span(
     let bbox = bboxes.compute_tight_bounds()?.to_non_zero_rect()?;
 
     Some((span_clusters, bbox))
+}
+
+fn span_font(
+    span: &TextSpan,
+    clusters: &[GlyphCluster],
+    fonts_cache: &FontsCache,
+    fontdb: &fontdb::Database,
+) -> Option<Arc<ResolvedFont>> {
+    if let Some(font) = fonts_cache.get(&span.font) {
+        return Some(font.clone());
+    }
+
+    // A span can still have drawable glyphs when its declared font cannot be
+    // resolved, because another shaping pass may already have filled them via
+    // glyph fallback. In that case, use the first rendered glyph's font for
+    // span-level metrics such as baseline and decorations.
+    clusters
+        .iter()
+        .find(|cluster| span_contains(span, cluster.byte_idx))
+        .and_then(|cluster| cluster.glyphs.first())
+        .and_then(|glyph| fontdb.load_font(glyph.font))
+        .map(Arc::new)
 }
 
 fn collect_decoration_spans(span: &TextSpan, clusters: &[GlyphCluster]) -> Vec<DecorationSpan> {
@@ -907,6 +929,7 @@ fn process_chunk(
 
         let tmp_glyphs = shape_text(
             &chunk.text,
+            &span.font,
             font,
             span.small_caps,
             span.apply_kerning,
@@ -1292,6 +1315,7 @@ impl DatabaseExt for Database {
 /// Text shaping with font fallback.
 pub(crate) fn shape_text(
     text: &str,
+    font_node: &crate::Font,
     font: Arc<ResolvedFont>,
     small_caps: bool,
     apply_kerning: bool,
@@ -1327,9 +1351,16 @@ pub(crate) fn shape_text(
         }
 
         if let Some(c) = missing {
-            let fallback_font = match (resolver.select_fallback)(c, &used_fonts, fontdb)
-                .and_then(|id| fontdb.load_font(id))
-            {
+            let fallback_id = (resolver.select_fallback)(
+                FallbackRequest {
+                    character: c,
+                    font: font_node,
+                    exclude_fonts: &used_fonts,
+                },
+                fontdb,
+            );
+
+            let fallback_font = match fallback_id.and_then(|id| fontdb.load_font(id)) {
                 Some(v) => Arc::new(v),
                 None => break 'outer,
             };
@@ -1348,15 +1379,13 @@ pub(crate) fn shape_text(
             .unwrap_or_default();
 
             let all_matched = fallback_glyphs.iter().all(|g| !g.is_missing());
-            if all_matched {
-                // Replace all glyphs when all of them were matched.
-                glyphs = fallback_glyphs;
-                break 'outer;
-            }
-
-            // We assume, that shaping with an any font will produce the same amount of glyphs.
-            // This is incorrect, but good enough for now.
-            if glyphs.len() != fallback_glyphs.len() {
+            if !can_do_partial_fallback(text, &glyphs, &fallback_glyphs) {
+                if all_matched {
+                    // If the fallback can shape the full run but the cluster layout
+                    // no longer matches the current shaping, we have to keep the
+                    // fallback as a whole run to preserve shaping correctness.
+                    glyphs = fallback_glyphs;
+                }
                 break 'outer;
             }
 
@@ -1548,6 +1577,57 @@ impl Iterator for GlyphClusters<'_> {
         }
 
         Some((start..self.idx, cluster))
+    }
+}
+
+/// Returns whether it is safe to keep the existing run and only fill missing
+/// glyphs from `fallback_glyphs`.
+///
+/// This is intentionally conservative. We only allow partial fallback when both
+/// shapings still agree on the cluster boundaries and on the number of glyphs
+/// per cluster. If they diverge, a glyph-by-glyph merge can break shaping for
+/// the whole run, so callers should prefer whole-run fallback instead.
+fn can_do_partial_fallback(text: &str, glyphs: &[Glyph], fallback_glyphs: &[Glyph]) -> bool {
+    let mut glyph_clusters = GlyphClusters::new(glyphs);
+    let mut fallback_clusters = GlyphClusters::new(fallback_glyphs);
+
+    loop {
+        match (glyph_clusters.next(), fallback_clusters.next()) {
+            (Some((glyph_range, glyph_byte_idx)), Some((fallback_range, fallback_byte_idx))) => {
+                if glyph_byte_idx != fallback_byte_idx {
+                    return false;
+                }
+
+                let Some(glyph) = glyphs.get(glyph_range.start) else {
+                    return false;
+                };
+                let Some(fallback_glyph) = fallback_glyphs.get(fallback_range.start) else {
+                    return false;
+                };
+
+                if glyph.cluster_len != fallback_glyph.cluster_len {
+                    return false;
+                }
+
+                if glyph_range.len() != fallback_range.len() {
+                    return false;
+                }
+
+                let cluster_needs_fallback =
+                    glyphs[glyph_range.clone()].iter().any(Glyph::is_missing);
+                // For scripts where spacing and shaping are tightly coupled, even
+                // matching cluster boundaries are not enough to make partial
+                // fallback trustworthy. In those cases we keep the whole-run
+                // fallback path as the safer option.
+                if cluster_needs_fallback
+                    && !script_supports_letter_spacing(glyph_byte_idx.char_from(text).script())
+                {
+                    return false;
+                }
+            }
+            (None, None) => return true,
+            _ => return false,
+        }
     }
 }
 
