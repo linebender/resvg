@@ -1378,9 +1378,14 @@ pub(crate) fn shape_text(
             )
             .unwrap_or_default();
 
-            // We assume, that shaping with an any font will produce the same amount of glyphs.
-            // This is incorrect, but good enough for now.
-            if glyphs.len() != fallback_glyphs.len() {
+            let all_matched = fallback_glyphs.iter().all(|g| !g.is_missing());
+            if !can_do_partial_fallback(text, &glyphs, &fallback_glyphs) {
+                if all_matched {
+                    // If the fallback can shape the full run but the cluster layout
+                    // no longer matches the current shaping, we have to keep the
+                    // fallback as a whole run to preserve shaping correctness.
+                    glyphs = fallback_glyphs;
+                }
                 break 'outer;
             }
 
@@ -1572,6 +1577,57 @@ impl Iterator for GlyphClusters<'_> {
         }
 
         Some((start..self.idx, cluster))
+    }
+}
+
+/// Returns whether it is safe to keep the existing run and only fill missing
+/// glyphs from `fallback_glyphs`.
+///
+/// This is intentionally conservative. We only allow partial fallback when both
+/// shapings still agree on the cluster boundaries and on the number of glyphs
+/// per cluster. If they diverge, a glyph-by-glyph merge can break shaping for
+/// the whole run, so callers should prefer whole-run fallback instead.
+fn can_do_partial_fallback(text: &str, glyphs: &[Glyph], fallback_glyphs: &[Glyph]) -> bool {
+    let mut glyph_clusters = GlyphClusters::new(glyphs);
+    let mut fallback_clusters = GlyphClusters::new(fallback_glyphs);
+
+    loop {
+        match (glyph_clusters.next(), fallback_clusters.next()) {
+            (Some((glyph_range, glyph_byte_idx)), Some((fallback_range, fallback_byte_idx))) => {
+                if glyph_byte_idx != fallback_byte_idx {
+                    return false;
+                }
+
+                let Some(glyph) = glyphs.get(glyph_range.start) else {
+                    return false;
+                };
+                let Some(fallback_glyph) = fallback_glyphs.get(fallback_range.start) else {
+                    return false;
+                };
+
+                if glyph.cluster_len != fallback_glyph.cluster_len {
+                    return false;
+                }
+
+                if glyph_range.len() != fallback_range.len() {
+                    return false;
+                }
+
+                let cluster_needs_fallback =
+                    glyphs[glyph_range.clone()].iter().any(Glyph::is_missing);
+                // For scripts where spacing and shaping are tightly coupled, even
+                // matching cluster boundaries are not enough to make partial
+                // fallback trustworthy. In those cases we keep the whole-run
+                // fallback path as the safer option.
+                if cluster_needs_fallback
+                    && !script_supports_letter_spacing(glyph_byte_idx.char_from(text).script())
+                {
+                    return false;
+                }
+            }
+            (None, None) => return true,
+            _ => return false,
+        }
     }
 }
 
