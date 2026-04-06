@@ -15,9 +15,9 @@ use unicode_script::UnicodeScript;
 
 use crate::tree::{BBox, IsValidLength};
 use crate::{
-    AlignmentBaseline, ApproxZeroUlps, BaselineShift, DominantBaseline, Fill, FillRule, Font,
-    FontResolver, LengthAdjust, PaintOrder, Path, ShapeRendering, Stroke, Text, TextAnchor,
-    TextChunk, TextDecorationStyle, TextFlow, TextPath, TextSpan, WritingMode,
+    AlignmentBaseline, ApproxZeroUlps, BaselineShift, DominantBaseline, FallbackRequest, Fill,
+    FillRule, Font, FontResolver, LengthAdjust, PaintOrder, Path, ShapeRendering, Stroke, Text,
+    TextAnchor, TextChunk, TextDecorationStyle, TextFlow, TextPath, TextSpan, WritingMode,
 };
 
 /// A glyph that has already been positioned correctly.
@@ -254,7 +254,7 @@ pub(crate) fn layout_text(
         }
 
         for span in &chunk.spans {
-            let font = match fonts_cache.get(&span.font) {
+            let font = match span_font(span, &clusters, &fonts_cache, fontdb.as_ref()) {
                 Some(v) => v,
                 None => continue,
             };
@@ -264,7 +264,7 @@ pub(crate) fn layout_text(
             let mut span_ts = text_ts;
             span_ts = span_ts.pre_translate(x, y);
             if let TextFlow::Linear = chunk.text_flow {
-                let shift = resolve_baseline(span, font, text_node.writing_mode);
+                let shift = resolve_baseline(span, &font, text_node.writing_mode);
 
                 // In case of a horizontal flow, shift transform and not clusters,
                 // because clusters can be rotated and an additional shift will lead
@@ -287,7 +287,7 @@ pub(crate) fn layout_text(
                 };
 
                 if let Some(path) =
-                    convert_decoration(offset, span, font, decoration, &decoration_spans, span_ts)
+                    convert_decoration(offset, span, &font, decoration, &decoration_spans, span_ts)
                 {
                     bbox = bbox.expand(path.data.bounds());
                     underline = Some(path);
@@ -301,7 +301,7 @@ pub(crate) fn layout_text(
                 };
 
                 if let Some(path) =
-                    convert_decoration(offset, span, font, decoration, &decoration_spans, span_ts)
+                    convert_decoration(offset, span, &font, decoration, &decoration_spans, span_ts)
                 {
                     bbox = bbox.expand(path.data.bounds());
                     overline = Some(path);
@@ -315,7 +315,7 @@ pub(crate) fn layout_text(
                 };
 
                 if let Some(path) =
-                    convert_decoration(offset, span, font, decoration, &decoration_spans, span_ts)
+                    convert_decoration(offset, span, &font, decoration, &decoration_spans, span_ts)
                 {
                     bbox = bbox.expand(path.data.bounds());
                     line_through = Some(path);
@@ -415,6 +415,28 @@ fn convert_span(
     let bbox = bboxes.compute_tight_bounds()?.to_non_zero_rect()?;
 
     Some((span_clusters, bbox))
+}
+
+fn span_font(
+    span: &TextSpan,
+    clusters: &[GlyphCluster],
+    fonts_cache: &FontsCache,
+    fontdb: &fontdb::Database,
+) -> Option<Arc<ResolvedFont>> {
+    if let Some(font) = fonts_cache.get(&span.font) {
+        return Some(font.clone());
+    }
+
+    // A span can still have drawable glyphs when its declared font cannot be
+    // resolved, because another shaping pass may already have filled them via
+    // glyph fallback. In that case, use the first rendered glyph's font for
+    // span-level metrics such as baseline and decorations.
+    clusters
+        .iter()
+        .find(|cluster| span_contains(span, cluster.byte_idx))
+        .and_then(|cluster| cluster.glyphs.first())
+        .and_then(|glyph| fontdb.load_font(glyph.font))
+        .map(Arc::new)
 }
 
 fn collect_decoration_spans(span: &TextSpan, clusters: &[GlyphCluster]) -> Vec<DecorationSpan> {
@@ -1329,54 +1351,14 @@ pub(crate) fn shape_text(
         }
 
         if let Some(c) = missing {
-            let mut fallback_id = None;
-
-            let stretch = match font_node.stretch {
-                crate::FontStretch::UltraCondensed => fontdb::Stretch::UltraCondensed,
-                crate::FontStretch::ExtraCondensed => fontdb::Stretch::ExtraCondensed,
-                crate::FontStretch::Condensed => fontdb::Stretch::Condensed,
-                crate::FontStretch::SemiCondensed => fontdb::Stretch::SemiCondensed,
-                crate::FontStretch::Normal => fontdb::Stretch::Normal,
-                crate::FontStretch::SemiExpanded => fontdb::Stretch::SemiExpanded,
-                crate::FontStretch::Expanded => fontdb::Stretch::Expanded,
-                crate::FontStretch::ExtraExpanded => fontdb::Stretch::ExtraExpanded,
-                crate::FontStretch::UltraExpanded => fontdb::Stretch::UltraExpanded,
-            };
-
-            let style = match font_node.style {
-                crate::FontStyle::Normal => fontdb::Style::Normal,
-                crate::FontStyle::Italic => fontdb::Style::Italic,
-                crate::FontStyle::Oblique => fontdb::Style::Oblique,
-            };
-
-            for family in &font_node.families {
-                let fontdb_family = match family {
-                    crate::FontFamily::Serif => fontdb::Family::Serif,
-                    crate::FontFamily::SansSerif => fontdb::Family::SansSerif,
-                    crate::FontFamily::Cursive => fontdb::Family::Cursive,
-                    crate::FontFamily::Fantasy => fontdb::Family::Fantasy,
-                    crate::FontFamily::Monospace => fontdb::Family::Monospace,
-                    crate::FontFamily::Named(s) => fontdb::Family::Name(s),
-                };
-
-                let query = fontdb::Query {
-                    families: &[fontdb_family],
-                    weight: fontdb::Weight(font_node.weight),
-                    stretch,
-                    style,
-                };
-
-                if let Some(id) = fontdb.query(&query) {
-                    if !used_fonts.contains(&id) && fontdb.has_char(id, c) {
-                        fallback_id = Some(id);
-                        break;
-                    }
-                }
-            }
-
-            let fallback_id = fallback_id.or_else(|| {
-                (resolver.select_fallback)(c, &used_fonts, fontdb)
-            });
+            let fallback_id = (resolver.select_fallback)(
+                FallbackRequest {
+                    character: c,
+                    font: font_node,
+                    exclude_fonts: &used_fonts,
+                },
+                fontdb,
+            );
 
             let fallback_font = match fallback_id.and_then(|id| fontdb.load_font(id)) {
                 Some(v) => Arc::new(v),

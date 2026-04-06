@@ -132,8 +132,8 @@ impl crate::Tree {
             #[cfg(feature = "text")]
             font_resolver: crate::FontResolver {
                 select_font: Box::new(|font, db| (opt.font_resolver.select_font)(font, db)),
-                select_fallback: Box::new(|c, used_fonts, db| {
-                    (opt.font_resolver.select_fallback)(c, used_fonts, db)
+                select_fallback: Box::new(|request, db| {
+                    (opt.font_resolver.select_fallback)(request, db)
                 }),
             },
             ..Options::default()

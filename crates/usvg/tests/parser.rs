@@ -1,8 +1,20 @@
 // Copyright 2018 the Resvg Authors
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+use std::path::PathBuf;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+use once_cell::sync::Lazy;
 use tiny_skia_path::Rect;
 use usvg::Color;
+
+static TEST_FONTDB: Lazy<Arc<usvg::fontdb::Database>> = Lazy::new(|| {
+    let mut fontdb = usvg::fontdb::Database::new();
+    let fonts_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../resvg/tests/fonts");
+    fontdb.load_fonts_dir(fonts_dir);
+    Arc::new(fontdb)
+});
 
 #[test]
 fn clippath_with_invalid_child() {
@@ -546,4 +558,77 @@ fn no_text_nodes() {
 
     let tree = usvg::Tree::from_str(&svg, &usvg::Options::default()).unwrap();
     assert!(!tree.has_text_nodes());
+}
+
+#[test]
+fn custom_fallback_resolver_receives_request_before_default_policy() {
+    let calls = Arc::new(AtomicUsize::new(0));
+    let fallback_calls = calls.clone();
+
+    let opt = usvg::Options {
+        fontdb: TEST_FONTDB.clone(),
+        font_resolver: usvg::FontResolver {
+            select_font: usvg::FontResolver::default_font_selector(),
+            select_fallback: Box::new(move |request, _db| {
+                fallback_calls.fetch_add(1, Ordering::SeqCst);
+
+                assert_eq!(request.character, 'क');
+                assert_eq!(request.exclude_fonts.len(), 1);
+                assert_eq!(
+                    request
+                        .font
+                        .families()
+                        .iter()
+                        .map(|family| family.to_string())
+                        .collect::<Vec<_>>(),
+                    vec![
+                        "\"Noto Sans\"".to_string(),
+                        "\"Noto Sans Devanagari\"".to_string(),
+                    ]
+                );
+
+                None
+            }),
+        },
+        ..usvg::Options::default()
+    };
+
+    let svg = "
+    <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 20'>
+        <text x='0' y='16' font-family='Noto Sans, Noto Sans Devanagari'>क</text>
+    </svg>
+    ";
+
+    let _ = usvg::Tree::from_str(&svg, &opt).unwrap();
+    assert!(calls.load(Ordering::SeqCst) > 0);
+}
+
+#[test]
+fn invalid_child_font_family_keeps_fallback_glyphs_visible() {
+    let opt = usvg::Options {
+        fontdb: TEST_FONTDB.clone(),
+        ..usvg::Options::default()
+    };
+
+    let svg = "
+    <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 40'>
+        <text x='0' y='24' font-family='Noto Sans'>
+            data <tspan font-family='Invalid'>你好</tspan> data
+        </text>
+    </svg>
+    ";
+
+    let tree = usvg::Tree::from_str(svg, &opt).unwrap();
+    let usvg::Node::Text(text) = &tree.root().children()[0] else {
+        unreachable!()
+    };
+
+    let rendered_text = text
+        .layouted()
+        .iter()
+        .flat_map(|span| span.positioned_glyphs.iter())
+        .map(|glyph| glyph.text.as_str())
+        .collect::<String>();
+
+    assert!(rendered_text.contains("你好"));
 }
