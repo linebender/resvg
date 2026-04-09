@@ -1144,8 +1144,9 @@ fn apply_word_spacing(chunk: &TextChunk, clusters: &mut [GlyphCluster]) {
 fn form_glyph_clusters(glyphs: &[Glyph], text: &str, font_size: f32) -> GlyphCluster {
     debug_assert!(!glyphs.is_empty());
 
+    let mut x = 0.0;
     let mut width = 0.0;
-    let mut x: f32 = 0.0;
+    let mut advance = 0.0;
 
     let mut positioned_glyphs = vec![];
 
@@ -1175,6 +1176,8 @@ fn form_glyph_clusters(glyphs: &[Glyph], text: &str, font_size: f32) -> GlyphClu
 
         x += glyph.width as f32;
 
+        advance = x * sx;
+
         let glyph_width = glyph.width as f32 * sx;
         if glyph_width > width {
             width = glyph_width;
@@ -1187,7 +1190,7 @@ fn form_glyph_clusters(glyphs: &[Glyph], text: &str, font_size: f32) -> GlyphClu
         byte_idx,
         codepoint: byte_idx.char_from(text),
         width,
-        advance: width,
+        advance,
         ascent: font.ascent(font_size),
         descent: font.descent(font_size),
         has_relative_shift: false,
