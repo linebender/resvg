@@ -1421,6 +1421,7 @@ use crate::render;
 #[test] fn text_font_family_fantasy() { assert_eq!(render("tests/text/font-family/fantasy"), 0); }
 #[test] fn text_font_family_font_list() { assert_eq!(render("tests/text/font-family/font-list"), 0); }
 #[test] fn text_font_family_monospace() { assert_eq!(render("tests/text/font-family/monospace"), 0); }
+#[test] fn text_font_family_noto_sans_malayalam_1() { assert_eq!(render("tests/text/font-family/noto-sans-malayalam-1"), 0); }
 #[test] fn text_font_family_noto_sans() { assert_eq!(render("tests/text/font-family/noto-sans"), 0); }
 #[test] fn text_font_family_sans_serif() { assert_eq!(render("tests/text/font-family/sans-serif"), 0); }
 #[test] fn text_font_family_serif() { assert_eq!(render("tests/text/font-family/serif"), 0); }
