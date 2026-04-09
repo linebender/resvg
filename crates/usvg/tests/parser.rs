@@ -549,7 +549,7 @@ fn no_text_nodes() {
 }
 
 #[test]
-fn text_as_path_should_inherit_group_transform() {
+fn flattened_text_should_inherit_absolute_transform() {
     let svg = "
     <svg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'>
         <g transform='translate(20 20)'>
