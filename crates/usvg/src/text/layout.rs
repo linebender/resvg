@@ -1176,9 +1176,8 @@ fn form_glyph_clusters(glyphs: &[Glyph], text: &str, font_size: f32) -> GlyphClu
 
         x += glyph.width as f32;
 
-        advance = x * sx;
-
         let glyph_width = glyph.width as f32 * sx;
+        advance += glyph_width;
         if glyph_width > width {
             width = glyph_width;
         }
