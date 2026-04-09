@@ -84,7 +84,8 @@ pub(crate) fn flatten(text: &mut Text, cache: &mut Cache) -> Option<(Group, NonZ
                     transform: glyph.colr_transform(),
                     ..Group::empty()
                 };
-                // TODO: Probably need to update abs_transform of children?
+                // TODO: Probably need to update abs_transform of children? Same
+                // for SVG and bitmap glyphs.
                 group.children.push(Node::Group(Box::new(tree.root)));
                 group.calculate_bounding_boxes();
 
