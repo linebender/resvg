@@ -71,19 +71,19 @@ fn stylesheet_injection() {
         &usvg::Paint::Color(Color::new_rgb(0, 128, 0))
     );
 
-    let usvg::Node::Path(third) = &tree.root().children()[3] else {
+    let usvg::Node::Path(fourth) = &tree.root().children()[3] else {
         unreachable!()
     };
     assert_eq!(
-        third.fill().unwrap().paint(),
+        fourth.fill().unwrap().paint(),
         &usvg::Paint::Color(Color::new_rgb(0, 128, 0))
     );
 
-    let usvg::Node::Path(third) = &tree.root().children()[3] else {
+    let usvg::Node::Path(fifth) = &tree.root().children()[4] else {
         unreachable!()
     };
     assert_eq!(
-        third.fill().unwrap().paint(),
+        fifth.fill().unwrap().paint(),
         &usvg::Paint::Color(Color::new_rgb(0, 128, 0))
     );
 }
