@@ -270,6 +270,19 @@ pub(crate) fn parse_svg_element<'input>(
     }
 
     let mut insert_attribute = |aid, value: &str, important: bool| {
+        // Height and width CSS styling should not happen for the
+        // following elements (see https://github.com/w3c/svgwg/pull/1059):
+        //   - "svg", unless it's the outermost one
+        //   - "use"
+        //   - "symbol"
+        match aid {
+            AId::Height | AId::Width => match tag_name {
+                EId::Svg if parent_id.get() != 0 => return,
+                EId::Use | EId::Symbol => return,
+                _ => (),
+            },
+            _ => (),
+        }
         // Check that attribute already exists.
         let idx = doc.attrs[attrs_start_idx..]
             .iter_mut()
