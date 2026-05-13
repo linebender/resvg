@@ -5,6 +5,16 @@ use tiny_skia_path::Rect;
 use usvg::Color;
 
 #[test]
+fn gradient_stop_offset_overflowing_f32() {
+    // `4e38` overflows f32 to infinity; parsing must not panic.
+    let svg = "<svg xmlns='http://www.w3.org/2000/svg'>\
+        <defs><linearGradient id='g'><stop offset='4e38'/></linearGradient></defs>\
+        <rect width='1' height='1' fill='url(#g)'/>\
+    </svg>";
+    assert!(usvg::Tree::from_str(svg, &usvg::Options::default()).is_ok());
+}
+
+#[test]
 fn clippath_with_invalid_child() {
     let svg = "
     <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'>
