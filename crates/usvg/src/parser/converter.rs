@@ -7,11 +7,11 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 #[cfg(feature = "text")]
+use crate::GlyphId;
+#[cfg(feature = "text")]
 use fontdb::Database;
 #[cfg(feature = "text")]
 use fontdb::ID;
-#[cfg(feature = "text")]
-use rustybuzz::ttf_parser::GlyphId;
 use svgtypes::{Length, LengthUnit as Unit, PaintOrderKind, TransformOrigin};
 use tiny_skia_path::PathBuilder;
 
