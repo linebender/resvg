@@ -5,8 +5,9 @@ use std::collections::{HashMap, HashSet};
 use std::num::NonZeroU16;
 use std::sync::Arc;
 
-use fontdb::{Database, ID};
+use fontdb::{Family, ID, Query};
 use kurbo::{ParamCurve, ParamCurveArclen, ParamCurveDeriv};
+use log::debug;
 use rustybuzz::ttf_parser;
 use rustybuzz::ttf_parser::{GlyphId, Tag};
 use strict_num::NonZeroPositiveF32;
@@ -900,14 +901,9 @@ fn process_chunk(
 
     let mut glyphs = Vec::new();
     for span in &chunk.spans {
-        let font = match fonts_cache.get(&span.font) {
-            Some(v) => v.clone(),
-            None => continue,
-        };
-
         let tmp_glyphs = shape_text(
             &chunk.text,
-            font,
+            &span.font,
             span.small_caps,
             span.apply_kerning,
             &span.font.variations,
@@ -1205,7 +1201,7 @@ pub(crate) trait DatabaseExt {
     fn has_char(&self, id: ID, c: char) -> bool;
 }
 
-impl DatabaseExt for Database {
+impl DatabaseExt for fontdb::Database {
     #[inline(never)]
     fn load_font(&self, id: ID) -> Option<ResolvedFont> {
         self.with_face_data(id, |data, face_index| -> Option<ResolvedFont> {
@@ -1291,10 +1287,21 @@ impl DatabaseExt for Database {
     }
 }
 
+fn as_fontdb_family(family: &'_ crate::FontFamily) -> Family<'_> {
+    match family {
+        crate::FontFamily::Serif => Family::Serif,
+        crate::FontFamily::SansSerif => Family::SansSerif,
+        crate::FontFamily::Cursive => Family::Cursive,
+        crate::FontFamily::Fantasy => Family::Fantasy,
+        crate::FontFamily::Monospace => Family::Monospace,
+        crate::FontFamily::Named(s) => Family::Name(s),
+    }
+}
+
 /// Text shaping with font fallback.
 pub(crate) fn shape_text(
     text: &str,
-    font: Arc<ResolvedFont>,
+    span_font: &Font,
     small_caps: bool,
     apply_kerning: bool,
     variations: &[crate::FontVariation],
@@ -1303,9 +1310,15 @@ pub(crate) fn shape_text(
     resolver: &FontResolver,
     fontdb: &mut Arc<fontdb::Database>,
 ) -> Vec<Glyph> {
+    let Some(initial_font) =
+        (resolver.select_font)(span_font, fontdb).and_then(|x| fontdb.load_font(x))
+    else {
+        return vec![];
+    };
+    let initial_font = Arc::new(initial_font);
     let mut glyphs = shape_text_with_font(
         text,
-        font.clone(),
+        initial_font.clone(),
         small_caps,
         apply_kerning,
         variations,
@@ -1316,7 +1329,7 @@ pub(crate) fn shape_text(
     .unwrap_or_default();
 
     // Remember all fonts used for shaping.
-    let mut used_fonts = vec![font.id];
+    let mut used_fonts = vec![initial_font.id];
 
     // Loop until all glyphs become resolved or until no more fonts are left.
     'outer: loop {
@@ -1329,12 +1342,34 @@ pub(crate) fn shape_text(
         }
 
         if let Some(c) = missing {
-            let fallback_font = match (resolver.select_fallback)(c, &used_fonts, fontdb)
-                .and_then(|id| fontdb.load_font(id))
-            {
+            let mut fallback_id = None;
+
+            for family in &span_font.families {
+                let query = Query {
+                    families: &[as_fontdb_family(family)],
+                    weight: fontdb::Weight(span_font.weight),
+                    stretch: span_font.stretch.into(),
+                    style: span_font.style.into(),
+                };
+                if let Some(id) = fontdb.query(&query) {
+                    if !used_fonts.contains(&id) && fontdb.has_char(id, c) {
+                        fallback_id = Some(id);
+                        break;
+                    }
+                }
+            }
+
+            let fallback_id =
+                fallback_id.or_else(|| (resolver.select_fallback)(c, &used_fonts, fontdb));
+
+            let fallback_font = match fallback_id.and_then(|id| fontdb.load_font(id)) {
                 Some(v) => Arc::new(v),
                 None => break 'outer,
             };
+            debug!(
+                "Fallback font postscript name: {}",
+                fontdb.face(fallback_font.id).unwrap().post_script_name
+            );
 
             // Shape again, using a new font.
             let fallback_glyphs = shape_text_with_font(
@@ -1348,13 +1383,6 @@ pub(crate) fn shape_text(
                 fontdb,
             )
             .unwrap_or_default();
-
-            let all_matched = fallback_glyphs.iter().all(|g| !g.is_missing());
-            if all_matched {
-                // Replace all glyphs when all of them were matched.
-                glyphs = fallback_glyphs;
-                break 'outer;
-            }
 
             // We assume, that shaping with an any font will produce the same amount of glyphs.
             // This is incorrect, but good enough for now.
