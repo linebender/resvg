@@ -1,0 +1,14 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <title>Link to `line` via `href` (SVG 2)</title>
+
+    <line id="lineForText1" x1="20" y1="100" x2="180" y2="100" stroke="gray"/>
+
+    <text id="text1" font-family="Noto Sans" font-size="21">
+        <textPath id="textPath1" href="#lineForText1">
+            Text along a line
+        </textPath>
+    </text>
+
+    <!-- image frame -->
+    <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>
