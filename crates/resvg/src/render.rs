@@ -107,7 +107,25 @@ fn render_group(
 
     if !group.filters().is_empty() {
         for filter in group.filters() {
-            crate::filter::apply(filter, transform, &mut sub_pixmap);
+            // Ensure that our filters also do not exceed the layer size
+            let filter_transform = if let Some((shrunk, tf_rect)) =
+                filter.rect().transform(transform).and_then(|tf_rect| {
+                    let int_rect = tf_rect.to_int_rect();
+                    if int_rect.width() <= ctx.max_bbox.width()
+                        || int_rect.height() <= ctx.max_bbox.height()
+                    {
+                        return None;
+                    }
+                    crate::geom::fit_to_rect(tf_rect.to_int_rect(), ctx.max_bbox)
+                        .map(|new_rect| (new_rect, tf_rect))
+                }) {
+                let s_w = shrunk.width() as f32 / tf_rect.to_int_rect().width() as f32;
+                let s_h = shrunk.height() as f32 / tf_rect.to_int_rect().height() as f32;
+                transform.pre_scale(s_w, s_h)
+            } else {
+                transform
+            };
+            crate::filter::apply(filter, filter_transform, &mut sub_pixmap);
         }
     }
 
