@@ -6,6 +6,7 @@
 */
 
 #![forbid(unsafe_code)]
+#![forbid(clippy::missing_panics_doc)]
 #![warn(missing_docs)]
 #![allow(clippy::field_reassign_with_default)]
 #![allow(clippy::identity_op)]
@@ -31,22 +32,23 @@ mod render;
 /// Can be used to position SVG inside the `pixmap`.
 ///
 /// The produced content is in the sRGB color space.
+#[must_use]
 pub fn render(
     tree: &usvg::Tree,
     transform: tiny_skia::Transform,
     pixmap: &mut tiny_skia::PixmapMut,
-) {
-    let target_size = tiny_skia::IntSize::from_wh(pixmap.width(), pixmap.height()).unwrap();
+) -> Option<()> {
+    let target_size = tiny_skia::IntSize::from_wh(pixmap.width(), pixmap.height())?;
     let max_bbox = tiny_skia::IntRect::from_xywh(
-        -(target_size.width() as i32) * 2,
-        -(target_size.height() as i32) * 2,
-        target_size.width() * 5,
-        target_size.height() * 5,
-    )
-    .unwrap();
+        (-(target_size.width() as i32)).checked_add(2)?,
+        (-(target_size.height() as i32)).checked_add(2)?,
+        target_size.width().checked_mul(5)?,
+        target_size.height().checked_mul(5)?,
+    )?;
 
     let ctx = render::Context { max_bbox };
     render::render_nodes(tree.root(), &ctx, transform, pixmap);
+    Some(())
 }
 
 /// Renders a node onto the pixmap.
@@ -66,14 +68,13 @@ pub fn render_node(
 ) -> Option<()> {
     let bbox = node.abs_layer_bounding_box()?;
 
-    let target_size = tiny_skia::IntSize::from_wh(pixmap.width(), pixmap.height()).unwrap();
+    let target_size = tiny_skia::IntSize::from_wh(pixmap.width(), pixmap.height())?;
     let max_bbox = tiny_skia::IntRect::from_xywh(
         -(target_size.width() as i32) * 2,
         -(target_size.height() as i32) * 2,
         target_size.width() * 5,
         target_size.height() * 5,
-    )
-    .unwrap();
+    )?;
 
     transform = transform.pre_translate(-bbox.x(), -bbox.y());
 
