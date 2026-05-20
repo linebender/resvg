@@ -1604,6 +1604,15 @@ impl Tree {
         self.size
     }
 
+    /// Returns the actual size of the image, accounting for strokes, filters
+    /// and transforms.
+    ///
+    /// May exceed the original [`size`](Tree::size).
+    pub fn max_size(&self) -> Size {
+        let bbox = self.root().abs_layer_bounding_box();
+        Size::from_wh(bbox.width(), bbox.height()).unwrap_or(self.size)
+    }
+
     /// The root element of the SVG tree.
     pub fn root(&self) -> &Group {
         &self.root
