@@ -12,7 +12,7 @@ use usvg::filter::{ConvolveMatrix, EdgeMode};
 /// # Allocations
 ///
 /// This method will allocate a copy of the `src` image as a back buffer.
-pub fn apply(matrix: &ConvolveMatrix, src: ImageRefMut) {
+pub fn apply(matrix: &ConvolveMatrix, src: ImageRefMut) -> Result<(), super::Error> {
     fn bound(min: i32, val: i32, max: i32) -> i32 {
         core::cmp::max(min, core::cmp::min(max, val))
     }
@@ -57,10 +57,13 @@ pub fn apply(matrix: &ConvolveMatrix, src: ImageRefMut) {
                     }
                 }
 
-                let k = matrix.matrix().get(
-                    matrix.matrix().columns() - ox - 1,
-                    matrix.matrix().rows() - oy - 1,
-                );
+                let k = matrix
+                    .matrix()
+                    .get(
+                        matrix.matrix().columns() - ox - 1,
+                        matrix.matrix().rows() - oy - 1,
+                    )
+                    .ok_or(super::Error::InvalidRegion)?;
 
                 let p = src.pixel_at(tx as u32, ty as u32);
                 new_r += (p.r as f32) / 255.0 * k;
@@ -108,4 +111,6 @@ pub fn apply(matrix: &ConvolveMatrix, src: ImageRefMut) {
 
     // Do not use `mem::swap` because `data` referenced via FFI.
     src.data.copy_from_slice(buf.data);
+
+    Ok(())
 }
