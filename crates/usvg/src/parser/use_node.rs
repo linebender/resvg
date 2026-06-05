@@ -271,7 +271,10 @@ fn convert_children(
 ) {
     // Temporarily adjust absolute transform so `convert_group` would account for `transform`.
     let old_abs_transform = parent.abs_transform;
-    parent.abs_transform = parent.abs_transform.pre_concat(transform);
+    // If context element is `<use>` node, so here don't apply transform to it.
+    if !is_context_element {
+        parent.abs_transform = parent.abs_transform.pre_concat(transform);
+    }
 
     let required = !transform.is_identity();
     if let Some(mut g) =
@@ -288,7 +291,9 @@ fn convert_children(
         parent.children.push(Node::Group(Box::new(g)));
     }
 
-    parent.abs_transform = old_abs_transform;
+    if !is_context_element {
+        parent.abs_transform = old_abs_transform;
+    }
 }
 
 fn get_clip_rect(
