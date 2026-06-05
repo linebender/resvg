@@ -6,6 +6,7 @@ use std::num::NonZeroU16;
 use std::sync::Arc;
 
 use fontdb::{Database, ID};
+use harfrust::ShapeOptions;
 use kurbo::{ParamCurve, ParamCurveArclen, ParamCurveDeriv};
 use skrifa::MetadataProvider;
 use skrifa::instance::Location;
@@ -1501,7 +1502,7 @@ fn shape_text_with_font(
                 // Build the shaper
                 .build();
 
-            let output = shaper.shape(buffer, &features);
+            let output = shaper.shape(buffer, ShapeOptions::new().features(&features));
 
             let positions = output.glyph_positions();
             let infos = output.glyph_infos();
