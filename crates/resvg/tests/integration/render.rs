@@ -81,6 +81,7 @@ use crate::render;
 #[test] fn filters_feComposite_invalid_operator() { assert_eq!(render("tests/filters/feComposite/invalid-operator"), 0); }
 #[test] fn filters_feComposite_operator_eq_arithmetic_and_invalid_k1_4() { assert_eq!(render("tests/filters/feComposite/operator=arithmetic-and-invalid-k1-4"), 0); }
 #[test] fn filters_feComposite_operator_eq_arithmetic_on_sRGB() { assert_eq!(render("tests/filters/feComposite/operator=arithmetic-on-sRGB"), 0); }
+#[test] fn filters_feComposite_operator_eq_arithmetic_with_huge_region() { assert_eq!(render("tests/filters/feComposite/operator=arithmetic-with-huge-region"), 0); }
 #[test] fn filters_feComposite_operator_eq_arithmetic_with_large_k1_4() { assert_eq!(render("tests/filters/feComposite/operator=arithmetic-with-large-k1-4"), 0); }
 #[test] fn filters_feComposite_operator_eq_arithmetic_with_opacity_on_sRGB() { assert_eq!(render("tests/filters/feComposite/operator=arithmetic-with-opacity-on-sRGB"), 0); }
 #[test] fn filters_feComposite_operator_eq_arithmetic_with_opacity() { assert_eq!(render("tests/filters/feComposite/operator=arithmetic-with-opacity"), 0); }
