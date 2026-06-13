@@ -149,8 +149,14 @@ impl crate::Tree {
             ..Default::default()
         };
 
-        let doc =
-            roxmltree::Document::parse_with_options(text, xml_opt).map_err(Error::ParsingFailed)?;
+        // An XML declaration (`<?xml ?>`) is only valid as the very first thing
+        // in the document, so any leading whitespace before it makes the
+        // underlying XML parser reject the input. Trim it so that pretty-printed
+        // SVG (e.g. a string starting with a newline) parses just like its
+        // single-line form. This also benefits gzip-compressed input, which is
+        // routed through here after decompression.
+        let doc = roxmltree::Document::parse_with_options(text.trim_start(), xml_opt)
+            .map_err(Error::ParsingFailed)?;
 
         Self::from_xmltree(&doc, opt)
     }

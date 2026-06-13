@@ -601,3 +601,46 @@ fn flattened_text_should_inherit_absolute_transform() {
         path.abs_bounding_box()
     );
 }
+
+#[test]
+fn leading_whitespace_before_xml_declaration() {
+    // An `<?xml ?>` declaration preceded by whitespace (e.g. a string literal
+    // that starts on its own line) must still parse, matching the behavior of
+    // the same SVG without the surrounding whitespace.
+    // https://github.com/linebender/resvg/issues/1057 / iced-rs/iced#3357
+    const BODY: &str = "<svg xmlns='http://www.w3.org/2000/svg' \
+        width='10' height='10'><rect width='10' height='10'/></svg>";
+    let decl = "<?xml version='1.0' encoding='UTF-8'?>";
+
+    let opt = usvg::Options::default();
+    let parses = |s: &str| usvg::Tree::from_str(s, &opt).is_ok();
+
+    // Baselines: declaration at the very start, and no declaration at all.
+    assert!(parses(&format!("{decl}{BODY}")));
+    assert!(parses(&format!("\n  {BODY}")));
+
+    // Regression: declaration preceded by various leading whitespace.
+    assert!(parses(&format!("\n{decl}\n{BODY}")), "leading newline");
+    assert!(parses(&format!("\r\n{decl}{BODY}")), "leading CRLF");
+    assert!(parses(&format!("   {decl}{BODY}")), "leading spaces");
+    assert!(parses(&format!("\t{decl}{BODY}")), "leading tab");
+}
+
+#[test]
+fn leading_whitespace_in_gzip_compressed_svg() {
+    // The same leniency must apply to gzip-compressed input, which is routed
+    // through `from_str` after decompression.
+    use std::io::Write;
+
+    let decl = "<?xml version='1.0' encoding='UTF-8'?>";
+    let svg = format!(
+        "\n{decl}\n<svg xmlns='http://www.w3.org/2000/svg' \
+         width='10' height='10'><rect width='10' height='10'/></svg>"
+    );
+
+    let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+    encoder.write_all(svg.as_bytes()).unwrap();
+    let compressed = encoder.finish().unwrap();
+
+    assert!(usvg::Tree::from_data(&compressed, &usvg::Options::default()).is_ok());
+}
