@@ -601,3 +601,45 @@ fn flattened_text_should_inherit_absolute_transform() {
         path.abs_bounding_box()
     );
 }
+
+#[test]
+fn image_slice_object_bounding_box_clip() {
+    // Regression test for https://github.com/linebender/resvg/issues/1034
+    //
+    // An `<image>` with `preserveAspectRatio="... slice"` is scaled to *cover*
+    // its viewport and clipped to it. The element's bounding box is therefore
+    // its `x/y/width/height` rect, not the larger scaled-to-cover image. An
+    // `objectBoundingBox` clip-path applied to such an image must be resolved
+    // against that rect, otherwise its shape collapses.
+    //
+    // Here the intrinsic image is 120x10 (aspect 12:1) sliced into a 30x60
+    // viewport at (10, 20), so the scaled-to-cover image is 720x60. The clip
+    // transform must be `matrix(30 0 0 60 10 20)` (the viewport), *not*
+    // `matrix(720 0 0 60 -335 20)` (the oversized image).
+    let svg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>\
+        <clipPath id='cp' clipPathUnits='objectBoundingBox'>\
+            <rect width='1' height='1'/>\
+        </clipPath>\
+        <image x='10' y='20' width='30' height='60' preserveAspectRatio='xMidYMid slice' \
+            clip-path='url(#cp)' \
+            href=\"data:image/svg+xml,&lt;svg xmlns='http://www.w3.org/2000/svg' \
+                width='120' height='10'&gt;&lt;rect width='120' height='10'/&gt;&lt;/svg&gt;\"/>\
+    </svg>";
+
+    let tree = usvg::Tree::from_str(svg, &usvg::Options::default()).unwrap();
+
+    let clip = tree
+        .clip_paths()
+        .iter()
+        .find(|c| c.id() == "cp")
+        .expect("objectBoundingBox clip 'cp' should exist");
+
+    let ts = clip.transform();
+    assert!(
+        (ts.sx - 30.0).abs() < 1e-3
+            && (ts.sy - 60.0).abs() < 1e-3
+            && (ts.tx - 10.0).abs() < 1e-3
+            && (ts.ty - 20.0).abs() < 1e-3,
+        "clip resolved against the wrong bounding box: {ts:?}"
+    );
+}
