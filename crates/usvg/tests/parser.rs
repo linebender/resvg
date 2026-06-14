@@ -544,6 +544,85 @@ fn image_bbox_with_parent_transform() {
     );
 }
 
+// SVG 2 mandates that the unprefixed `href` takes precedence over the
+// deprecated `xlink:href` when both are present, regardless of their order.
+// https://www.w3.org/TR/SVG2/linking.html
+// https://github.com/linebender/resvg/issues/1015
+fn use_href_precedence(use_attrs: &str) {
+    let svg = format!(
+        "<svg width='200' height='200' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink'>
+            <defs>
+                <rect id='red' x='0' y='0' width='100' height='100' fill='red'/>
+                <rect id='green' x='0' y='0' width='100' height='100' fill='green'/>
+            </defs>
+            <use {use_attrs}/>
+        </svg>"
+    );
+
+    let tree = usvg::Tree::from_str(&svg, &usvg::Options::default()).unwrap();
+    let usvg::Node::Group(group) = &tree.root().children()[0] else {
+        unreachable!()
+    };
+    let usvg::Node::Path(path) = &group.children()[0] else {
+        unreachable!()
+    };
+
+    // `href` points to `#green`, so the result must be green.
+    assert_eq!(
+        path.fill().unwrap().paint(),
+        &usvg::Paint::Color(Color::new_rgb(0, 128, 0))
+    );
+}
+
+#[test]
+fn use_href_takes_precedence_over_xlink_href() {
+    use_href_precedence("href='#green' xlink:href='#red'");
+}
+
+#[test]
+fn use_href_takes_precedence_over_xlink_href_reordered() {
+    // Precedence must not depend on the source order of the attributes.
+    use_href_precedence("xlink:href='#red' href='#green'");
+}
+
+#[test]
+fn use_falls_back_to_xlink_href() {
+    // The legacy `xlink:href` must still work when `href` is absent.
+    use_href_precedence("xlink:href='#green'");
+}
+
+#[test]
+fn gradient_href_takes_precedence_over_xlink_href() {
+    // The same precedence rule applies to attribute references resolved via
+    // the stored `href` attribute (gradients, `image`, `textPath`, …).
+    let svg = "<svg width='100' height='100' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink'>
+        <defs>
+            <linearGradient id='green'>
+                <stop offset='0' stop-color='green'/>
+                <stop offset='1' stop-color='green'/>
+            </linearGradient>
+            <linearGradient id='red'>
+                <stop offset='0' stop-color='red'/>
+                <stop offset='1' stop-color='red'/>
+            </linearGradient>
+            <linearGradient id='g' xlink:href='#red' href='#green'/>
+        </defs>
+        <rect width='100' height='100' fill='url(#g)'/>
+    </svg>";
+
+    let tree = usvg::Tree::from_str(svg, &usvg::Options::default()).unwrap();
+    let usvg::Node::Path(path) = &tree.root().children()[0] else {
+        unreachable!()
+    };
+
+    let usvg::Paint::LinearGradient(gradient) = path.fill().unwrap().paint() else {
+        unreachable!()
+    };
+
+    // The gradient must inherit the green stops referenced via `href`.
+    assert_eq!(gradient.stops()[0].color(), Color::new_rgb(0, 128, 0));
+}
+
 #[test]
 fn no_text_nodes() {
     let svg = "
