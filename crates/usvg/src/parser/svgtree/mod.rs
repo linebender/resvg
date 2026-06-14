@@ -823,11 +823,15 @@ impl AId {
 fn is_non_inheritable(id: AId) -> bool {
     matches!(
         id,
+        // `dominant-baseline` is intentionally *not* listed here: unlike
+        // `alignment-baseline` and `baseline-shift`, it is an inherited property
+        // (CSS Inline Layout 3 / SVG 2, matching Chromium and Inkscape). Treating
+        // it as non-inheritable broke nested `<tspan>`s, whose direct parent does
+        // not carry the value (https://github.com/linebender/resvg/issues/864).
         AId::AlignmentBaseline
             | AId::BaselineShift
             | AId::ClipPath
             | AId::Display
-            | AId::DominantBaseline
             | AId::Filter
             | AId::FloodColor
             | AId::FloodOpacity
