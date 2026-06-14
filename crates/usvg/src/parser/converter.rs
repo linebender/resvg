@@ -415,7 +415,14 @@ pub(crate) fn convert_doc(svg_doc: &svgtree::Document, opt: &Options) -> Result<
         }
     }
 
-    let root_ts = view_box.to_transform(tree.size());
+    // The `transform` attribute is allowed on the outermost `svg` element since SVG 2.
+    // Unlike a transform on a nested element, it's applied in the SVG viewport
+    // coordinate system, i.e. _after_ the viewBox-to-viewport mapping, just like
+    // Chromium, Firefox and Inkscape do. Therefore it must wrap the viewBox transform
+    // and not the other way around. The transform itself is skipped in `convert_group`
+    // for the root `svg` to avoid applying it twice.
+    let svg_ts = svg.resolve_transform(AId::Transform, &state);
+    let root_ts = svg_ts.pre_concat(view_box.to_transform(tree.size()));
     if root_ts.is_identity() && background_color.is_none() {
         convert_children(svg_doc.root(), &state, &mut cache, &mut tree.root);
     } else {
@@ -752,7 +759,15 @@ pub(crate) fn convert_group(
         Opacity::ONE
     };
 
-    let transform = node.resolve_transform(AId::Transform, state);
+    // The `transform` on the outermost `svg` element is applied together with the
+    // viewBox transform in `convert_doc` (in the SVG viewport coordinate system),
+    // so it must not be applied again here.
+    let is_root_svg = node.tag_name() == Some(EId::Svg) && node.parent_element().is_none();
+    let transform = if is_root_svg {
+        Transform::default()
+    } else {
+        node.resolve_transform(AId::Transform, state)
+    };
     let blend_mode: BlendMode = node.attribute(AId::MixBlendMode).unwrap_or_default();
     let isolation: Isolation = node.attribute(AId::Isolation).unwrap_or_default();
     let isolate = isolation == Isolation::Isolate;

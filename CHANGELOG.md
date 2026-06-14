@@ -10,6 +10,11 @@ This changelog also contains important changes in dependencies.
 
 This release has an MSRV of 1.87.0 for `usvg` and `resvg` and the C API.
 
+### Fixed
+- A `transform` on the outermost `svg` element is now applied in the SVG viewport
+  coordinate system (i.e. after the viewBox-to-viewport mapping), matching Chromium,
+  Firefox and Inkscape. (#899)
+
 ## [0.47.0] 2026-02-05
 
 This release has an MSRV of 1.87.0 for `usvg` and `resvg` and the C API.
