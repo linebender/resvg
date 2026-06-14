@@ -14,6 +14,11 @@ This release has an MSRV of 1.89.0 for `usvg` and `resvg` and the C API.
 
 - MSRV bumped from 1.87 to 1.89. The requirement comes from `font-types`.
 
+### Fixed
+- A `transform` (and other group properties like `opacity`) on a nested `svg`
+  element was applied twice, because the element was wrapped in a redundant group.
+  Nested `svg` is now handled like `use`.
+
 ## [0.47.0] 2026-02-05
 
 This release has an MSRV of 1.87.0 for `usvg` and `resvg` and the C API.
