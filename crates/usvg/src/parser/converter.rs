@@ -551,12 +551,28 @@ fn resolve_svg_size(svg: &SvgNode, opt: &Options) -> (Result<Size, Error>, bool)
     (size.ok_or(Error::InvalidSize), restore_viewbox)
 }
 
+/// The maximum dimension of a canvas derived from the content's bounding box.
+///
+/// When an SVG declares no `width`/`height`/`viewBox`, we fall back to sizing
+/// the canvas to the content's bounding box. A single far-away coordinate
+/// (e.g. the malformed path `M-7-96 6 0 07 4E7`, where `4E7` is 40 000 000)
+/// can blow this up to tens of millions of pixels, producing a multi-gigabyte
+/// canvas that takes minutes to render and encode. Capping each derived
+/// dimension keeps such inputs fast (or makes them fail fast at pixmap
+/// creation) instead of freezing, while being far larger than any realistic
+/// auto-sized SVG. See https://github.com/linebender/resvg/issues/939.
+const MAX_AUTO_SIZE: f32 = i16::MAX as f32;
+
 /// Calculates SVG's size and viewBox in case there were not set.
 ///
 /// Simply iterates over all nodes and calculates a bounding box.
 fn calculate_svg_bbox(tree: &mut Tree) {
     let bbox = tree.root.abs_bounding_box();
-    if let Some(size) = Size::from_wh(bbox.right(), bbox.bottom()) {
+    // `min` also discards NaN (returning `MAX_AUTO_SIZE`), so a degenerate
+    // bounding box cannot produce a non-finite canvas size.
+    let width = bbox.right().min(MAX_AUTO_SIZE);
+    let height = bbox.bottom().min(MAX_AUTO_SIZE);
+    if let Some(size) = Size::from_wh(width, height) {
         tree.size = size;
     }
 }
