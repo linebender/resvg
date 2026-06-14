@@ -10,6 +10,10 @@ This changelog also contains important changes in dependencies.
 
 This release has an MSRV of 1.87.0 for `usvg` and `resvg` and the C API.
 
+### Fixed
+- `dominant-baseline` is now correctly inherited by nested `<tspan>` elements,
+  so a nested span stays on the same baseline as its siblings. (#864)
+
 ## [0.47.0] 2026-02-05
 
 This release has an MSRV of 1.87.0 for `usvg` and `resvg` and the C API.

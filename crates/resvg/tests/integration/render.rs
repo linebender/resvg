@@ -1402,6 +1402,7 @@ use crate::render;
 #[test] fn text_dominant_baseline_hanging() { assert_eq!(render("tests/text/dominant-baseline/hanging"), 0); }
 #[test] fn text_dominant_baseline_ideographic() { assert_eq!(render("tests/text/dominant-baseline/ideographic"), 0); }
 #[test] fn text_dominant_baseline_inherit() { assert_eq!(render("tests/text/dominant-baseline/inherit"), 0); }
+#[test] fn text_dominant_baseline_inherited_through_nested_tspan() { assert_eq!(render("tests/text/dominant-baseline/inherited-through-nested-tspan"), 0); }
 #[test] fn text_dominant_baseline_mathematical() { assert_eq!(render("tests/text/dominant-baseline/mathematical"), 0); }
 #[test] fn text_dominant_baseline_middle() { assert_eq!(render("tests/text/dominant-baseline/middle"), 0); }
 #[test] fn text_dominant_baseline_nested() { assert_eq!(render("tests/text/dominant-baseline/nested"), 0); }
