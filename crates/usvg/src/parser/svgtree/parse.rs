@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 use std::collections::HashMap;
+use std::str::FromStr;
 
 use roxmltree::Error;
 use simplecss::Declaration;
@@ -275,6 +276,21 @@ pub(crate) fn parse_svg_element<'input>(
             .iter_mut()
             .position(|a| a.name == aid);
 
+        // Per CSS error recovery, a declaration with an invalid value must be discarded so that a
+        // previously declared valid value (or the presentation attribute) is kept. We only need to
+        // validate when this declaration would override an existing one; a lone invalid value is
+        // handled, as before, by the fallback in the lazy conversion step. Restricting the check to
+        // the override case also keeps the common path free of a redundant parse.
+        // See https://github.com/linebender/resvg/issues/914
+        if idx.is_some() && !is_valid_declaration_value(aid, value) {
+            log::warn!(
+                "Failed to parse {} value: '{}'. Ignoring declaration.",
+                aid,
+                value
+            );
+            return;
+        }
+
         // Append an attribute as usual.
         let added = append_attribute(
             parent_id,
@@ -402,6 +418,28 @@ pub(crate) fn parse_svg_element<'input>(
     );
 
     Ok(node_id)
+}
+
+/// Checks whether a CSS declaration value is valid for the given presentation attribute.
+///
+/// Only the color-bearing properties are validated, since those are the ones that can carry
+/// color syntaxes we don't support yet (e.g. `color(display-p3 ...)`). Returning `true` for
+/// everything else preserves the previous, permissive behavior for properties we don't validate
+/// here (they are validated lazily during conversion). This is only consulted when a declaration
+/// would override an existing attribute, so the common, conflict-free path stays parse-free here.
+fn is_valid_declaration_value(aid: AId, value: &str) -> bool {
+    match aid {
+        // `<paint>` properties. `Paint` covers `none`, `inherit`, `currentColor`, `url(...)`
+        // and plain colors, so this rejects only genuinely unparsable values.
+        AId::Fill | AId::Stroke => svgtypes::Paint::from_str(value).is_ok(),
+        // Plain `<color>` properties. They also accept the `inherit` and `currentColor`
+        // keywords, which `Color::from_str` doesn't handle on its own.
+        AId::Color | AId::FloodColor | AId::LightingColor | AId::StopColor => {
+            matches!(value.trim(), "inherit" | "currentColor")
+                || svgtypes::Color::from_str(value).is_ok()
+        }
+        _ => true,
+    }
 }
 
 fn append_attribute<'input>(
