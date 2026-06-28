@@ -601,3 +601,55 @@ fn flattened_text_should_inherit_absolute_transform() {
         path.abs_bounding_box()
     );
 }
+
+// A nested `svg` element's `transform` must be applied exactly once, not doubled.
+// Regression test for the bug found while fixing
+// https://github.com/linebender/resvg/issues/899
+#[test]
+fn nested_svg_transform_applied_once() {
+    // Accumulate the relative transforms down to the first path. This is what the
+    // renderer effectively does, so it's the rendering-relevant value.
+    fn accumulated_path_transform(
+        group: &usvg::Group,
+        acc: usvg::Transform,
+    ) -> Option<usvg::Transform> {
+        for node in group.children() {
+            match node {
+                usvg::Node::Path(_) => return Some(acc),
+                usvg::Node::Group(g) => {
+                    if let Some(t) = accumulated_path_transform(g, acc.pre_concat(g.transform())) {
+                        return Some(t);
+                    }
+                }
+                _ => {}
+            }
+        }
+        None
+    }
+
+    // `transform` only (overflow visible, no clip group).
+    let svg = "
+    <svg xmlns='http://www.w3.org/2000/svg' width='100' height='100'>
+        <svg transform='translate(10, 20)' width='50' height='50' overflow='visible'>
+            <path d='M 0 0 L 10 10'/>
+        </svg>
+    </svg>
+    ";
+    let tree = usvg::Tree::from_str(&svg, &usvg::Options::default()).unwrap();
+    let ts = accumulated_path_transform(tree.root(), usvg::Transform::default())
+        .expect("path not found");
+    assert_eq!(ts, usvg::Transform::from_translate(10.0, 20.0));
+
+    // `transform` combined with the default `overflow: hidden` clip group.
+    let svg_clipped = "
+    <svg xmlns='http://www.w3.org/2000/svg' width='100' height='100'>
+        <svg transform='translate(10, 20)' width='50' height='50'>
+            <path d='M 0 0 L 10 10'/>
+        </svg>
+    </svg>
+    ";
+    let tree = usvg::Tree::from_str(&svg_clipped, &usvg::Options::default()).unwrap();
+    let ts = accumulated_path_transform(tree.root(), usvg::Transform::default())
+        .expect("path not found");
+    assert_eq!(ts, usvg::Transform::from_translate(10.0, 20.0));
+}
