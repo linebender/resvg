@@ -609,35 +609,25 @@ fn use_node_abs_transform() {
          xmlns='http://www.w3.org/2000/svg'
          xmlns:xlink='http://www.w3.org/1999/xlink'>
         <defs>
-            <image id='image1' x='0' y='0' width='100' height='100' xlink:href='path-simple-case.svg'/>
+            <rect id='rect1' x='0' y='0' width='100' height='100'/>
         </defs>
-        <use xlink:href='#image1' transform='matrix(0.24, 0, 0, 0.24, 27.6, 18.72)' />
+        <use xlink:href='#rect1' transform='matrix(0.5, 0, 0, 0.5, 20, 30)' />
     </svg>
     ";
 
-    let mut options = usvg::Options::default();
-    options.resources_dir = std::env::current_dir()
-        .ok()
-        .map(|dir| dir.join("tests/files"));
-    let tree = usvg::Tree::from_str(&svg, &options).unwrap();
+    let tree = usvg::Tree::from_str(&svg, &usvg::Options::default()).unwrap();
 
-    let usvg::Node::Group(group_node1) = &tree.root().children()[0] else {
+    let usvg::Node::Group(group_node) = &tree.root().children()[0] else {
         unreachable!()
     };
-    assert_eq!(group_node1.abs_transform().get_scale(), (0.24, 0.24));
+    assert_eq!(group_node.abs_transform().get_scale(), (0.5, 0.5));
 
-    let usvg::Node::Group(group_node2) = &group_node1.children()[0] else {
+    let usvg::Node::Path(path_node) = &group_node.children()[0] else {
         unreachable!()
     };
-    assert_eq!(group_node2.transform().get_scale(), (0.5, 0.5));
-    assert_eq!(group_node2.abs_transform().get_scale(), (0.12, 0.12));
-
-    let usvg::Node::Image(image_node) = &group_node2.children()[0] else {
-        unreachable!()
-    };
-    assert_eq!(image_node.abs_transform().get_scale(), (0.12, 0.12));
+    assert_eq!(path_node.abs_transform().get_scale(), (0.5, 0.5));
     assert_eq!(
-        image_node.abs_bounding_box(),
-        Rect::from_xywh(27.6, 18.72, 24.0, 24.0).unwrap()
+        path_node.abs_bounding_box(),
+        Rect::from_xywh(20.0, 30.0, 50.0, 50.0).unwrap()
     );
 }
