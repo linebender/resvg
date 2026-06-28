@@ -601,3 +601,72 @@ fn flattened_text_should_inherit_absolute_transform() {
         path.abs_bounding_box()
     );
 }
+
+#[test]
+fn compound_emoji_font_fallback() {
+    // https://github.com/linebender/resvg/issues/861
+    //
+    // A compound (ZWJ-joined) emoji that is not present in the primary font must
+    // be resolved through font fallback. This is tricky because the fallback
+    // font shapes the multi-codepoint sequence into a single ligated glyph,
+    // while the primary font produces one (`.notdef`) glyph per codepoint. The
+    // old merging logic bailed out whenever the two shapings had a different
+    // number of glyphs, which dropped the emoji entirely.
+    //
+    // U+1F3F3 U+FE0F U+200D U+1F308 is the "rainbow flag" emoji.
+    let svg = "
+    <svg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg' font-size='20'>
+        <text x='10' y='100'>Hi\u{1F3F3}\u{FE0F}\u{200D}\u{1F308}there</text>
+    </svg>
+    ";
+
+    // Load exactly two fonts so that the fallback target is deterministic:
+    // Latin text comes from Noto Sans, the emoji can only come from Twitter
+    // Color Emoji.
+    let fonts_dir = env!("CARGO_MANIFEST_DIR").to_string() + "/../resvg/tests/fonts";
+    let mut opts = usvg::Options::default();
+    opts.fontdb_mut()
+        .load_font_file(format!("{fonts_dir}/NotoSans-Regular.ttf"))
+        .unwrap();
+    opts.fontdb_mut()
+        .load_font_file(format!("{fonts_dir}/TwitterColorEmoji.subset.ttf"))
+        .unwrap();
+    opts.font_family = "Noto Sans".to_string();
+
+    let tree = usvg::Tree::from_str(svg, &opts).unwrap();
+
+    let usvg::Node::Text(text) = &tree.root().children()[0] else {
+        unreachable!()
+    };
+
+    let glyphs: Vec<_> = text
+        .layouted()
+        .iter()
+        .flat_map(|span| span.positioned_glyphs.iter())
+        .collect();
+
+    // No glyph may be `.notdef` (glyph id 0): the emoji must be resolved, not
+    // dropped.
+    assert!(
+        glyphs.iter().all(|g| g.id.0 != 0),
+        "text contains unresolved (.notdef) glyphs: {:?}",
+        glyphs
+            .iter()
+            .map(|g| (g.id.0, g.text.clone()))
+            .collect::<Vec<_>>()
+    );
+
+    // The Latin text is shaped with the primary font; the whole emoji sequence
+    // must collapse into a single ligated glyph taken from the fallback font.
+    let primary_font = glyphs[0].font;
+    let fallback_glyphs: Vec<_> = glyphs.iter().filter(|g| g.font != primary_font).collect();
+    assert_eq!(
+        fallback_glyphs.len(),
+        1,
+        "expected the ZWJ emoji to be a single ligated glyph from the fallback font, got {:?}",
+        glyphs
+            .iter()
+            .map(|g| (g.id.0, g.text.clone()))
+            .collect::<Vec<_>>()
+    );
+}

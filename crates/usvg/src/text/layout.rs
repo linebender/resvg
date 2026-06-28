@@ -1336,7 +1336,7 @@ pub(crate) fn shape_text(
                 None => break 'outer,
             };
 
-            // Shape again, using a new font.
+            // Shape the whole text again, using the new font.
             let fallback_glyphs = shape_text_with_font(
                 text,
                 fallback_font.clone(),
@@ -1349,27 +1349,10 @@ pub(crate) fn shape_text(
             )
             .unwrap_or_default();
 
-            let all_matched = fallback_glyphs.iter().all(|g| !g.is_missing());
-            if all_matched {
-                // Replace all glyphs when all of them were matched.
-                glyphs = fallback_glyphs;
-                break 'outer;
-            }
-
-            // We assume, that shaping with an any font will produce the same amount of glyphs.
-            // This is incorrect, but good enough for now.
-            if glyphs.len() != fallback_glyphs.len() {
-                break 'outer;
-            }
-
-            // TODO: Replace clusters and not glyphs. This should be more accurate.
-
-            // Copy new glyphs.
-            for i in 0..glyphs.len() {
-                if glyphs[i].is_missing() && !fallback_glyphs[i].is_missing() {
-                    glyphs[i] = fallback_glyphs[i].clone();
-                }
-            }
+            // Merge the newly shaped glyphs into the current ones, replacing
+            // every text cluster that is still missing and that the fallback
+            // font is able to resolve.
+            merge_fallback_glyphs(&mut glyphs, &fallback_glyphs, text);
 
             // Remember this font.
             used_fonts.push(fallback_font.id);
@@ -1392,6 +1375,88 @@ pub(crate) fn shape_text(
     }
 
     glyphs
+}
+
+/// Merges fallback glyphs into the base glyphs.
+///
+/// Both `base` and `fallback` are the result of shaping the same `text` with two
+/// different fonts. Every text cluster that is still missing (`.notdef`) in
+/// `base` is replaced with the corresponding glyphs from `fallback`, but only if
+/// the fallback font is able to resolve that whole cluster.
+///
+/// The two shapings can disagree on cluster boundaries. The most important case
+/// are multi-codepoint emoji (flags and other ZWJ sequences): the primary font
+/// produces one `.notdef` glyph per codepoint, while the emoji font ligates the
+/// whole sequence into a single glyph. To merge them correctly we cut the text
+/// only at boundaries shared by *both* shapings and replace whole clusters at a
+/// time, instead of trying to align the two glyph lists one by one (which fails
+/// as soon as they have a different length).
+fn merge_fallback_glyphs(base: &mut Vec<Glyph>, fallback: &[Glyph], text: &str) {
+    if fallback.is_empty() || base.iter().all(|g| !g.is_missing()) {
+        return;
+    }
+
+    // Byte positions at which a cluster starts. A position that is a cluster
+    // boundary in *both* shapings can be used to splice glyphs without ever
+    // splitting a ligature.
+    let base_bounds: HashSet<usize> = base.iter().map(|g| g.byte_idx.value()).collect();
+    let mut bounds: Vec<usize> = fallback
+        .iter()
+        .map(|g| g.byte_idx.value())
+        .filter(|b| base_bounds.contains(b))
+        .collect();
+    bounds.push(0);
+    bounds.push(text.len());
+    bounds.sort_unstable();
+    bounds.dedup();
+
+    // Returns the `[start, end)` shared-boundary segment that `byte` falls into.
+    let segment_of = |byte: usize| -> (usize, usize) {
+        let start = bounds
+            .iter()
+            .rev()
+            .copied()
+            .find(|&b| b <= byte)
+            .unwrap_or(0);
+        let end = bounds
+            .iter()
+            .copied()
+            .find(|&b| b > byte)
+            .unwrap_or(text.len());
+        (start, end)
+    };
+
+    let mut result = Vec::with_capacity(base.len());
+    let mut i = 0;
+    while i < base.len() {
+        let segment = segment_of(base[i].byte_idx.value());
+
+        // Collect the whole run of base glyphs belonging to this segment. The
+        // glyphs of a single cluster are always adjacent (in both LTR and RTL
+        // visual order), so this run is contiguous.
+        let run_start = i;
+        while i < base.len() && segment_of(base[i].byte_idx.value()) == segment {
+            i += 1;
+        }
+
+        if base[run_start..i].iter().any(|g| g.is_missing()) {
+            let fallback_run: Vec<Glyph> = fallback
+                .iter()
+                .filter(|g| segment_of(g.byte_idx.value()) == segment)
+                .cloned()
+                .collect();
+
+            // Only replace the cluster if the fallback font resolved all of it.
+            if !fallback_run.is_empty() && fallback_run.iter().all(|g| !g.is_missing()) {
+                result.extend(fallback_run);
+                continue;
+            }
+        }
+
+        result.extend_from_slice(&base[run_start..i]);
+    }
+
+    *base = result;
 }
 
 /// Converts a text into a list of glyph IDs.
