@@ -269,7 +269,7 @@ fn convert_children(
     is_context_element: bool,
     parent: &mut Group,
 ) {
-    // Caches the parent absolute transform.
+    // Cache the parent absolute transform.
     let parent_abs_transform = parent.abs_transform;
 
     let required = !transform.is_identity();

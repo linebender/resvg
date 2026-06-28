@@ -609,13 +609,17 @@ fn use_node_abs_transform() {
          xmlns='http://www.w3.org/2000/svg'
          xmlns:xlink='http://www.w3.org/1999/xlink'>
         <defs>
-            <image id='image1' x='0' y='0' width='100' height='100' xlink:href='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAYAAABw4pVUAAABb0lEQVR4Xu3VUQ0AIAzEUOZfA87wAgkq+vGmoGlz2exz73IZAyNIpsUHEaTVQ5BYD0EEqRmI8fghgsQMxHAsRJCYgRiOhQgSMxDDsRBBYgZiOBYiSMxADMdCBIkZiOFYiCAxAzEcCxEkZiCGYyGCxAzEcCxEkJiBGI6FCBIzEMOxEEFiBmI4FiJIzEAMx0IEiRmI4ViIIDEDMRwLESRmIIZjIYLEDMRwLESQmIEYjoUIEjMQw7EQQWIGYjgWIkjMQAzHQgSJGYjhWIggMQMxHAsRJGYghmMhgsQMxHAsRJCYgRiOhQgSMxDDsRBBYgZiOBYiSMxADMdCBIkZiOFYiCAxAzEcCxEkZiCGYyGCxAzEcCxEkJiBGI6FCBIzEMOxEEFiBmI4FiJIzEAMx0IEiRmI4ViIIDEDMRwLESRmIIZjIYLEDMRwLESQmIEYjoUIEjMQw7EQQWIGYjgWIkjMQAzHQgSJGYjhWIggMQMxnAdKSlrwlejIDgAAAABJRU5ErkJggg=='/>
+            <image id='image1' x='0' y='0' width='100' height='100' xlink:href='path-simple-case.svg'/>
         </defs>
         <use xlink:href='#image1' transform='matrix(0.24, 0, 0, 0.24, 27.6, 18.72)' />
     </svg>
     ";
 
-    let tree = usvg::Tree::from_str(&svg, &usvg::Options::default()).unwrap();
+    let mut options = usvg::Options::default();
+    options.resources_dir = std::env::current_dir()
+        .ok()
+        .map(|dir| dir.join("tests/files"));
+    let tree = usvg::Tree::from_str(&svg, &options).unwrap();
 
     let usvg::Node::Group(group_node1) = &tree.root().children()[0] else {
         unreachable!()
@@ -625,13 +629,13 @@ fn use_node_abs_transform() {
     let usvg::Node::Group(group_node2) = &group_node1.children()[0] else {
         unreachable!()
     };
-    assert_eq!(group_node2.transform().get_scale(), (1.0, 1.0));
-    assert_eq!(group_node2.abs_transform().get_scale(), (0.24, 0.24));
+    assert_eq!(group_node2.transform().get_scale(), (0.5, 0.5));
+    assert_eq!(group_node2.abs_transform().get_scale(), (0.12, 0.12));
 
     let usvg::Node::Image(image_node) = &group_node2.children()[0] else {
         unreachable!()
     };
-    assert_eq!(image_node.abs_transform().get_scale(), (0.24, 0.24));
+    assert_eq!(image_node.abs_transform().get_scale(), (0.12, 0.12));
     assert_eq!(
         image_node.abs_bounding_box(),
         Rect::from_xywh(27.6, 18.72, 24.0, 24.0).unwrap()
