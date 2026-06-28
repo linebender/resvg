@@ -269,31 +269,27 @@ fn convert_children(
     is_context_element: bool,
     parent: &mut Group,
 ) {
-    // Temporarily adjust absolute transform so `convert_group` would account for `transform`.
-    let old_abs_transform = parent.abs_transform;
-    // If context element is `<use>` node, so here don't apply transform to it.
-    if !is_context_element {
-        parent.abs_transform = parent.abs_transform.pre_concat(transform);
-    }
+    // Caches the parent absolute transform.
+    let parent_abs_transform = parent.abs_transform;
 
     let required = !transform.is_identity();
-    if let Some(mut g) =
-        converter::convert_group(node, state, required, cache, parent, &|cache, g| {
-            if state.parent_clip_path.is_some() {
-                converter::convert_clip_path_elements(node, state, cache, g);
-            } else {
-                converter::convert_children(node, state, cache, g);
-            }
-        })
-    {
-        g.is_context_element = is_context_element;
-        g.transform = transform;
-        parent.children.push(Node::Group(Box::new(g)));
-    }
 
-    if !is_context_element {
-        parent.abs_transform = old_abs_transform;
-    }
+    let Some(g) = converter::convert_group(node, state, required, cache, parent, &|cache, g| {
+        // Make sure they are correct before converting children.
+        g.transform = transform;
+        g.abs_transform = parent_abs_transform.pre_concat(transform);
+        g.is_context_element = is_context_element;
+
+        if state.parent_clip_path.is_some() {
+            converter::convert_clip_path_elements(node, state, cache, g);
+        } else {
+            converter::convert_children(node, state, cache, g);
+        }
+    }) else {
+        return;
+    };
+
+    parent.children.push(Node::Group(Box::new(g)));
 }
 
 fn get_clip_rect(
