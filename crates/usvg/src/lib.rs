@@ -55,6 +55,7 @@ mod parser;
 #[cfg(feature = "text")]
 mod text;
 mod tree;
+#[cfg(feature = "writer")]
 mod writer;
 
 pub use parser::*;
@@ -67,5 +68,7 @@ pub use roxmltree;
 #[cfg(feature = "text")]
 pub use fontdb;
 
+#[cfg(feature = "writer")]
 pub use writer::WriteOptions;
+#[cfg(feature = "writer")]
 pub use xmlwriter::Indent;

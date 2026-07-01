@@ -15,16 +15,16 @@ workspace = "../.."
 
 [[bin]]
 name = "usvg"
-required-features = ["text", "system-fonts", "memmap-fonts"]
+required-features = ["text", "system-fonts", "memmap-fonts", "writer"]
 
 [dependencies]
-base64 = "0.22" # for embedded images
+base64 = { version = "0.22", optional = true } # for embedded images
 log = "0.4"
 pico-args = { version = "0.5", features = ["eq-separator"] }
 strict-num = "0.1.1"
 svgtypes = "0.16.1"
 tiny-skia-path = "0.12.0"
-xmlwriter = "0.1"
+xmlwriter = { version = "0.1", optional = true }
 
 # parser
 data-url = "0.3" # for href parsing
@@ -49,11 +49,13 @@ unicode-vo = { version = "0.1", optional = true }
 once_cell = "1.21"
 
 [features]
-default = ["text", "system-fonts", "memmap-fonts"]
+default = ["text", "system-fonts", "memmap-fonts", "writer"]
 # Enables text-to-path conversion support.
 # Adds around 400KiB to your binary.
-text = ["fontdb", "rustybuzz", "ttf-parser", "unicode-bidi", "unicode-script", "unicode-vo"]
+text = ["fontdb", "rustybuzz", "ttf-parser", "unicode-bidi", "unicode-script", "unicode-vo", "writer"]
 # Enables system fonts loading.
 system-fonts = ["fontdb/fs", "fontdb/fontconfig"]
 # Enables font files memmaping for faster loading.
 memmap-fonts = ["fontdb/memmap"]
+# Enables converting trees back to SVG.
+writer = ["xmlwriter", "base64"]

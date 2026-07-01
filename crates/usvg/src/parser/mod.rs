@@ -22,6 +22,7 @@ mod text;
 pub(crate) use converter::Cache;
 pub use image::{ImageHrefDataResolverFn, ImageHrefResolver, ImageHrefStringResolverFn};
 pub use options::Options;
+#[cfg(feature = "writer")]
 pub(crate) use svgtree::{AId, EId};
 
 /// List of all errors.
