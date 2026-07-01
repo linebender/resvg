@@ -22,6 +22,8 @@ pub enum resvg_error {
     OK = 0,
     /// Only UTF-8 content are supported.
     NOT_AN_UTF8_STR,
+    /// `resvg` must be compiled with SVGZ decoding support.
+    SVGZ_UNSUPPORTED,
     /// Failed to open the provided file.
     FILE_OPEN_FAILED,
     /// Compressed SVG must use the GZip algorithm.
@@ -853,6 +855,7 @@ fn cstr_to_str(text: *const c_char) -> Option<&'static str> {
 fn convert_error(e: usvg::Error) -> resvg_error {
     match e {
         usvg::Error::NotAnUtf8Str => resvg_error::NOT_AN_UTF8_STR,
+        usvg::Error::SvgzFeatureNotEnabled => resvg_error::SVGZ_UNSUPPORTED,
         usvg::Error::MalformedGZip => resvg_error::MALFORMED_GZIP,
         usvg::Error::ElementsLimitReached => resvg_error::ELEMENTS_LIMIT_REACHED,
         usvg::Error::InvalidSize => resvg_error::INVALID_SIZE,

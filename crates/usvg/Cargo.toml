@@ -15,7 +15,7 @@ workspace = "../.."
 
 [[bin]]
 name = "usvg"
-required-features = ["text", "system-fonts", "memmap-fonts", "writer"]
+required-features = ["svgz", "text", "system-fonts", "memmap-fonts", "writer"]
 
 [dependencies]
 base64 = { version = "0.22", optional = true } # for embedded images
@@ -28,7 +28,7 @@ xmlwriter = { version = "0.1", optional = true }
 
 # parser
 data-url = "0.3" # for href parsing
-flate2 = { version = "1.1", default-features = false, features = ["rust_backend"] } # SVGZ decoding
+flate2 = { version = "1.1", default-features = false, features = ["rust_backend"], optional = true } # SVGZ decoding
 imagesize = "0.14.0" # raster images size detection
 kurbo = "0.13.0" # Bezier curves utils
 roxmltree = "0.21.1"
@@ -49,7 +49,9 @@ unicode-vo = { version = "0.1", optional = true }
 once_cell = "1.21"
 
 [features]
-default = ["text", "system-fonts", "memmap-fonts", "writer"]
+default = ["svgz", "text", "system-fonts", "memmap-fonts", "writer"]
+# Enables SVGZ decoding
+svgz = ["flate2"]
 # Enables text-to-path conversion support.
 # Adds around 400KiB to your binary.
 text = ["fontdb", "rustybuzz", "ttf-parser", "unicode-bidi", "unicode-script", "unicode-vo", "writer"]

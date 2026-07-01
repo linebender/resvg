@@ -17,7 +17,9 @@ log = "0.4"
 resvg = { path = "../resvg", default-features = false }
 
 [features]
-default = ["text", "system-fonts", "memmap-fonts", "raster-images"]
+default = ["svgz", "text", "system-fonts", "memmap-fonts", "raster-images"]
+# Enables SVGZ decoding
+svgz = ["resvg/svgz"]
 # enables SVG Text support
 # adds around 500KiB to your binary
 text = ["resvg/text"]

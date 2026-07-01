@@ -12,7 +12,7 @@ workspace = "../.."
 
 [[bin]]
 name = "resvg"
-required-features = ["text", "system-fonts", "memmap-fonts"]
+required-features = ["svgz", "text", "system-fonts", "memmap-fonts"]
 
 [dependencies]
 gif = { version = "0.14.1", optional = true }
@@ -30,7 +30,9 @@ once_cell = "1.21"
 png = "0.18.0"
 
 [features]
-default = ["text", "system-fonts", "memmap-fonts", "raster-images"]
+default = ["svgz", "text", "system-fonts", "memmap-fonts", "raster-images"]
+# Enables SVGZ decoding
+svgz = ["usvg/svgz"]
 # Enables SVG Text support.
 # Adds around 400KiB to your binary.
 text = ["usvg/text"]
