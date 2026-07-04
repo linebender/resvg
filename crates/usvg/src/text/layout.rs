@@ -1394,6 +1394,38 @@ pub(crate) fn shape_text(
     glyphs
 }
 
+/// Computes the byte range of the source text that a shaped glyph's cluster covers.
+///
+/// `infos` are the glyphs of a single shaped run in visual order, `i` is the index
+/// of the glyph of interest, `ltr` whether the run is left-to-right, and `run_len`
+/// the byte length of the run's source text.
+///
+/// A cluster spans from the glyph's own cluster offset up to the cluster of the
+/// adjacent glyph in logical order: the next glyph for LTR runs, the previous one
+/// for RTL runs. The naive computation assumes the shaper returns monotonically
+/// ordered clusters, but some fonts/shapers don't honor that for RTL runs (e.g.
+/// some builds of Times New Roman shaping Arabic, see issue #1044), which would
+/// produce `start > end` and panic when slicing. The returned range is normalized
+/// so `start <= end` always holds; both ends sit on cluster (char) boundaries, so
+/// slicing the source text with it stays UTF-8 safe.
+fn glyph_cluster_byte_range(
+    infos: &[rustybuzz::GlyphInfo],
+    i: usize,
+    ltr: bool,
+    run_len: usize,
+) -> (usize, usize) {
+    let start = infos[i].cluster as usize;
+    let end = if ltr {
+        i.checked_add(1)
+    } else {
+        i.checked_sub(1)
+    }
+    .and_then(|n| infos.get(n))
+    .map_or(run_len, |info| info.cluster as usize);
+
+    (start.min(end), start.max(end))
+}
+
 /// Converts a text into a list of glyph IDs.
 ///
 /// This function will do the BIDI reordering and text shaping.
@@ -1489,19 +1521,11 @@ fn shape_text_with_font(
                 let info = infos[i];
                 let idx = run.start + info.cluster as usize;
 
-                let start = info.cluster as usize;
-
-                let end = if ltr {
-                    i.checked_add(1)
-                } else {
-                    i.checked_sub(1)
-                }
-                .and_then(|last| infos.get(last))
-                .map_or(sub_text.len(), |info| info.cluster as usize);
+                let (start, end) = glyph_cluster_byte_range(infos, i, ltr, sub_text.len());
 
                 glyphs.push(Glyph {
                     byte_idx: ByteIndex::new(idx),
-                    cluster_len: end.checked_sub(start).unwrap_or(0), // TODO: can fail?
+                    cluster_len: end - start,
                     text: sub_text[start..end].to_string(),
                     id: GlyphId(info.glyph_id as u16),
                     dx: pos.x_offset,
@@ -1812,5 +1836,65 @@ impl ByteIndex {
     /// Converts byte position into a character.
     pub(crate) fn char_from(&self, text: &str) -> char {
         text[self.0..].chars().next().unwrap()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn infos(clusters: &[u32]) -> Vec<rustybuzz::GlyphInfo> {
+        clusters
+            .iter()
+            .map(|&cluster| {
+                let mut info = rustybuzz::GlyphInfo::default();
+                info.cluster = cluster;
+                info
+            })
+            .collect()
+    }
+
+    #[test]
+    fn cluster_byte_range_ltr() {
+        // "abc": one glyph per char, clusters in ascending order.
+        let infos = infos(&[0, 1, 2]);
+        let len = 3;
+        assert_eq!(glyph_cluster_byte_range(&infos, 0, true, len), (0, 1));
+        assert_eq!(glyph_cluster_byte_range(&infos, 1, true, len), (1, 2));
+        // Last glyph's end falls back to the run length.
+        assert_eq!(glyph_cluster_byte_range(&infos, 2, true, len), (2, 3));
+    }
+
+    #[test]
+    fn cluster_byte_range_rtl() {
+        // RTL run shaped normally: glyphs in visual order, clusters descending.
+        let infos = infos(&[8, 6, 4, 2, 0]);
+        let len = 10;
+        // First glyph's end falls back to the run length.
+        assert_eq!(glyph_cluster_byte_range(&infos, 0, false, len), (8, 10));
+        assert_eq!(glyph_cluster_byte_range(&infos, 1, false, len), (6, 8));
+        assert_eq!(glyph_cluster_byte_range(&infos, 4, false, len), (0, 2));
+    }
+
+    // Regression test for https://github.com/linebender/resvg/issues/1044
+    //
+    // Some fonts/shapers (e.g. some builds of Times New Roman shaping the Arabic
+    // text "الويب") return clusters for an RTL run in ascending instead of the
+    // expected descending order. The byte range must still be valid so that
+    // slicing the source text does not panic with "start > end".
+    #[test]
+    fn cluster_byte_range_rtl_non_monotonic() {
+        let text = "الويب";
+        let clusters = [0, 2, 4, 6, 8];
+        let infos = infos(&clusters);
+        let len = text.len(); // 10 bytes
+
+        for i in 0..clusters.len() {
+            let (start, end) = glyph_cluster_byte_range(&infos, i, false, len);
+            assert!(start <= end, "glyph {i}: start {start} > end {end}");
+            assert!(end <= len, "glyph {i}: end {end} > len {len}");
+            // Must not panic and must stay on UTF-8 boundaries.
+            let _ = &text[start..end];
+        }
     }
 }

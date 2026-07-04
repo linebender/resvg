@@ -10,6 +10,10 @@ This changelog also contains important changes in dependencies.
 
 This release has an MSRV of 1.87.0 for `usvg` and `resvg` and the C API.
 
+### Fixed
+- Panic during text layout when a font/shaper returns clusters for an RTL run in a
+  non-descending order (e.g. some builds of Times New Roman shaping Arabic). (#1044)
+
 ## [0.47.0] 2026-02-05
 
 This release has an MSRV of 1.87.0 for `usvg` and `resvg` and the C API.
