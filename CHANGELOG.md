@@ -10,6 +10,12 @@ This changelog also contains important changes in dependencies.
 
 This release has an MSRV of 1.87.0 for `usvg` and `resvg` and the C API.
 
+### Fixed
+- Discard invalid `fill`/`stroke`/color declarations in a `style` attribute or CSS rule instead of
+  dropping the property, so a previously declared valid value (or the presentation attribute) is kept.
+  This fixes elements becoming invisible when an unsupported color syntax such as
+  `color(display-p3 ...)` is used alongside a hex fallback (e.g. Figma exports). (#914)
+
 ## [0.47.0] 2026-02-05
 
 This release has an MSRV of 1.87.0 for `usvg` and `resvg` and the C API.
