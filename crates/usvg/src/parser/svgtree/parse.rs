@@ -259,6 +259,25 @@ pub(crate) fn parse_svg_element<'input>(
             continue;
         }
 
+        // SVG 2: when both `href` and `xlink:href` are present, the unprefixed
+        // `href` takes precedence and the XLink one must be ignored, regardless
+        // of their order in the source document.
+        // https://www.w3.org/TR/SVG2/linking.html
+        if aid == AId::Href {
+            let is_xlink = attr.namespace() == Some(XLINK_NS);
+            if let Some(existing) = doc.attrs[attrs_start_idx..]
+                .iter_mut()
+                .find(|a| a.name == AId::Href)
+            {
+                // An `href` was already stored. Only an unprefixed `href` is
+                // allowed to override it; an `xlink:href` is ignored.
+                if !is_xlink {
+                    existing.value = attr.value_storage().clone();
+                }
+                continue;
+            }
+        }
+
         append_attribute(
             parent_id,
             tag_name,
@@ -534,9 +553,22 @@ fn resolve_href<'a, 'input: 'a>(
     node: roxmltree::Node<'a, 'input>,
     id_map: &HashMap<&str, roxmltree::Node<'a, 'input>>,
 ) -> Option<roxmltree::Node<'a, 'input>> {
+    // SVG 2 mandates that the unprefixed `href` takes precedence over the
+    // deprecated `xlink:href` when both are present, regardless of their order
+    // in the source document.
+    // https://www.w3.org/TR/SVG2/linking.html
+    //
+    // Note: `roxmltree::Node::attribute("href")` matches by local name only and
+    // would return whichever `href`/`xlink:href` comes first, so we have to
+    // filter by namespace explicitly.
     let link_value = node
-        .attribute((XLINK_NS, "href"))
-        .or_else(|| node.attribute("href"))?;
+        .attributes()
+        .find(|a| a.name() == "href" && a.namespace().is_none())
+        .or_else(|| {
+            node.attributes()
+                .find(|a| a.name() == "href" && a.namespace() == Some(XLINK_NS))
+        })
+        .map(|a| a.value())?;
 
     let link_id = svgtypes::IRI::from_str(link_value).ok()?.0;
 
