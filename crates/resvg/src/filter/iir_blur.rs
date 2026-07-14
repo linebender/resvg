@@ -58,7 +58,7 @@ pub fn apply(sigma_x: f64, sigma_y: f64, src: ImageRefMut) {
         steps: 4,
     };
 
-    let data = src.data.as_mut_slice();
+    let data = ComponentSlice::as_mut_slice(src.data);
     gaussian_channel(data, &d, 0, buf);
     gaussian_channel(data, &d, 1, buf);
     gaussian_channel(data, &d, 2, buf);
