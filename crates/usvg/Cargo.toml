@@ -29,7 +29,7 @@ xmlwriter = { version = "0.1", optional = true }
 # parser
 data-url = "0.3" # for href parsing
 flate2 = { version = "1.1", default-features = false, features = ["rust_backend"], optional = true } # SVGZ decoding
-imagesize = "0.14.0" # raster images size detection
+imagesize = "0.15.0" # raster images size detection
 kurbo = "0.13.0" # Bezier curves utils
 roxmltree = "0.21.1"
 simplecss = "0.2"
