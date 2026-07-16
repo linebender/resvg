@@ -423,12 +423,12 @@ impl DatabaseExt for Database {
             // Twitter Color Emoji seems to always have one SVG record per glyph,
             // while Noto Color Emoji sometimes contains multiple ones. It's kind of hacky,
             // but the best we have for now.
-            let first_doc_record = svg_table
-                .svg_document_list()
-                .ok()?
-                .document_records()
-                .first()?;
-            let node = if first_doc_record.start_glyph_id == first_doc_record.end_glyph_id {
+            let document_list = svg_table.svg_document_list().ok()?;
+            let doc_record = document_list.document_records().iter().find(|r| {
+                (r.start_glyph_id.get().to_u16()..=r.end_glyph_id.get().to_u16())
+                    .contains(&glyph_id.0)
+            })?;
+            let node = if doc_record.start_glyph_id == doc_record.end_glyph_id {
                 Node::Group(Box::new(tree.root))
             } else {
                 tree.node_by_id(&format!("glyph{}", glyph_id.0))
