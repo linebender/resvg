@@ -36,7 +36,7 @@ simplecss = "0.2"
 siphasher = "1.0" # perfect hash implementation
 
 # text
-fontdb = { version = "0.23.0", default-features = false, optional = true }
+fontdb = { git = "https://github.com/nicoburns/fontdb", rev = "2b04f122d2bd76177c16ea5c1c05dd85da7ac18a", default-features = false, optional = true }
 harfrust = { version = "0.12.0", optional = true }
 skrifa = { version = "0.44", optional = true, default-features = false, features = ["std"] }
 unicode-bidi = { version = "0.3", optional = true }
