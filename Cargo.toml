@@ -11,3 +11,12 @@ resolver = "2"
 
 [workspace.package]
 license = "Apache-2.0 OR MIT"
+
+[profile.production]
+inherits = "release"
+opt-level = 3
+debug = false
+lto = true
+codegen-units = 1
+strip = true
+incremental = false
