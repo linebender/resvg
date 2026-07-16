@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 use crate::parser::OptionLog;
-use skrifa::instance::Location;
+use skrifa::instance::LocationRef;
 use skrifa::prelude::Size;
 use skrifa::raw::types::Point;
 use skrifa::{
@@ -92,6 +92,8 @@ impl XmlWriterExt for xmlwriter::XmlWriter {
 // NOTE: This is only a best-effort translation of COLR into SVG.
 pub(crate) struct GlyphPainter<'a> {
     pub(crate) font: &'a skrifa::FontRef<'a>,
+    /// The variation location to draw outlines at.
+    pub(crate) location: LocationRef<'a>,
     pub(crate) svg: &'a mut xmlwriter::XmlWriter,
     pub(crate) path_buf: &'a mut String,
     pub(crate) gradient_index: usize,
@@ -298,9 +300,8 @@ impl<'a> skrifa::color::ColorPainter for GlyphPainter<'a> {
         match self.font.outline_glyphs().get(glyph_id) {
             Some(outliner) => {
                 let size = Size::unscaled();
-                let location = Location::default();
                 if outliner
-                    .draw(DrawSettings::unhinted(size, &location), &mut builder)
+                    .draw(DrawSettings::unhinted(size, self.location), &mut builder)
                     .is_err()
                 {
                     return;
