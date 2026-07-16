@@ -398,4 +398,8 @@ impl<'a> skrifa::color::ColorPainter for GlyphPainter<'a> {
             format_args!("mix-blend-mode: {}; isolation: isolate", composite_mode),
         );
     }
+
+    fn pop_layer(&mut self) {
+        self.svg.end_element();
+    }
 }
