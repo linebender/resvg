@@ -9,7 +9,7 @@ use fontdb::{Database, ID};
 use harfrust::ShapeOptions;
 use kurbo::{ParamCurve, ParamCurveArclen, ParamCurveDeriv};
 use skrifa::MetadataProvider;
-use skrifa::instance::Location;
+use skrifa::Tag;
 use skrifa::prelude::Size;
 use skrifa::raw::TableProvider;
 use strict_num::NonZeroPositiveF32;
@@ -209,8 +209,8 @@ pub(crate) fn layout_text(
     for chunk in &text_node.chunks {
         for span in &chunk.spans {
             if !fonts_cache.contains_key(&span.font) {
-                if let Some(font) =
-                    (resolver.select_font)(&span.font, fontdb).and_then(|id| fontdb.load_font(id))
+                if let Some(font) = (resolver.select_font)(&span.font, fontdb)
+                    .and_then(|id| fontdb.load_font(id, &span.font.variations))
                 {
                     fonts_cache.insert(span.font.clone(), Arc::new(font));
                 }
@@ -1204,20 +1204,26 @@ fn form_glyph_clusters(glyphs: &[Glyph], text: &str, font_size: f32) -> GlyphClu
 }
 
 pub(crate) trait DatabaseExt {
-    fn load_font(&self, id: ID) -> Option<ResolvedFont>;
+    fn load_font(&self, id: ID, variations: &[crate::FontVariation]) -> Option<ResolvedFont>;
     fn has_char(&self, id: ID, c: char) -> bool;
 }
 
 impl DatabaseExt for Database {
     #[inline(never)]
-    fn load_font(&self, id: ID) -> Option<ResolvedFont> {
+    fn load_font(&self, id: ID, variations: &[crate::FontVariation]) -> Option<ResolvedFont> {
         self.with_face_data(id, |data, face_index| -> Option<ResolvedFont> {
             let font = skrifa::FontRef::from_index(data, face_index).ok()?;
 
-            // FIXME: Set size and location
-            let location = &Location::default();
-            let coords = location.coords(); // TODO: expose effective_coords
-            let metrics = font.metrics(Size::unscaled(), location);
+            // For variable fonts, metrics depend on the position in the design space,
+            // so resolve the requested variations to a normalized location first.
+            // Metrics are always in font units, so the size stays unscaled.
+            let location = font.axes().location(
+                variations
+                    .iter()
+                    .map(|v| (Tag::from_be_bytes(v.tag), v.value)),
+            );
+            let coords = location.coords();
+            let metrics = font.metrics(Size::unscaled(), &location);
 
             let units_per_em = NonZeroU16::new(metrics.units_per_em)?;
             let ascent = metrics.ascent;
@@ -1345,7 +1351,7 @@ pub(crate) fn shape_text(
 
         if let Some(c) = missing {
             let fallback_font = match (resolver.select_fallback)(c, &used_fonts, fontdb)
-                .and_then(|id| fontdb.load_font(id))
+                .and_then(|id| fontdb.load_font(id, variations))
             {
                 Some(v) => Arc::new(v),
                 None => break 'outer,
