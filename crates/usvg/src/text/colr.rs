@@ -105,9 +105,7 @@ pub(crate) struct GlyphPainter<'a> {
 impl<'a> GlyphPainter<'a> {
     fn write_gradient_stops(&mut self, stops: &[ColorStop]) {
         for stop in stops {
-            let color = self
-                .palette_index_to_color(stop.palette_index, stop.alpha)
-                .unwrap();
+            let color = self.palette_index_to_color(stop.palette_index, stop.alpha);
             self.svg.start_element("stop");
             self.svg.write_attribute("offset", &stop.offset);
             self.svg.write_color_attribute("stop-color", color);
@@ -250,24 +248,31 @@ impl GlyphPainter<'_> {
             .write_attribute_fmt("clip-path", format_args!("url(#{})", clip_id));
     }
 
-    fn palette_index_to_color(&self, palette_index: u16, alpha: f32) -> Option<Color> {
-        let mut color = if palette_index == u16::MAX {
-            self.foreground_color
-        } else {
+    fn palette_index_to_color(&self, palette_index: u16, alpha: f32) -> Color {
+        let lookup = || -> Option<Color> {
             let cpal = self.font.cpal().ok()?;
-            let color = cpal.color_records_array()?.ok()?[palette_index as usize];
-            Color {
+            let color = cpal
+                .color_records_array()?
+                .ok()?
+                .get(palette_index as usize)?;
+            Some(Color {
                 red: color.red,
                 blue: color.blue,
                 green: color.green,
                 alpha: color.alpha,
-            }
+            })
+        };
+
+        let mut color = if palette_index == u16::MAX {
+            self.foreground_color
+        } else {
+            lookup().unwrap_or(self.foreground_color)
         };
 
         // Multiply alpha
         color.alpha = ((color.alpha as f32) * alpha) as u8;
 
-        Some(color)
+        color
     }
 }
 
@@ -291,9 +296,12 @@ impl<'a> skrifa::color::ColorPainter for GlyphPainter<'a> {
             Some(outliner) => {
                 let size = Size::unscaled();
                 let location = Location::default();
-                outliner
+                if outliner
                     .draw(DrawSettings::unhinted(size, &location), &mut builder)
-                    .unwrap();
+                    .is_err()
+                {
+                    return;
+                }
             }
             None => return,
         };
@@ -327,7 +335,7 @@ impl<'a> skrifa::color::ColorPainter for GlyphPainter<'a> {
                 palette_index,
                 alpha,
             } => {
-                let color = self.palette_index_to_color(palette_index, alpha).unwrap();
+                let color = self.palette_index_to_color(palette_index, alpha);
                 self.paint_solid(color);
             }
             Brush::LinearGradient {
