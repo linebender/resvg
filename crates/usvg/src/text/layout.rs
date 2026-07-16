@@ -1462,6 +1462,24 @@ fn shape_text_with_font(
 
         let mut glyphs = Vec::new();
 
+        let shaper_data = ShaperData::new(&hr_font);
+        let instance_data = ShaperInstance::from_variations(&hr_font, &variations);
+        let shaper = shaper_data
+            // Initialize the builder for the given font
+            .shaper(&hr_font)
+            // Set the instance
+            .instance(Some(&instance_data))
+            // Build the shaper
+            .build();
+
+        let mut features = Vec::new();
+        if small_caps {
+            features.push(Feature::new(Tag::new(b"smcp"), 1, ..));
+        }
+        if !apply_kerning {
+            features.push(Feature::new(Tag::new(b"kern"), 0, ..));
+        }
+
         let (levels, runs) = bidi_info.visual_runs(paragraph, line);
         for run in runs.iter() {
             let sub_text = &text[run.clone()];
@@ -1482,25 +1500,6 @@ fn shape_text_with_font(
 
             // TODO: explicitly set language?
             buffer.guess_segment_properties();
-
-            let mut features = Vec::new();
-            if small_caps {
-                features.push(Feature::new(Tag::new(b"smcp"), 1, ..));
-            }
-
-            if !apply_kerning {
-                features.push(Feature::new(Tag::new(b"kern"), 0, ..));
-            }
-
-            let shaper_data = ShaperData::new(&hr_font);
-            let instance_data = ShaperInstance::from_variations(&hr_font, &variations);
-            let shaper = shaper_data
-                // Initialize the builder for the given font
-                .shaper(&hr_font)
-                // Set the instance
-                .instance(Some(&instance_data))
-                // Build the shaper
-                .build();
 
             let output = shaper.shape(buffer, ShapeOptions::new().features(&features));
 
