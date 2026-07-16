@@ -274,7 +274,7 @@ impl GlyphPainter<'_> {
 impl<'a> skrifa::color::ColorPainter for GlyphPainter<'a> {
     fn push_transform(&mut self, transform: Transform) {
         self.transforms_stack.push(self.transform);
-        self.transform = transform * self.transform;
+        self.transform = self.transform * transform;
     }
 
     fn pop_transform(&mut self) {
