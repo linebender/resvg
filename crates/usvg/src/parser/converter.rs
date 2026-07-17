@@ -59,6 +59,8 @@ pub struct Cache {
     cache_raster: HashMap<(ID, GlyphId), Option<BitmapImage>>,
     #[cfg(feature = "text")]
     cache_has_opsz: HashMap<ID, bool>,
+    #[cfg(feature = "text")]
+    cache_has_axes: HashMap<ID, bool>,
 
     pub clip_paths: HashMap<String, Arc<ClipPath>>,
     pub masks: HashMap<String, Arc<Mask>>,
@@ -109,6 +111,8 @@ impl Cache {
             cache_raster: HashMap::new(),
             #[cfg(feature = "text")]
             cache_has_opsz: HashMap::new(),
+            #[cfg(feature = "text")]
+            cache_has_axes: HashMap::new(),
 
             clip_paths: HashMap::new(),
             masks: HashMap::new(),
@@ -217,6 +221,16 @@ impl Cache {
         let has_opsz = self.fontdb.has_opsz_axis(font);
         self.cache_has_opsz.insert(font, has_opsz);
         has_opsz
+    }
+
+    #[cfg(feature = "text")]
+    pub(crate) fn has_variation_axes(&mut self, font: ID) -> bool {
+        if let Some(&cached) = self.cache_has_axes.get(&font) {
+            return cached;
+        }
+        let has_axes = self.fontdb.has_variation_axes(font);
+        self.cache_has_axes.insert(font, has_axes);
+        has_axes
     }
 }
 

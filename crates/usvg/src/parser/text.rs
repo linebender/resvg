@@ -407,8 +407,13 @@ fn convert_font(node: SvgNode, state: &converter::State) -> Font {
     let has_ital = variations.iter().any(|v| &v.tag == b"ital");
     let has_slnt = variations.iter().any(|v| &v.tag == b"slnt");
 
-    // Map font-weight to wght axis (if not already set)
-    if !has_wght && weight != 400 {
+    // Map font-weight to wght axis (if not already set).
+    //
+    // This must also happen for weight 400: a variable font's default `wght`
+    // is not necessarily 400. For example, the `NotoSansJP-VF.ttf` shipped by
+    // Google Fonts has a default instance of Thin (wght = 100), so skipping
+    // the mapping for weight 400 would render regular text as Thin.
+    if !has_wght {
         variations.push(FontVariation::new(*b"wght", weight as f32));
     }
 
