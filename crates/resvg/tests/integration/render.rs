@@ -1418,6 +1418,7 @@ use crate::render;
 #[test] fn text_font_family_double_quoted() { assert_eq!(render("tests/text/font-family/double-quoted"), 0); }
 #[test] fn text_font_family_fallback_1() { assert_eq!(render("tests/text/font-family/fallback-1"), 0); }
 #[test] fn text_font_family_fallback_2() { assert_eq!(render("tests/text/font-family/fallback-2"), 0); }
+#[test] fn text_font_family_fallback_3() { assert_eq!(render("tests/text/font-family/fallback-3"), 0); }
 #[test] fn text_font_family_fantasy() { assert_eq!(render("tests/text/font-family/fantasy"), 0); }
 #[test] fn text_font_family_font_list() { assert_eq!(render("tests/text/font-family/font-list"), 0); }
 #[test] fn text_font_family_monospace() { assert_eq!(render("tests/text/font-family/monospace"), 0); }
