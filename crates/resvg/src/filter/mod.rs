@@ -1076,13 +1076,13 @@ fn transform_light_source(
             let mut point = tiny_skia::Point::from_xy(light.x, light.y);
             ts.map_point(&mut point);
             light.x = point.x - region.x() as f32;
-            light.y = point.y - region.x() as f32;
+            light.y = point.y - region.y() as f32;
             light.z *= sz;
 
             let mut point = tiny_skia::Point::from_xy(light.points_at_x, light.points_at_y);
             ts.map_point(&mut point);
             light.points_at_x = point.x - region.x() as f32;
-            light.points_at_y = point.y - region.x() as f32;
+            light.points_at_y = point.y - region.y() as f32;
             light.points_at_z *= sz;
         }
     }
