@@ -476,6 +476,7 @@ fn resolve_rg_attr<'a, 'input>(node: SvgNode<'a, 'input>, name: AId) -> SvgNode<
             | (AId::R,  EId::RadialGradient)
             | (AId::Fx, EId::RadialGradient)
             | (AId::Fy, EId::RadialGradient)
+            | (AId::Fr, EId::RadialGradient)
             // Other attributes can be resolved
             // from any kind of gradient.
             | (AId::GradientUnits, EId::LinearGradient)
