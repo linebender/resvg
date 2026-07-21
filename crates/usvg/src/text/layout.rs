@@ -6,9 +6,11 @@ use std::num::NonZeroU16;
 use std::sync::Arc;
 
 use fontdb::{Database, ID};
+use harfrust::{ShaperData, ShaperInstance, UnicodeBuffer};
 use kurbo::{ParamCurve, ParamCurveArclen, ParamCurveDeriv};
-use rustybuzz::ttf_parser;
-use rustybuzz::ttf_parser::{GlyphId, Tag};
+use skrifa::instance::{LocationRef, Size as SkrifaSize};
+use skrifa::raw::TableProvider;
+use skrifa::{FontRef, GlyphId, MetadataProvider, Tag};
 use strict_num::NonZeroPositiveF32;
 use tiny_skia_path::{NonZeroRect, Transform};
 use unicode_script::UnicodeScript;
@@ -1209,43 +1211,49 @@ impl DatabaseExt for Database {
     #[inline(never)]
     fn load_font(&self, id: ID) -> Option<ResolvedFont> {
         self.with_face_data(id, |data, face_index| -> Option<ResolvedFont> {
-            let font = ttf_parser::Face::parse(data, face_index).ok()?;
+            let font = FontRef::from_index(data, face_index).ok()?;
 
-            let units_per_em = NonZeroU16::new(font.units_per_em())?;
+            let metrics = font.metrics(SkrifaSize::unscaled(), LocationRef::default());
 
-            let ascent = font.ascender();
-            let descent = font.descender();
+            // Reject fonts with bad unitsPerEm, like `ttf-parser` did.
+            if !(16..=16384).contains(&metrics.units_per_em) {
+                return None;
+            }
+            let units_per_em = NonZeroU16::new(metrics.units_per_em)?;
 
-            let x_height = font
-                .x_height()
-                .and_then(|x| u16::try_from(x).ok())
+            let ascent = metrics.ascent.round() as i16;
+            let descent = metrics.descent.round() as i16;
+
+            let x_height = metrics
+                .x_height
+                .filter(|x| *x > 0.0)
+                .and_then(|x| u16::try_from(x.round() as i32).ok())
                 .and_then(NonZeroU16::new);
             let x_height = match x_height {
                 Some(height) => height,
                 None => {
                     // If not set - fallback to height * 45%.
                     // 45% is what Firefox uses.
-                    u16::try_from((f32::from(ascent - descent) * 0.45) as i32)
+                    u16::try_from(((ascent - descent) as f32 * 0.45) as i32)
                         .ok()
                         .and_then(NonZeroU16::new)?
                 }
             };
 
-            let line_through = font.strikeout_metrics();
-            let line_through_position = match line_through {
-                Some(metrics) => metrics.position,
+            let line_through_position = match metrics.strikeout {
+                Some(strikeout) => strikeout.offset.round() as i16,
                 None => x_height.get() as i16 / 2,
             };
 
-            let (underline_position, underline_thickness) = match font.underline_metrics() {
-                Some(metrics) => {
-                    let thickness = u16::try_from(metrics.thickness)
+            let (underline_position, underline_thickness) = match metrics.underline {
+                Some(underline) => {
+                    let thickness = u16::try_from(underline.thickness.round() as i32)
                         .ok()
                         .and_then(NonZeroU16::new)
-                        // `ttf_parser` guarantees that units_per_em is >= 16
+                        // `units_per_em` is guaranteed to be >= 16.
                         .unwrap_or_else(|| NonZeroU16::new(units_per_em.get() / 12).unwrap());
 
-                    (metrics.position, thickness)
+                    (underline.offset.round() as i16, thickness)
                 }
                 None => (
                     -(units_per_em.get() as i16) / 9,
@@ -1256,12 +1264,9 @@ impl DatabaseExt for Database {
             // 0.2 and 0.4 are generic offsets used by some applications (Inkscape/librsvg).
             let mut subscript_offset = (units_per_em.get() as f32 / 0.2).round() as i16;
             let mut superscript_offset = (units_per_em.get() as f32 / 0.4).round() as i16;
-            if let Some(metrics) = font.subscript_metrics() {
-                subscript_offset = metrics.y_offset;
-            }
-
-            if let Some(metrics) = font.superscript_metrics() {
-                superscript_offset = metrics.y_offset;
+            if let Ok(os2) = font.os2() {
+                subscript_offset = os2.y_subscript_y_offset();
+                superscript_offset = os2.y_superscript_y_offset();
             }
 
             Some(ResolvedFont {
@@ -1282,8 +1287,8 @@ impl DatabaseExt for Database {
     #[inline(never)]
     fn has_char(&self, id: ID, c: char) -> bool {
         let res = self.with_face_data(id, |font_data, face_index| -> Option<bool> {
-            let font = ttf_parser::Face::parse(font_data, face_index).ok()?;
-            font.glyph_index(c)?;
+            let font = FontRef::from_index(font_data, face_index).ok()?;
+            font.charmap().map(c)?;
             Some(true)
         });
 
@@ -1408,13 +1413,13 @@ fn shape_text_with_font(
     fontdb: &fontdb::Database,
 ) -> Option<Vec<Glyph>> {
     fontdb.with_face_data(font.id, |font_data, face_index| -> Option<Vec<Glyph>> {
-        let mut rb_font = rustybuzz::Face::from_slice(font_data, face_index)?;
+        let face = FontRef::from_index(font_data, face_index).ok()?;
 
-        // Build the list of variations to apply
-        let mut final_variations: Vec<rustybuzz::Variation> = variations
+        // Build the list of variations to apply.
+        let mut final_variations: Vec<harfrust::Variation> = variations
             .iter()
-            .map(|v| rustybuzz::Variation {
-                tag: Tag::from_bytes(&v.tag),
+            .map(|v| harfrust::Variation {
+                tag: Tag::new(&v.tag),
                 value: v.value,
             })
             .collect();
@@ -1425,26 +1430,29 @@ fn shape_text_with_font(
         if font_optical_sizing == crate::FontOpticalSizing::Auto {
             let has_explicit_opsz = variations.iter().any(|v| v.tag == *b"opsz");
             if !has_explicit_opsz {
-                // Check if font has opsz axis using the already parsed rb_font
-                if let Some(axes) = rb_font.tables().fvar {
-                    let has_opsz_axis = axes
-                        .axes
-                        .into_iter()
-                        .any(|axis| axis.tag == ttf_parser::Tag::from_bytes(b"opsz"));
-                    if has_opsz_axis {
-                        final_variations.push(rustybuzz::Variation {
-                            tag: Tag::from_bytes(b"opsz"),
-                            value: font_size,
-                        });
-                    }
+                if face.axes().get_by_tag(Tag::new(b"opsz")).is_some() {
+                    final_variations.push(harfrust::Variation {
+                        tag: Tag::new(b"opsz"),
+                        value: font_size,
+                    });
                 }
             }
         }
 
         // Apply font variations for variable fonts
-        if !final_variations.is_empty() {
-            rb_font.set_variations(&final_variations);
-        }
+        let instance = if final_variations.is_empty() {
+            None
+        } else {
+            Some(ShaperInstance::from_variations(
+                &face,
+                final_variations.iter().copied(),
+            ))
+        };
+        let shaper_data = ShaperData::new(&face);
+        let shaper = shaper_data
+            .shaper(&face)
+            .instance(instance.as_ref())
+            .build();
 
         let bidi_info = unicode_bidi::BidiInfo::new(text, Some(unicode_bidi::Level::ltr()));
         let paragraph = &bidi_info.paragraphs[0];
@@ -1461,25 +1469,27 @@ fn shape_text_with_font(
 
             let ltr = levels[run.start].is_ltr();
             let hb_direction = if ltr {
-                rustybuzz::Direction::LeftToRight
+                harfrust::Direction::LeftToRight
             } else {
-                rustybuzz::Direction::RightToLeft
+                harfrust::Direction::RightToLeft
             };
 
-            let mut buffer = rustybuzz::UnicodeBuffer::new();
+            let mut buffer = UnicodeBuffer::new();
             buffer.push_str(sub_text);
             buffer.set_direction(hb_direction);
+            // This keeps our explicitly set direction intact.
+            buffer.guess_segment_properties();
 
             let mut features = Vec::new();
             if small_caps {
-                features.push(rustybuzz::Feature::new(Tag::from_bytes(b"smcp"), 1, ..));
+                features.push(harfrust::Feature::new(Tag::new(b"smcp"), 1, ..));
             }
 
             if !apply_kerning {
-                features.push(rustybuzz::Feature::new(Tag::from_bytes(b"kern"), 0, ..));
+                features.push(harfrust::Feature::new(Tag::new(b"kern"), 0, ..));
             }
 
-            let output = rustybuzz::shape(&rb_font, &features, buffer);
+            let output = shaper.shape(buffer, &features);
 
             let positions = output.glyph_positions();
             let infos = output.glyph_infos();
@@ -1503,7 +1513,7 @@ fn shape_text_with_font(
                     byte_idx: ByteIndex::new(idx),
                     cluster_len: end.checked_sub(start).unwrap_or(0), // TODO: can fail?
                     text: sub_text[start..end].to_string(),
-                    id: GlyphId(info.glyph_id as u16),
+                    id: GlyphId::new(info.glyph_id),
                     dx: pos.x_offset,
                     dy: pos.y_offset,
                     width: pos.x_advance,
@@ -1618,7 +1628,7 @@ pub(crate) struct Glyph {
 
 impl Glyph {
     fn is_missing(&self) -> bool {
-        self.id.0 == 0
+        self.id == GlyphId::NOTDEF
     }
 }
 

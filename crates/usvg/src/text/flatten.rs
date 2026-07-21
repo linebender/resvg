@@ -5,8 +5,11 @@ use std::mem;
 use std::sync::Arc;
 
 use fontdb::{Database, ID};
-use rustybuzz::ttf_parser;
-use rustybuzz::ttf_parser::{GlyphId, RasterImageFormat, RgbaColor};
+use skrifa::bitmap::{BitmapData, Origin};
+use skrifa::instance::{LocationRef, Size as SkrifaSize};
+use skrifa::outline::{DrawSettings, OutlinePen};
+use skrifa::raw::TableProvider;
+use skrifa::{FontRef, GlyphId, MetadataProvider, Tag};
 use tiny_skia_path::{NonZeroRect, Size, Transform};
 use xmlwriter::XmlWriter;
 
@@ -122,20 +125,15 @@ pub(crate) fn flatten(text: &mut Text, cache: &mut Cache) -> Option<(Group, NonZ
 
                 let transform = if img.is_sbix {
                     glyph.sbix_transform(
-                        img.x as f32,
-                        img.y as f32,
-                        img.glyph_bbox.map(|bbox| bbox.x_min).unwrap_or(0) as f32,
-                        img.glyph_bbox.map(|bbox| bbox.y_min).unwrap_or(0) as f32,
-                        img.pixels_per_em as f32,
+                        img.x,
+                        img.y,
+                        img.glyph_bbox.map(|(x_min, _)| x_min).unwrap_or(0.0),
+                        img.glyph_bbox.map(|(_, y_min)| y_min).unwrap_or(0.0),
+                        img.pixels_per_em,
                         img.image.size.height(),
                     )
                 } else {
-                    glyph.cbdt_transform(
-                        img.x as f32,
-                        img.y as f32,
-                        img.pixels_per_em as f32,
-                        img.image.size.height(),
-                    )
+                    glyph.cbdt_transform(img.x, img.y, img.pixels_per_em, img.image.size.height())
                 };
 
                 let mut group = Group {
@@ -200,11 +198,22 @@ pub(crate) fn flatten(text: &mut Text, cache: &mut Cache) -> Option<(Group, NonZ
     Some((group, stroke_bbox))
 }
 
-struct PathBuilder {
+pub(crate) struct PathBuilder {
     builder: tiny_skia_path::PathBuilder,
 }
 
-impl ttf_parser::OutlineBuilder for PathBuilder {
+impl PathBuilder {
+    pub(crate) fn new() -> Self {
+        Self {
+            builder: tiny_skia_path::PathBuilder::new(),
+        }
+    }
+    pub(crate) fn finish(self) -> Option<tiny_skia_path::Path> {
+        self.builder.finish()
+    }
+}
+
+impl OutlinePen for PathBuilder {
     fn move_to(&mut self, x: f32, y: f32) {
         self.builder.move_to(x, y);
     }
@@ -245,10 +254,10 @@ pub(crate) trait DatabaseExt {
 #[derive(Clone)]
 pub(crate) struct BitmapImage {
     image: Image,
-    x: i16,
-    y: i16,
-    pixels_per_em: u16,
-    glyph_bbox: Option<ttf_parser::Rect>,
+    x: f32,
+    y: f32,
+    pixels_per_em: f32,
+    glyph_bbox: Option<(f32, f32)>,
     is_sbix: bool,
 }
 
@@ -256,21 +265,19 @@ impl DatabaseExt for Database {
     #[inline(never)]
     fn outline(&self, id: ID, glyph_id: GlyphId) -> Option<tiny_skia_path::Path> {
         self.with_face_data(id, |data, face_index| -> Option<tiny_skia_path::Path> {
-            let mut font = ttf_parser::Face::parse(data, face_index).ok()?;
+            let font = FontRef::from_index(data, face_index).ok()?;
 
-            // For variable fonts, we need to set default variation values to get proper outlines
-            if font.is_variable() {
-                for axis in font.variation_axes() {
-                    font.set_variation(axis.tag, axis.def_value);
-                }
-            }
+            let mut builder = PathBuilder::new();
 
-            let mut builder = PathBuilder {
-                builder: tiny_skia_path::PathBuilder::new(),
-            };
-
-            font.outline_glyph(glyph_id, &mut builder)?;
-            builder.builder.finish()
+            // An empty location resolves to the default variation instance.
+            let glyph = font.outline_glyphs().get(glyph_id)?;
+            glyph
+                .draw(
+                    DrawSettings::unhinted(SkrifaSize::unscaled(), LocationRef::default()),
+                    &mut builder,
+                )
+                .ok()?;
+            builder.finish()
         })?
     }
 
@@ -284,47 +291,40 @@ impl DatabaseExt for Database {
         font_optical_sizing: crate::FontOpticalSizing,
     ) -> Option<tiny_skia_path::Path> {
         self.with_face_data(id, |data, face_index| -> Option<tiny_skia_path::Path> {
-            let mut font = ttf_parser::Face::parse(data, face_index).ok()?;
+            let font = FontRef::from_index(data, face_index).ok()?;
 
-            for v in variations {
-                font.set_variation(ttf_parser::Tag::from_bytes(&v.tag), v.value);
-            }
+            let mut settings: Vec<(Tag, f32)> = variations
+                .iter()
+                .map(|v| (Tag::new(&v.tag), v.value))
+                .collect();
 
             // Auto-set opsz if font-optical-sizing is auto and not explicitly set
             if font_optical_sizing == crate::FontOpticalSizing::Auto {
                 let has_explicit_opsz = variations.iter().any(|v| v.tag == *b"opsz");
-                if !has_explicit_opsz {
-                    // Check if font has opsz axis
-                    if let Some(axes) = font.tables().fvar {
-                        let has_opsz_axis = axes
-                            .axes
-                            .into_iter()
-                            .any(|axis| axis.tag == ttf_parser::Tag::from_bytes(b"opsz"));
-                        if has_opsz_axis {
-                            font.set_variation(ttf_parser::Tag::from_bytes(b"opsz"), font_size);
-                        }
-                    }
+                if !has_explicit_opsz && font.axes().get_by_tag(Tag::new(b"opsz")).is_some() {
+                    settings.push((Tag::new(b"opsz"), font_size));
                 }
             }
 
-            let mut builder = PathBuilder {
-                builder: tiny_skia_path::PathBuilder::new(),
-            };
+            let location = font.axes().location(settings.iter().copied());
 
-            font.outline_glyph(glyph_id, &mut builder)?;
-            builder.builder.finish()
+            let mut builder = PathBuilder::new();
+
+            font.outline_glyphs()
+                .get(glyph_id)?
+                .draw(
+                    DrawSettings::unhinted(SkrifaSize::unscaled(), &location),
+                    &mut builder,
+                )
+                .ok()?;
+            builder.finish()
         })?
     }
 
     fn has_opsz_axis(&self, id: ID) -> bool {
         self.with_face_data(id, |data, face_index| -> Option<bool> {
-            let font = ttf_parser::Face::parse(data, face_index).ok()?;
-            let has_opsz = font.tables().fvar.map_or(false, |axes| {
-                axes.axes
-                    .into_iter()
-                    .any(|axis| axis.tag == ttf_parser::Tag::from_bytes(b"opsz"))
-            });
-            Some(has_opsz)
+            let font = FontRef::from_index(data, face_index).ok()?;
+            Some(font.axes().get_by_tag(Tag::new(b"opsz")).is_some())
         })
         .flatten()
         .unwrap_or(false)
@@ -332,17 +332,45 @@ impl DatabaseExt for Database {
 
     fn raster(&self, id: ID, glyph_id: GlyphId) -> Option<BitmapImage> {
         self.with_face_data(id, |data, face_index| -> Option<BitmapImage> {
-            let font = ttf_parser::Face::parse(data, face_index).ok()?;
-            let image = font.glyph_raster_image(glyph_id, u16::MAX)?;
+            let font = FontRef::from_index(data, face_index).ok()?;
 
-            if image.format == RasterImageFormat::PNG {
+            let image = font
+                .bitmap_strikes()
+                .glyph_for_size(SkrifaSize::unscaled(), glyph_id)?;
+
+            if let BitmapData::Png(png_data) = image.data {
+                // `sbix` is the only bitmap table with a bottom-left origin; `CBDT`
+                // and `EBDT` use a top-left origin. This drives which positioning
+                // transform we apply below.
+                let is_sbix = image.placement_origin == Origin::BottomLeft;
+
+                // For `sbix`, the outline bounding box is needed for positioning.
+                let glyph_bbox = if is_sbix {
+                    font.glyph_metrics(SkrifaSize::unscaled(), LocationRef::default())
+                        .bounds(glyph_id)
+                        .map(|b| (b.x_min, b.y_min))
+                } else {
+                    None
+                };
+
+                // skrifa reports the inner bearing relative to the top of the bitmap
+                // (positive upwards), while the transform helpers expect a bottom-anchored
+                // vertical offset.
+                let y = if is_sbix {
+                    // `sbix` uses a bottom-left origin, so its offset is used as-is.
+                    image.inner_bearing_y
+                } else {
+                    // `CBDT`/`EBDT` use a top-left origin, so shift down by the height.
+                    image.inner_bearing_y - image.height as f32
+                };
+
                 let bitmap_image = BitmapImage {
                     image: Image {
                         id: String::new(),
                         visible: true,
                         size: Size::from_wh(image.width as f32, image.height as f32)?,
                         rendering_mode: ImageRendering::OptimizeQuality,
-                        kind: ImageKind::PNG(Arc::new(image.data.into())),
+                        kind: ImageKind::PNG(Arc::new(png_data.to_vec())),
                         abs_transform: Transform::default(),
                         abs_bounding_box: NonZeroRect::from_xywh(
                             0.0,
@@ -351,12 +379,11 @@ impl DatabaseExt for Database {
                             image.height as f32,
                         )?,
                     },
-                    x: image.x,
-                    y: image.y,
-                    pixels_per_em: image.pixels_per_em,
-                    glyph_bbox: font.glyph_bounding_box(glyph_id),
-                    // ttf-parser always checks sbix first, so if this table exists, it was used.
-                    is_sbix: font.tables().sbix.is_some(),
+                    x: image.inner_bearing_x,
+                    y,
+                    pixels_per_em: image.ppem_x,
+                    glyph_bbox,
+                    is_sbix,
                 };
 
                 return Some(bitmap_image);
@@ -374,30 +401,37 @@ impl DatabaseExt for Database {
         // TODO: Glyph records can contain the data for multiple glyphs. We should
         // add a cache so we don't need to reparse the data every time.
         self.with_face_data(id, |data, face_index| -> Option<Node> {
-            let font = ttf_parser::Face::parse(data, face_index).ok()?;
-            let image = font.glyph_svg_image(glyph_id)?;
-            let tree = Tree::from_data(image.data, &Options::default()).ok()?;
+            let font = FontRef::from_index(data, face_index).ok()?;
+            let svg_table = font.svg().ok()?;
+            let image_data = svg_table.glyph_data(glyph_id).ok()??;
+            let tree = Tree::from_data(image_data, &Options::default()).ok()?;
 
-            // Twitter Color Emoji seems to always have one SVG record per glyph,
-            // while Noto Color Emoji sometimes contains multiple ones. It's kind of hacky,
-            // but the best we have for now.
-            let node = if image.start_glyph_id == image.end_glyph_id {
-                Node::Group(Box::new(tree.root))
-            } else {
-                tree.node_by_id(&format!("glyph{}", glyph_id.0))
-                    .log_none(|| {
-                        log::warn!("Failed to find SVG glyph node for glyph {}", glyph_id.0);
-                    })
-                    .cloned()?
-            };
-
-            Some(node)
+            let records = svg_table.svg_document_list().ok()?.document_records();
+            let gid = glyph_id.to_u32();
+            for record in records {
+                let start = record.start_glyph_id().to_u32();
+                let end = record.end_glyph_id().to_u32();
+                if gid >= start && gid <= end {
+                    // Twitter Color Emoji seems to always have one SVG record per glyph,
+                    // while Noto Color Emoji sometimes contains multiple ones.
+                    // It's kind of hacky, but the best we have for now.
+                    if record.start_glyph_id() == record.end_glyph_id() {
+                        return Some(Node::Group(Box::new(tree.root)));
+                    }
+                    if let Some(node) = tree.node_by_id(&format!("glyph{}", gid)).cloned() {
+                        return Some(node);
+                    }
+                }
+            }
+            log::warn!("Failed to find SVG glyph node for glyph {}", gid);
+            None
         })?
     }
 
     fn colr(&self, id: ID, glyph_id: GlyphId) -> Option<Tree> {
         self.with_face_data(id, |data, face_index| -> Option<Tree> {
-            let face = ttf_parser::Face::parse(data, face_index).ok()?;
+            let font = FontRef::from_index(data, face_index).ok()?;
+            let color_glyph = font.color_glyphs().get(glyph_id)?;
 
             let mut svg = XmlWriter::new(xmlwriter::Options::default());
 
@@ -405,30 +439,13 @@ impl DatabaseExt for Database {
             svg.write_attribute("xmlns", "http://www.w3.org/2000/svg");
             svg.write_attribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
 
-            let mut path_buf = String::with_capacity(256);
-            let gradient_index = 1;
-            let clip_path_index = 1;
-
             svg.start_element("g");
 
-            let mut glyph_painter = GlyphPainter {
-                face: &face,
-                svg: &mut svg,
-                path_buf: &mut path_buf,
-                gradient_index,
-                clip_path_index,
-                palette_index: 0,
-                transform: ttf_parser::Transform::default(),
-                outline_transform: ttf_parser::Transform::default(),
-                transforms_stack: vec![ttf_parser::Transform::default()],
-            };
+            let mut glyph_painter = GlyphPainter::new(&font, &mut svg);
+            color_glyph
+                .paint(LocationRef::default(), &mut glyph_painter)
+                .ok()?;
 
-            face.paint_color_glyph(
-                glyph_id,
-                0,
-                RgbaColor::new(0, 0, 0, 255),
-                &mut glyph_painter,
-            )?;
             svg.end_element();
 
             Tree::from_data(svg.end_document().as_bytes(), &Options::default()).ok()

@@ -10,6 +10,12 @@ This changelog also contains important changes in dependencies.
 
 This release has an MSRV of 1.87.0 for `usvg` and `resvg` and the C API.
 
+### Changed
+- `usvg` now uses `harfrust` for text shaping and `skrifa` for font parsing,
+- outlines, metrics and color glyphs.
+- **Breaking**: `usvg::PositionedGlyph::id` is now a `skrifa::GlyphId` (`u32`)
+  instead of a `ttf_parser::GlyphId` (`u16`).
+
 ## [0.47.0] 2026-02-05
 
 This release has an MSRV of 1.87.0 for `usvg` and `resvg` and the C API.
