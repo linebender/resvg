@@ -316,6 +316,73 @@ fn path_transform_nested() {
     );
 }
 
+// https://github.com/linebender/resvg/issues/899
+#[test]
+fn root_svg_transform_with_viewbox() {
+    // The `transform` on the outermost `svg` element is applied in the SVG viewport
+    // coordinate system, i.e. _after_ the viewBox-to-viewport mapping, just like
+    // Chromium, Firefox and Inkscape do. So for a 100x100 viewport with
+    // `viewBox='0 0 50 50'` (scale 2) and `transform='scale(0.5)'`, the effective
+    // root transform must be `scale(0.5) * scale(2) = scale(1)`, and _not_
+    // `scale(2) * scale(0.5)` which also yields scale(1) here but differs as soon as
+    // the viewBox has a non-zero origin (see the translate case below).
+    let svg = "
+    <svg xmlns='http://www.w3.org/2000/svg' width='100' height='100'
+         viewBox='10 10 50 50' transform='scale(0.5)'>
+        <path d='M 0 0 L 10 10'/>
+    </svg>
+    ";
+
+    let tree = usvg::Tree::from_str(&svg, &usvg::Options::default()).unwrap();
+    assert_eq!(tree.root().children().len(), 1);
+
+    let group_node = &tree.root().children()[0];
+    assert!(matches!(group_node, usvg::Node::Group(_)));
+    // viewBox 'scale 2, translate (-20,-20)' wrapped by 'scale(0.5)' (applied last):
+    // scale(0.5) * (scale(2) * p + (-20,-20)) = p + (-10,-10).
+    assert_eq!(
+        group_node.abs_transform(),
+        usvg::Transform::from_row(1.0, 0.0, 0.0, 1.0, -10.0, -10.0)
+    );
+}
+
+#[test]
+fn nested_svg_transform_still_applies() {
+    // Only the _outermost_ `svg` transform is special-cased; a nested `svg`
+    // element must still apply its `transform` like any other element.
+    let svg = "
+    <svg xmlns='http://www.w3.org/2000/svg' width='100' height='100'>
+        <svg transform='translate(10, 20)' width='50' height='50'>
+            <path d='M 0 0 L 10 10'/>
+        </svg>
+    </svg>
+    ";
+
+    let tree = usvg::Tree::from_str(&svg, &usvg::Options::default()).unwrap();
+
+    fn find_path<'a>(group: &'a usvg::Group) -> Option<&'a usvg::Path> {
+        for node in group.children() {
+            match node {
+                usvg::Node::Path(p) => return Some(p),
+                usvg::Node::Group(g) => {
+                    if let Some(p) = find_path(g) {
+                        return Some(p);
+                    }
+                }
+                _ => {}
+            }
+        }
+        None
+    }
+
+    // The nested `svg` transform must still be applied (i.e. the path must be
+    // translated), unlike the outermost `svg` which is handled specially.
+    let path = find_path(tree.root()).expect("path not found");
+    let ts = path.abs_transform();
+    assert!(!ts.is_identity());
+    assert!(ts.tx != 0.0 && ts.ty != 0.0);
+}
+
 #[test]
 fn path_transform_in_symbol_no_clip() {
     let svg = "
