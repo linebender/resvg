@@ -228,6 +228,28 @@ fn size_detection_5() {
 }
 
 #[test]
+fn size_detection_huge_content_bbox() {
+    // Regression test for https://github.com/linebender/resvg/issues/939.
+    // Without an explicit `width`/`height`/`viewBox`, the canvas is derived
+    // from the content's bounding box. The `4E7` (= 40 000 000) coordinate
+    // used to produce a 7 x 40 000 000 canvas (~1.1 GB), which froze rendering
+    // and PNG encoding for tens of seconds. The auto-derived size must now be
+    // clamped to a sane maximum.
+    let svg = "<svg xmlns='http://www.w3.org/2000/svg'>\
+        <path d='M-7-96 6 0 07 4E7'/>\
+    </svg>";
+    let tree = usvg::Tree::from_str(&svg, &usvg::Options::default()).unwrap();
+    let max = i16::MAX as f32;
+    assert!(
+        tree.size().height() <= max,
+        "auto-derived height {} exceeds the cap {}",
+        tree.size().height(),
+        max
+    );
+    assert_eq!(tree.size(), usvg::Size::from_wh(7.0, max).unwrap());
+}
+
+#[test]
 fn invalid_size_1() {
     let svg = "<svg width='0' height='0' viewBox='0 0 10 20' xmlns='http://www.w3.org/2000/svg'/>";
     let result = usvg::Tree::from_str(&svg, &usvg::Options::default());
