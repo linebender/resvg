@@ -1161,7 +1161,11 @@ use crate::render;
 #[test] fn structure_style_iD_selector() { assert_eq!(render("tests/structure/style/iD-selector"), 0); }
 #[test] fn structure_style_important() { assert_eq!(render("tests/structure/style/important"), 0); }
 #[test] fn structure_style_invalid_type() { assert_eq!(render("tests/structure/style/invalid-type"), 0); }
-#[test] fn structure_style_non_presentational_attribute() { assert_eq!(render("tests/structure/style/non-presentational-attribute"), 0); }
+#[test] fn structure_style_presentation_attributes() { assert_eq!(render("tests/structure/style/presentation-attributes"), 0); }
+#[test] fn structure_style_presentation_attributes_2() { assert_eq!(render("tests/structure/style/presentation-attributes-2"), 0); }
+#[test] fn structure_style_presentation_attributes_3() { assert_eq!(render("tests/structure/style/presentation-attributes-3"), 0); }
+#[test] fn structure_style_presentation_attributes_4() { assert_eq!(render("tests/structure/style/presentation-attributes-4"), 0); }
+#[test] fn structure_style_presentation_attributes_5() { assert_eq!(render("tests/structure/style/presentation-attributes-5"), 0); }
 #[test] fn structure_style_resolve_order() { assert_eq!(render("tests/structure/style/resolve-order"), 0); }
 #[test] fn structure_style_rule_specificity() { assert_eq!(render("tests/structure/style/rule-specificity"), 0); }
 #[test] fn structure_style_style_after_usage() { assert_eq!(render("tests/structure/style/style-after-usage"), 0); }
@@ -1171,7 +1175,7 @@ use crate::render;
 #[test] fn structure_style_universal_selector() { assert_eq!(render("tests/structure/style/universal-selector"), 0); }
 #[test] fn structure_style_unresolved_class_selector() { assert_eq!(render("tests/structure/style/unresolved-class-selector"), 0); }
 #[test] fn structure_style_attribute_comments() { assert_eq!(render("tests/structure/style-attribute/comments"), 0); }
-#[test] fn structure_style_attribute_non_presentational_attribute() { assert_eq!(render("tests/structure/style-attribute/non-presentational-attribute"), 0); }
+#[test] fn structure_style_attribute_presentation_attributes() { assert_eq!(render("tests/structure/style-attribute/presentation-attributes"), 0); }
 #[test] fn structure_style_attribute_simple_case() { assert_eq!(render("tests/structure/style-attribute/simple-case"), 0); }
 #[test] fn structure_style_attribute_transform() { assert_eq!(render("tests/structure/style-attribute/transform"), 0); }
 #[test] fn structure_svg_attribute_value_via_ENTITY_reference() { assert_eq!(render("tests/structure/svg/attribute-value-via-ENTITY-reference"), 0); }
