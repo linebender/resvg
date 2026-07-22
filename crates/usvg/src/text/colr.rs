@@ -9,7 +9,6 @@ use skrifa::{
     MetadataProvider,
     color::{Brush, ColorStop, Extend, Transform},
     outline::DrawSettings,
-    raw::TableProvider as _,
 };
 use std::fmt::Write as _;
 use svgtypes::Color;
@@ -252,14 +251,11 @@ impl GlyphPainter<'_> {
 
     fn palette_index_to_color(&self, palette_index: u16, alpha: f32) -> Color {
         let lookup = || -> Option<Color> {
-            let cpal = self.font.cpal().ok()?;
-            // We always use the first palette, whose records start at the
-            // index given by the first entry of `color_record_indices`.
-            let base = cpal.color_record_indices().first()?.get() as usize;
-            let color = cpal
-                .color_records_array()?
-                .ok()?
-                .get(base + palette_index as usize)?;
+            // We always use the first palette. `ColorPalettes` handles
+            // per-palette record offsets internally.
+            let palettes = self.font.color_palettes();
+            let palette = palettes.get(0)?;
+            let color = palette.colors().get(palette_index as usize)?;
             Some(Color {
                 red: color.red,
                 blue: color.blue,
