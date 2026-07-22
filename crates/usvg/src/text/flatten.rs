@@ -419,6 +419,7 @@ impl DatabaseExt for Database {
                 transform: skrifa::color::Transform::default(),
                 outline_transform: skrifa::color::Transform::default(),
                 transforms_stack: vec![skrifa::color::Transform::default()],
+                clip_stack: Vec::new(),
             };
 
             font.color_glyphs()

@@ -15,35 +15,76 @@ use svgtypes::Color;
 
 use super::transform::{skrifa_to_tsp_transform, tsp_to_skrifa_transform};
 
-struct Builder<'a>(&'a mut String);
+struct Builder<'a> {
+    path: &'a mut String,
+    min_x: f32,
+    min_y: f32,
+    max_x: f32,
+    max_y: f32,
+}
 
-impl Builder<'_> {
+impl<'a> Builder<'a> {
+    fn new(path: &'a mut String) -> Self {
+        Self {
+            path,
+            min_x: f32::MAX,
+            min_y: f32::MAX,
+            max_x: f32::MIN,
+            max_y: f32::MIN,
+        }
+    }
+
+    fn add_point(&mut self, x: f32, y: f32) {
+        self.min_x = self.min_x.min(x);
+        self.min_y = self.min_y.min(y);
+        self.max_x = self.max_x.max(x);
+        self.max_y = self.max_y.max(y);
+    }
+
+    /// Returns a conservative bounding box of the written path.
+    /// It includes curve control points, so it can be larger than the exact
+    /// bounding box, but never smaller.
+    fn bounds(&self) -> Option<tiny_skia_path::Rect> {
+        if self.min_x <= self.max_x && self.min_y <= self.max_y {
+            tiny_skia_path::Rect::from_ltrb(self.min_x, self.min_y, self.max_x, self.max_y)
+        } else {
+            None
+        }
+    }
+
     fn finish(&mut self) {
-        if !self.0.is_empty() {
-            self.0.pop(); // remove trailing space
+        if !self.path.is_empty() {
+            self.path.pop(); // remove trailing space
         }
     }
 }
 
 impl skrifa::outline::OutlinePen for Builder<'_> {
     fn move_to(&mut self, x: f32, y: f32) {
-        write!(self.0, "M {} {} ", x, y).unwrap();
+        self.add_point(x, y);
+        write!(self.path, "M {} {} ", x, y).unwrap();
     }
 
     fn line_to(&mut self, x: f32, y: f32) {
-        write!(self.0, "L {} {} ", x, y).unwrap();
+        self.add_point(x, y);
+        write!(self.path, "L {} {} ", x, y).unwrap();
     }
 
     fn quad_to(&mut self, cx0: f32, cy0: f32, x: f32, y: f32) {
-        write!(self.0, "Q {} {} {} {} ", cx0, cy0, x, y).unwrap();
+        self.add_point(cx0, cy0);
+        self.add_point(x, y);
+        write!(self.path, "Q {} {} {} {} ", cx0, cy0, x, y).unwrap();
     }
 
     fn curve_to(&mut self, cx0: f32, cy0: f32, cx1: f32, cy1: f32, x: f32, y: f32) {
-        write!(self.0, "C {} {} {} {} {} {} ", cx0, cy0, cx1, cy1, x, y).unwrap();
+        self.add_point(cx0, cy0);
+        self.add_point(cx1, cy1);
+        self.add_point(x, y);
+        write!(self.path, "C {} {} {} {} {} {} ", cx0, cy0, cx1, cy1, x, y).unwrap();
     }
 
     fn close(&mut self) {
-        self.0.push_str("Z ");
+        self.path.push_str("Z ");
     }
 }
 
@@ -101,6 +142,9 @@ pub(crate) struct GlyphPainter<'a> {
     pub(crate) transform: Transform,
     pub(crate) outline_transform: Transform,
     pub(crate) transforms_stack: Vec<Transform>,
+    /// The bounding box of every active clip, in the root coordinate space.
+    /// `None` means the clip is empty (or its bounds are unknown).
+    pub(crate) clip_stack: Vec<Option<tiny_skia_path::Rect>>,
 }
 
 impl<'a> GlyphPainter<'a> {
@@ -230,6 +274,38 @@ fn paint_transform(outline_transform: Transform, transform: Transform) -> Transf
     tsp_to_skrifa_transform(gradient_transform)
 }
 
+/// Returns the bounding box of `rect` transformed by `ts`.
+fn map_rect(
+    rect: tiny_skia_path::Rect,
+    ts: tiny_skia_path::Transform,
+) -> Option<tiny_skia_path::Rect> {
+    let mut points = [
+        tiny_skia_path::Point::from_xy(rect.left(), rect.top()),
+        tiny_skia_path::Point::from_xy(rect.right(), rect.top()),
+        tiny_skia_path::Point::from_xy(rect.left(), rect.bottom()),
+        tiny_skia_path::Point::from_xy(rect.right(), rect.bottom()),
+    ];
+    ts.map_points(&mut points);
+    let min_x = points.iter().map(|p| p.x).fold(f32::MAX, f32::min);
+    let min_y = points.iter().map(|p| p.y).fold(f32::MAX, f32::min);
+    let max_x = points.iter().map(|p| p.x).fold(f32::MIN, f32::max);
+    let max_y = points.iter().map(|p| p.y).fold(f32::MIN, f32::max);
+    tiny_skia_path::Rect::from_ltrb(min_x, min_y, max_x, max_y)
+}
+
+/// Returns the intersection of two rects, or `None` when they do not overlap.
+fn intersect_rects(
+    a: tiny_skia_path::Rect,
+    b: tiny_skia_path::Rect,
+) -> Option<tiny_skia_path::Rect> {
+    tiny_skia_path::Rect::from_ltrb(
+        a.left().max(b.left()),
+        a.top().max(b.top()),
+        a.right().min(b.right()),
+        a.bottom().min(b.bottom()),
+    )
+}
+
 impl GlyphPainter<'_> {
     fn clip_with_path(&mut self, path: &str) {
         let clip_id = format!("cp{}", self.clip_path_index);
@@ -247,6 +323,74 @@ impl GlyphPainter<'_> {
         self.svg.start_element("g");
         self.svg
             .write_attribute_fmt("clip-path", format_args!("url(#{})", clip_id));
+    }
+
+    /// Outlines a glyph into `path_buf` at the current variation location
+    /// (an empty path on failure), records the current transform as the
+    /// outline transform and returns the outline's conservative bounding box
+    /// in the glyph's local coordinate space.
+    fn outline_glyph(&mut self, glyph_id: skrifa::GlyphId) -> Option<tiny_skia_path::Rect> {
+        self.path_buf.clear();
+
+        let mut bounds = None;
+        let outlined = if let Some(outliner) = self.font.outline_glyphs().get(glyph_id) {
+            let mut builder = Builder::new(self.path_buf);
+            let size = Size::unscaled();
+            let ok = outliner
+                .draw(DrawSettings::unhinted(size, self.location), &mut builder)
+                .is_ok();
+            if ok {
+                builder.finish();
+                bounds = builder.bounds();
+            }
+            ok
+        } else {
+            false
+        };
+        if !outlined {
+            // A partial outline may have been written before a draw error.
+            self.path_buf.clear();
+        }
+
+        // We have to write outline using the current transform.
+        self.outline_transform = self.transform;
+
+        bounds
+    }
+
+    /// Paints `path_buf` (positioned by the outline transform) with the given brush.
+    fn paint_brush(&mut self, brush: Brush<'_>) {
+        match brush {
+            Brush::Solid {
+                palette_index,
+                alpha,
+            } => {
+                let color = self.palette_index_to_color(palette_index, alpha);
+                self.paint_solid(color);
+            }
+            Brush::LinearGradient {
+                p0,
+                p1,
+                color_stops,
+                extend,
+            } => self.paint_linear_gradient(p0, p1, color_stops, extend),
+            Brush::RadialGradient {
+                c0,
+                r0,
+                c1,
+                r1,
+                color_stops,
+                extend,
+            } => self.paint_radial_gradient(c0, r0, c1, r1, color_stops, extend),
+
+            Brush::SweepGradient {
+                c0,
+                start_angle,
+                end_angle,
+                color_stops,
+                extend,
+            } => self.paint_sweep_gradient(c0, start_angle, end_angle, color_stops, extend),
+        }
     }
 
     fn palette_index_to_color(&self, palette_index: u16, alpha: f32) -> Color {
@@ -289,35 +433,38 @@ impl<'a> skrifa::color::ColorPainter for GlyphPainter<'a> {
         }
     }
 
-    fn push_clip_glyph(&mut self, glyph_id: skrifa::GlyphId) {
-        self.path_buf.clear();
+    fn fill_glyph(
+        &mut self,
+        glyph_id: skrifa::GlyphId,
+        brush_transform: Option<Transform>,
+        brush: Brush<'_>,
+    ) {
+        // Fill the glyph outline directly instead of the default
+        // clip-then-fill decomposition. This avoids a redundant clip path
+        // per fill and matches the output of the old ttf-parser based painter.
+        self.outline_glyph(glyph_id);
 
-        let outlined = if let Some(outliner) = self.font.outline_glyphs().get(glyph_id) {
-            let mut builder = Builder(&mut self.path_buf);
-            let size = Size::unscaled();
-            let ok = outliner
-                .draw(DrawSettings::unhinted(size, self.location), &mut builder)
-                .is_ok();
-            if ok {
-                builder.finish();
-            }
-            ok
+        if let Some(brush_transform) = brush_transform {
+            self.push_transform(brush_transform);
+            self.paint_brush(brush);
+            self.pop_transform();
         } else {
-            false
-        };
-        if !outlined {
-            // A partial outline may have been written before a draw error.
-            self.path_buf.clear();
+            self.paint_brush(brush);
         }
+    }
 
-        // We have to write outline using the current transform.
-        self.outline_transform = self.transform;
+    fn push_clip_glyph(&mut self, glyph_id: skrifa::GlyphId) {
+        let bounds = self.outline_glyph(glyph_id);
 
         // Clip with the outline. This must always open a clip group - even
         // when outlining failed (an empty path clips everything away) - since
         // the corresponding `pop_clip` will unconditionally close it.
         let path = self.path_buf.clone();
         self.clip_with_path(&path);
+
+        let root_bounds =
+            bounds.and_then(|b| map_rect(b, skrifa_to_tsp_transform(self.outline_transform)));
+        self.clip_stack.push(root_bounds);
     }
 
     fn push_clip_box(&mut self, clip_box: skrifa::raw::types::BoundingBox<f32>) {
@@ -331,45 +478,63 @@ impl<'a> skrifa::color::ColorPainter for GlyphPainter<'a> {
             x_min, y_min, x_max, y_min, x_max, y_max, x_min, y_max
         );
 
+        // The clip box is positioned by the current transform.
+        self.outline_transform = self.transform;
         self.clip_with_path(&clip_path);
+
+        let bounds = tiny_skia_path::Rect::from_ltrb(x_min, y_min, x_max, y_max)
+            .and_then(|b| map_rect(b, skrifa_to_tsp_transform(self.outline_transform)));
+        self.clip_stack.push(bounds);
     }
 
     fn pop_clip(&mut self) {
         self.svg.end_element();
+        self.clip_stack.pop();
     }
 
     fn fill(&mut self, brush: Brush<'_>) {
-        match brush {
-            Brush::Solid {
-                palette_index,
-                alpha,
-            } => {
-                let color = self.palette_index_to_color(palette_index, alpha);
-                self.paint_solid(color);
-            }
-            Brush::LinearGradient {
-                p0,
-                p1,
-                color_stops,
-                extend,
-            } => self.paint_linear_gradient(p0, p1, color_stops, extend),
-            Brush::RadialGradient {
-                c0,
-                r0,
-                c1,
-                r1,
-                color_stops,
-                extend,
-            } => self.paint_radial_gradient(c0, r0, c1, r1, color_stops, extend),
-
-            Brush::SweepGradient {
-                c0,
-                start_angle,
-                end_angle,
-                color_stops,
-                extend,
-            } => self.paint_sweep_gradient(c0, start_angle, end_angle, color_stops, extend),
+        // A fill paints the intersection of all currently active clips.
+        // Paint a rectangle covering that intersection and let the enclosing
+        // clip groups shape it.
+        if self.clip_stack.is_empty() {
+            log::warn!("Unclipped COLR fills are not supported.");
+            return;
         }
+
+        let mut region: Option<tiny_skia_path::Rect> = None;
+        for bounds in &self.clip_stack {
+            // A clip with no (or unknown) bounds clips everything away.
+            let Some(bounds) = bounds else { return };
+            region = Some(match region {
+                Some(region) => match intersect_rects(region, *bounds) {
+                    Some(r) => r,
+                    // An empty intersection - there is nothing to paint.
+                    None => return,
+                },
+                None => *bounds,
+            });
+        }
+        let Some(region) = region else { return };
+
+        self.path_buf.clear();
+        write!(
+            self.path_buf,
+            "M {} {} L {} {} L {} {} L {} {} Z",
+            region.left(),
+            region.top(),
+            region.right(),
+            region.top(),
+            region.right(),
+            region.bottom(),
+            region.left(),
+            region.bottom()
+        )
+        .unwrap();
+
+        // The covering rectangle is in the root coordinate space.
+        self.outline_transform = Transform::default();
+
+        self.paint_brush(brush);
     }
 
     fn push_layer(&mut self, composite_mode: skrifa::color::CompositeMode) {
