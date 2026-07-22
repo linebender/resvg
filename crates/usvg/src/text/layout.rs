@@ -1462,14 +1462,13 @@ fn shape_text_with_font(
 
         let mut glyphs = Vec::new();
 
+        // A shaper instance is only needed to apply variations.
+        let instance_data = (!variations.is_empty())
+            .then(|| ShaperInstance::from_variations(&hr_font, &variations));
         let shaper_data = ShaperData::new(&hr_font);
-        let instance_data = ShaperInstance::from_variations(&hr_font, &variations);
         let shaper = shaper_data
-            // Initialize the builder for the given font
             .shaper(&hr_font)
-            // Set the instance
-            .instance(Some(&instance_data))
-            // Build the shaper
+            .instance(instance_data.as_ref())
             .build();
 
         let mut features = Vec::new();
