@@ -1236,14 +1236,15 @@ impl DatabaseExt for Database {
 
             let x_height = metrics
                 .x_height
-                .and_then(|x| u16::try_from(x as i16).ok())
+                .filter(|x| *x > 0.0)
+                .and_then(|x| u16::try_from(x.round() as i32).ok())
                 .and_then(NonZeroU16::new);
             let x_height = match x_height {
                 Some(height) => height,
                 None => {
                     // If not set - fallback to height * 45%.
                     // 45% is what Firefox uses.
-                    u16::try_from(((ascent - descent) * 0.45) as i32)
+                    u16::try_from(((ascent - descent) * 0.45).round() as i32)
                         .ok()
                         .and_then(NonZeroU16::new)?
                 }
@@ -1251,19 +1252,19 @@ impl DatabaseExt for Database {
 
             let line_through = metrics.strikeout;
             let line_through_position = match line_through {
-                Some(metrics) => metrics.offset as i16,
+                Some(metrics) => metrics.offset.round() as i16,
                 None => x_height.get() as i16 / 2,
             };
 
             let (underline_position, underline_thickness) = match metrics.underline {
                 Some(metrics) => {
-                    let thickness = u16::try_from(metrics.thickness as i16)
+                    let thickness = u16::try_from(metrics.thickness.round() as i32)
                         .ok()
                         .and_then(NonZeroU16::new)
                         // `skrifa` guarantees that units_per_em is > 0
                         .unwrap_or_else(|| NonZeroU16::new(units_per_em.get() / 12).unwrap());
 
-                    (metrics.offset as i16, thickness)
+                    (metrics.offset.round() as i16, thickness)
                 }
                 None => (
                     -(units_per_em.get() as i16) / 9,
@@ -1285,15 +1286,15 @@ impl DatabaseExt for Database {
                 let metric_delta =
                     |tag| mvar.metric_delta(tag, coords).unwrap_or_default().to_f32();
 
-                subscript_offset += metric_delta(SBYO) as i16;
-                superscript_offset += metric_delta(SPYO) as i16;
+                subscript_offset += metric_delta(SBYO).round() as i16;
+                superscript_offset += metric_delta(SPYO).round() as i16;
             }
 
             Some(ResolvedFont {
                 id,
                 units_per_em,
-                ascent: ascent as i16,
-                descent: descent as i16,
+                ascent: ascent.round() as i16,
+                descent: descent.round() as i16,
                 x_height,
                 underline_position,
                 underline_thickness,
