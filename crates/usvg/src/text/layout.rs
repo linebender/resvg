@@ -1225,7 +1225,12 @@ impl DatabaseExt for Database {
             let coords = location.coords();
             let metrics = font.metrics(Size::unscaled(), &location);
 
+            // Reject fonts with an out-of-range unitsPerEm, like `ttf-parser` did.
+            if !(16..=16384).contains(&metrics.units_per_em) {
+                return None;
+            }
             let units_per_em = NonZeroU16::new(metrics.units_per_em)?;
+
             let ascent = metrics.ascent;
             let descent = metrics.descent;
 
