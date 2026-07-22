@@ -295,24 +295,33 @@ impl<'a> skrifa::color::ColorPainter for GlyphPainter<'a> {
 
     fn push_clip_glyph(&mut self, glyph_id: skrifa::GlyphId) {
         self.path_buf.clear();
-        let mut builder = Builder(&mut self.path_buf);
 
-        match self.font.outline_glyphs().get(glyph_id) {
-            Some(outliner) => {
-                let size = Size::unscaled();
-                if outliner
-                    .draw(DrawSettings::unhinted(size, self.location), &mut builder)
-                    .is_err()
-                {
-                    return;
-                }
+        let outlined = if let Some(outliner) = self.font.outline_glyphs().get(glyph_id) {
+            let mut builder = Builder(&mut self.path_buf);
+            let size = Size::unscaled();
+            let ok = outliner
+                .draw(DrawSettings::unhinted(size, self.location), &mut builder)
+                .is_ok();
+            if ok {
+                builder.finish();
             }
-            None => return,
+            ok
+        } else {
+            false
         };
-        builder.finish();
+        if !outlined {
+            // A partial outline may have been written before a draw error.
+            self.path_buf.clear();
+        }
 
         // We have to write outline using the current transform.
         self.outline_transform = self.transform;
+
+        // Clip with the outline. This must always open a clip group - even
+        // when outlining failed (an empty path clips everything away) - since
+        // the corresponding `pop_clip` will unconditionally close it.
+        let path = self.path_buf.clone();
+        self.clip_with_path(&path);
     }
 
     fn push_clip_box(&mut self, clip_box: skrifa::raw::types::BoundingBox<f32>) {
