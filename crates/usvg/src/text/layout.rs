@@ -1448,17 +1448,11 @@ fn shape_text_with_font(
         // This matches browser behavior (CSS font-optical-sizing: auto).
         if font_optical_sizing == crate::FontOpticalSizing::Auto {
             let has_explicit_opsz = variations.iter().any(|v| v.tag == *b"opsz");
-            if !has_explicit_opsz {
-                // Check if font has opsz axis using the already parsed rb_font
-                if let Ok(axes) = hr_font.fvar().and_then(|fvar| fvar.axes()) {
-                    let has_opsz_axis = axes.into_iter().any(|axis| axis.axis_tag() == OPSZ);
-                    if has_opsz_axis {
-                        variations.push(Variation {
-                            tag: OPSZ,
-                            value: font_size,
-                        });
-                    }
-                }
+            if !has_explicit_opsz && hr_font.axes().get_by_tag(OPSZ).is_some() {
+                variations.push(Variation {
+                    tag: OPSZ,
+                    value: font_size,
+                });
             }
         }
 

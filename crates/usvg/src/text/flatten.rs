@@ -6,8 +6,8 @@ use std::sync::Arc;
 
 use crate::GlyphId;
 use fontdb::{Database, ID};
-use harfrust::{FontRef, Tag};
 use skrifa::MetadataProvider;
+use skrifa::Tag;
 use skrifa::bitmap::{BitmapData, BitmapFormat};
 use skrifa::outline::{DrawSettings, OutlinePen};
 use skrifa::prelude::LocationRef;
@@ -290,12 +290,8 @@ impl DatabaseExt for Database {
 
     fn has_opsz_axis(&self, id: ID) -> bool {
         self.with_face_data(id, |data, face_index| -> Option<bool> {
-            let font = FontRef::from_index(data, face_index).ok()?;
-            let has_opsz = font
-                .fvar()
-                .and_then(|fvar| fvar.axes())
-                .is_ok_and(|axes| axes.into_iter().any(|axis| axis.axis_tag() == OPSZ));
-            Some(has_opsz)
+            let font = skrifa::FontRef::from_index(data, face_index).ok()?;
+            Some(font.axes().get_by_tag(OPSZ).is_some())
         })
         .flatten()
         .unwrap_or(false)
