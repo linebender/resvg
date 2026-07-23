@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100">
+    <title>Filter region positioned outside the i32 range</title>
+    <desc>The em-based x offset multiplied by the huge bounding box pushes the region outside the i32 range. The filtered element is invisible, but the app should not panic.</desc>
+
+    <filter id="filter1" x="37649em">
+        <feGaussianBlur stdDeviation="2"/>
+    </filter>
+    <polygon points="8 2,34134 9,20 90" fill="seagreen" filter="url(#filter1)"/>
+
+    <!-- image frame -->
+    <rect x="1" y="1" width="98" height="98" fill="none" stroke="black"/>
+</svg>
