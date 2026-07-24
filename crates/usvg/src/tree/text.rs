@@ -487,7 +487,8 @@ pub struct TextPath {
 impl TextPath {
     /// Element's ID.
     ///
-    /// Taken from the SVG itself.
+    /// Taken from the SVG itself or generated internally in case the path
+    /// has no ID.
     pub fn id(&self) -> &str {
         self.id.get()
     }
