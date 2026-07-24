@@ -540,7 +540,16 @@ fn resolve_svg_size(svg: &SvgNode, opt: &Options) -> (Result<Size, Error>, bool)
             svg.convert_user_length(AId::Height, &state, def)
         };
 
-        Size::from_wh(w, h)
+        // If only one of height/width is not specified, its value should be
+        // computed from the other and the viewbox' aspect ratio.
+        match (
+            svg.attribute::<Length>(AId::Width),
+            svg.attribute::<Length>(AId::Height),
+        ) {
+            (Some(_), None) => Size::from_wh(w, vbox.height() * w / vbox.width()),
+            (None, Some(_)) => Size::from_wh(vbox.width() * h / vbox.height(), h),
+            (_, _) => Size::from_wh(w, h),
+        }
     } else {
         Size::from_wh(
             svg.convert_user_length(AId::Width, &state, def),
