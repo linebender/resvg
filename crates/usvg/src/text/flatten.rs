@@ -147,8 +147,9 @@ pub(crate) fn flatten(text: &mut Text, cache: &mut Cache) -> Option<(Group, NonZ
 
                 new_children.push(Node::Group(Box::new(group)));
             } else {
-                // Only bypass cache if the font is variable and either explicit
-                // variations are set or auto optical sizing applies.
+                // Only bypass cache if:
+                //   (explicit variations AND font has variation axes) OR
+                //   (auto opsz AND font has opsz axis)
                 let needs_variations = (has_explicit_variations
                     && cache.has_variation_axes(glyph.font))
                     || (span.font_optical_sizing == crate::FontOpticalSizing::Auto
