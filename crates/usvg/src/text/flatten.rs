@@ -147,8 +147,11 @@ pub(crate) fn flatten(text: &mut Text, cache: &mut Cache) -> Option<(Group, NonZ
 
                 new_children.push(Node::Group(Box::new(group)));
             } else {
-                // Only bypass cache if: explicit variations OR (auto opsz AND font has opsz axis)
-                let needs_variations = has_explicit_variations
+                // Only bypass cache if:
+                //   (explicit variations AND font has variation axes) OR
+                //   (auto opsz AND font has opsz axis)
+                let needs_variations = (has_explicit_variations
+                    && cache.has_variation_axes(glyph.font))
                     || (span.font_optical_sizing == crate::FontOpticalSizing::Auto
                         && cache.has_opsz_axis(glyph.font));
 
@@ -237,6 +240,7 @@ pub(crate) trait DatabaseExt {
         font_optical_sizing: crate::FontOpticalSizing,
     ) -> Option<tiny_skia_path::Path>;
     fn has_opsz_axis(&self, id: ID) -> bool;
+    fn has_variation_axes(&self, id: ID) -> bool;
     fn raster(&self, id: ID, glyph_id: GlyphId) -> Option<BitmapImage>;
     fn svg(&self, id: ID, glyph_id: GlyphId) -> Option<Node>;
     fn colr(&self, id: ID, glyph_id: GlyphId) -> Option<Tree>;
@@ -325,6 +329,15 @@ impl DatabaseExt for Database {
                     .any(|axis| axis.tag == ttf_parser::Tag::from_bytes(b"opsz"))
             });
             Some(has_opsz)
+        })
+        .flatten()
+        .unwrap_or(false)
+    }
+
+    fn has_variation_axes(&self, id: ID) -> bool {
+        self.with_face_data(id, |data, face_index| -> Option<bool> {
+            let font = ttf_parser::Face::parse(data, face_index).ok()?;
+            Some(font.tables().fvar.is_some())
         })
         .flatten()
         .unwrap_or(false)
