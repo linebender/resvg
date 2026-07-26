@@ -21,11 +21,11 @@ pub(crate) const OPSZ: skrifa::Tag = skrifa::Tag::from_be_bytes(*b"opsz");
 
 /// The ID of a glyph within a font
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
-pub struct GlyphId(pub u16);
+pub struct GlyphId(pub u32);
 
 impl From<GlyphId> for skrifa::raw::types::GlyphId {
     fn from(value: GlyphId) -> Self {
-        Self::new(value.0 as u32)
+        Self::new(value.0)
     }
 }
 

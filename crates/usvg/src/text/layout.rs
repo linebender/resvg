@@ -1531,7 +1531,7 @@ fn shape_text_with_font(
                     byte_idx: ByteIndex::new(idx),
                     cluster_len: end.checked_sub(start).unwrap_or(0), // TODO: can fail?
                     text: sub_text[start..end].to_string(),
-                    id: GlyphId(info.glyph_id as u16),
+                    id: GlyphId(info.glyph_id),
                     dx: pos.x_offset,
                     dy: pos.y_offset,
                     width: pos.x_advance,
