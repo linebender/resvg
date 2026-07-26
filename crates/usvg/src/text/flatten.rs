@@ -17,10 +17,9 @@ use svgtypes::Color;
 use tiny_skia_path::{NonZeroRect, Size, Transform};
 use xmlwriter::XmlWriter;
 
+use crate::text::OPSZ;
 use crate::text::colr::GlyphPainter;
 use crate::*;
-
-const OPSZ: Tag = Tag::from_be_bytes(*b"opsz");
 
 fn resolve_rendering_mode(text: &Text) -> ShapeRendering {
     match text.rendering_mode {

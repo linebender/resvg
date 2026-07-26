@@ -1436,7 +1436,8 @@ fn shape_text_with_font(
 ) -> Option<Vec<Glyph>> {
     fontdb.with_face_data(font.id, |font_data, face_index| -> Option<Vec<Glyph>> {
         use harfrust::{Feature, ShaperData, ShaperInstance, Tag, UnicodeBuffer, Variation};
-        const OPSZ: Tag = Tag::from_be_bytes(*b"opsz");
+
+        use crate::text::OPSZ;
 
         let hr_font = harfrust::FontRef::from_index(font_data, face_index).ok()?;
 

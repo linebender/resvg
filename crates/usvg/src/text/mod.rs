@@ -16,6 +16,9 @@ mod colr;
 /// Provides access to the layout of a text node.
 pub mod layout;
 
+/// The optical sizing variation axis tag.
+pub(crate) const OPSZ: skrifa::Tag = skrifa::Tag::from_be_bytes(*b"opsz");
+
 /// The ID of a glyph within a font
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct GlyphId(pub u16);
