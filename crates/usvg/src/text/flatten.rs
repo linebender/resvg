@@ -387,8 +387,6 @@ impl DatabaseExt for Database {
         self.with_face_data(id, |data, face_index| -> Option<Tree> {
             let font = skrifa::FontRef::from_index(data, face_index).ok()?;
 
-            // COLR paints (transforms, gradient stops, clip boxes) and the
-            // referenced glyph outlines can all vary in a variable font.
             let location = font.axes().location(
                 variations
                     .iter()
