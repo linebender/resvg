@@ -7,11 +7,11 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 #[cfg(feature = "text")]
+use crate::{FontVariation, GlyphId};
+#[cfg(feature = "text")]
 use fontdb::Database;
 #[cfg(feature = "text")]
 use fontdb::ID;
-#[cfg(feature = "text")]
-use rustybuzz::ttf_parser::GlyphId;
 use svgtypes::{Length, LengthUnit as Unit, PaintOrderKind, TransformOrigin};
 use tiny_skia_path::PathBuilder;
 
@@ -50,9 +50,9 @@ pub struct Cache {
     pub fontdb: Arc<Database>,
 
     #[cfg(feature = "text")]
-    cache_outline: HashMap<(ID, GlyphId), Option<tiny_skia_path::Path>>,
+    cache_outline: HashMap<(ID, GlyphId, Vec<FontVariation>), Option<tiny_skia_path::Path>>,
     #[cfg(feature = "text")]
-    cache_colr: HashMap<(ID, GlyphId), Option<Tree>>,
+    cache_colr: HashMap<(ID, GlyphId, Vec<FontVariation>), Option<Tree>>,
     #[cfg(feature = "text")]
     cache_svg: HashMap<(ID, GlyphId), Option<Node>>,
     #[cfg(feature = "text")]
@@ -204,10 +204,44 @@ impl Cache {
         }
     }
 
-    font_lookup!(fontdb_outline, cache_outline, outline, tiny_skia_path::Path);
-    font_lookup!(fontdb_colr, cache_colr, colr, Tree);
     font_lookup!(fontdb_svg, cache_svg, svg, Node);
     font_lookup!(fontdb_raster, cache_raster, raster, BitmapImage);
+
+    #[cfg(feature = "text")]
+    pub(crate) fn fontdb_outline(
+        &mut self,
+        font: ID,
+        glyph: GlyphId,
+        variations: &[FontVariation],
+    ) -> Option<tiny_skia_path::Path> {
+        let key = (font, glyph, variations.to_vec());
+        match self.cache_outline.get(&key) {
+            Some(cache_hit) => cache_hit.clone(),
+            None => {
+                let lookup = self.fontdb.outline(font, glyph, variations);
+                self.cache_outline.insert(key, lookup.clone());
+                lookup
+            }
+        }
+    }
+
+    #[cfg(feature = "text")]
+    pub(crate) fn fontdb_colr(
+        &mut self,
+        font: ID,
+        glyph: GlyphId,
+        variations: &[FontVariation],
+    ) -> Option<Tree> {
+        let key = (font, glyph, variations.to_vec());
+        match self.cache_colr.get(&key) {
+            Some(cache_hit) => cache_hit.clone(),
+            None => {
+                let lookup = self.fontdb.colr(font, glyph, variations);
+                self.cache_colr.insert(key, lookup.clone());
+                lookup
+            }
+        }
+    }
 
     #[cfg(feature = "text")]
     pub(crate) fn has_opsz_axis(&mut self, font: ID) -> bool {
