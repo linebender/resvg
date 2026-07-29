@@ -257,7 +257,8 @@ impl<'a> GlyphPainter<'a> {
         _color_stops: &[ColorStop],
         _extend: Extend,
     ) {
-        println!("Warning: sweep gradients are not supported.");
+        // Sweep gradients are not supported.
+        // TODO: surface warning without printing to stdout
     }
 }
 
@@ -558,7 +559,9 @@ impl<'a> skrifa::color::ColorPainter for GlyphPainter<'a> {
             CompositeMode::HslColor => "color",
             CompositeMode::HslLuminosity => "luminosity",
             _ => {
-                println!("Warning: unsupported blend mode: {:?}", composite_mode);
+                // Unsupported blend mode
+                // TODO: support other blend modes
+                // TODO: surface warning without printing to stdout
                 "normal"
             }
         };
