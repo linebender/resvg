@@ -183,12 +183,6 @@ impl<'a> GlyphPainter<'a> {
 
         let gradient_transform = paint_transform(self.outline_transform, self.transform);
 
-        // TODO: We ignore x2, y2. Have to apply them somehow.
-        // TODO: The way spreadMode works in ttf and svg is a bit different. In SVG, the spreadMode
-        // will always be applied based on x1/y1 and x2/y2. However, in TTF the spreadMode will
-        // be applied from the first/last stop. So if we have a gradient with x1=0 x2=1, and
-        // a stop at x=0.4 and x=0.6, then in SVG we will always see a padding, while in ttf
-        // we will see the actual spreadMode. We need to account for that somehow.
         self.svg.start_element("linearGradient");
         self.svg.write_attribute("id", &gradient_id);
         self.svg.write_attribute("x1", &p0.x);
@@ -225,6 +219,11 @@ impl<'a> GlyphPainter<'a> {
 
         let gradient_transform = paint_transform(self.outline_transform, self.transform);
 
+        // TODO: Normalizing the stops into the 0..1 range moves the circles onto the
+        // first and last stop, which can make `r0` (and in theory `r1`) negative.
+        // SVG cannot express that, so the color line should be cut where the radius
+        // reaches zero, with an interpolated stop inserted at the cut and the
+        // remaining stops reparameterized into the 0..1 range.
         self.svg.start_element("radialGradient");
         self.svg.write_attribute("id", &gradient_id);
         self.svg.write_attribute("cx", &c1.x);
