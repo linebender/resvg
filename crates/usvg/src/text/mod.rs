@@ -10,10 +10,24 @@ use self::layout::DatabaseExt;
 use crate::{Cache, Font, FontStretch, FontStyle, Text};
 
 pub(crate) mod flatten;
+mod transform;
 
 mod colr;
 /// Provides access to the layout of a text node.
 pub mod layout;
+
+/// The optical sizing variation axis tag.
+pub(crate) const OPSZ: skrifa::Tag = skrifa::Tag::from_be_bytes(*b"opsz");
+
+/// The ID of a glyph within a font
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+pub struct GlyphId(pub u32);
+
+impl From<GlyphId> for skrifa::raw::types::GlyphId {
+    fn from(value: GlyphId) -> Self {
+        Self::new(value.0)
+    }
+}
 
 /// A shorthand for [FontResolver]'s font selection function.
 ///
