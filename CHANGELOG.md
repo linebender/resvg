@@ -8,7 +8,11 @@ This changelog also contains important changes in dependencies.
 
 ## [Unreleased]
 
-This release has an MSRV of 1.87.0 for `usvg` and `resvg` and the C API.
+This release has an MSRV of 1.85.0 for `usvg` and `resvg` and the C API.
+
+### Changed
+
+- MSRV lowered from 1.87 to 1.85. The 1.87 requirement came from `zune-jpeg` which has now lowered it's MSRV.
 
 ## [0.47.0] 2026-02-05
 
