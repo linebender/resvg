@@ -18,10 +18,10 @@ name = "usvg"
 required-features = ["svgz", "text", "system-fonts", "memmap-fonts", "writer"]
 
 [dependencies]
-base64 = { version = "0.22", optional = true } # for embedded images
+base64 = { version = "0.23", optional = true } # for embedded images
 log = "0.4"
 pico-args = { version = "0.5", features = ["eq-separator"] }
-strict-num = "0.1.1"
+strict-num = "0.2.0"
 svgtypes = "0.16.1"
 tiny-skia-path = "0.12.0"
 xmlwriter = { version = "0.1", optional = true }
