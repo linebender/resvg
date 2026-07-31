@@ -241,7 +241,6 @@ pub(crate) trait DatabaseExt {
         variations: &[crate::FontVariation],
     ) -> Option<tiny_skia_path::Path>;
     fn has_opsz_axis(&self, id: ID) -> bool;
-    fn has_variation_axes(&self, id: ID) -> bool;
     fn raster(&self, id: ID, glyph_id: GlyphId) -> Option<BitmapImage>;
     fn svg(&self, id: ID, glyph_id: GlyphId) -> Option<Node>;
     fn colr(&self, id: ID, glyph_id: GlyphId, variations: &[crate::FontVariation]) -> Option<Tree>;
@@ -292,15 +291,6 @@ impl DatabaseExt for Database {
         self.with_face_data(id, |data, face_index| -> Option<bool> {
             let font = skrifa::FontRef::from_index(data, face_index).ok()?;
             Some(font.axes().get_by_tag(OPSZ).is_some())
-        })
-        .flatten()
-        .unwrap_or(false)
-    }
-
-    fn has_variation_axes(&self, id: ID) -> bool {
-        self.with_face_data(id, |data, face_index| -> Option<bool> {
-            let font = ttf_parser::Face::parse(data, face_index).ok()?;
-            Some(font.tables().fvar.is_some())
         })
         .flatten()
         .unwrap_or(false)
