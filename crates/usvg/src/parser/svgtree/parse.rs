@@ -265,11 +265,16 @@ pub(crate) fn parse_svg_element<'input>(
         // of their order in the source document.
         // https://www.w3.org/TR/SVG2/linking.html#XLinkRefAttrs
         if aid == AId::Href {
+            let is_unprefixed = attr.namespace().is_none();
             let is_xlink = attr.namespace() == Some(XLINK_NS);
+            if !is_unprefixed && !is_xlink {
+                continue;
+            }
+
             if let Some(idx) = href_idx {
                 // An `href` was already stored. Only an unprefixed `href` is
                 // allowed to override it; an `xlink:href` is ignored.
-                if !is_xlink {
+                if is_unprefixed {
                     doc.attrs[idx].value = attr.value_storage().clone();
                 }
                 continue;

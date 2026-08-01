@@ -509,6 +509,7 @@ use crate::render;
 #[test] fn paint_servers_linearGradient_gradientUnits_eq_userSpaceOnUse_with_percent() { assert_eq!(render("tests/paint-servers/linearGradient/gradientUnits=userSpaceOnUse-with-percent"), 0); }
 #[test] fn paint_servers_linearGradient_gradientUnits_eq_userSpaceOnUse() { assert_eq!(render("tests/paint-servers/linearGradient/gradientUnits=userSpaceOnUse"), 0); }
 #[test] fn paint_servers_linearGradient_href_precedence_over_xlink() { assert_eq!(render("tests/paint-servers/linearGradient/href-precedence-over-xlink"), 0); }
+#[test] fn paint_servers_linearGradient_href_with_invalid_prefix() { assert_eq!(render("tests/paint-servers/linearGradient/href-with-invalid-prefix"), 0); }
 #[test] fn paint_servers_linearGradient_hsla_color() { assert_eq!(render("tests/paint-servers/linearGradient/hsla-color"), 0); }
 #[test] fn paint_servers_linearGradient_invalid_child_1() { assert_eq!(render("tests/paint-servers/linearGradient/invalid-child-1"), 0); }
 #[test] fn paint_servers_linearGradient_invalid_child_2() { assert_eq!(render("tests/paint-servers/linearGradient/invalid-child-2"), 0); }
