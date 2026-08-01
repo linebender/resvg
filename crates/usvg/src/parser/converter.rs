@@ -643,11 +643,13 @@ pub(crate) fn convert_element(node: SvgNode, state: &State, cache: &mut Cache, p
 
     // A nested `svg` is handled just like `use`: it must not be wrapped in an
     // additional `convert_group`, otherwise its `transform` (and other group
-    // properties) would be applied twice, since `convert_svg` already creates its
-    // own group. The outermost `svg` (no parent element) is intentionally not
-    // handled here - it's processed directly in `convert_doc`.
+    // properties) would be applied twice, since `convert_svg`
+    // already creates its own group. The outermost `svg` (no parent element)
+    // is intentionally not handled here - it's processed directly in
+    // `convert_doc`.
     if tag_name == EId::Svg && node.parent_element().is_some() {
         super::use_node::convert_svg(node, state, cache, parent);
+
         return;
     }
 
@@ -689,8 +691,8 @@ fn convert_element_impl(
         }
         EId::Svg => {
             // Only the outermost `svg` reaches this point; nested `svg` elements are
-            // handled earlier in `convert_element`. The root `svg` itself is skipped
-            // and only its children are converted.
+            // handled earlier in `convert_element`. The root `svg` itself is
+            // skipped and only its children are converted.
             convert_children(node, state, cache, parent);
         }
         EId::G => {
