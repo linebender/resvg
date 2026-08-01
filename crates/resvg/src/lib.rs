@@ -26,29 +26,39 @@ mod mask;
 mod path;
 mod render;
 
+/// A rendering error.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Error {
+    /// The SVG contains a too large filter region.
+    FilterTooLarge,
+}
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::FilterTooLarge => write!(f, "filter region is too large"),
+        }
+    }
+}
+
+impl std::error::Error for Error {}
+
 /// Renders a tree onto the pixmap.
 ///
 /// `transform` will be used as a root transform.
 /// Can be used to position SVG inside the `pixmap`.
 ///
 /// The produced content is in the sRGB color space.
-#[must_use]
 pub fn render(
     tree: &usvg::Tree,
     transform: tiny_skia::Transform,
     pixmap: &mut tiny_skia::PixmapMut,
-) -> Option<()> {
-    let target_size = tiny_skia::IntSize::from_wh(pixmap.width(), pixmap.height())?;
-    let max_bbox = tiny_skia::IntRect::from_xywh(
-        (-(target_size.width() as i32)).checked_add(2)?,
-        (-(target_size.height() as i32)).checked_add(2)?,
-        target_size.width().checked_mul(5)?,
-        target_size.height().checked_mul(5)?,
-    )?;
+) -> Result<(), Error> {
+    let max_bbox = max_filter_bbox(pixmap.width(), pixmap.height())?;
 
     let ctx = render::Context { max_bbox };
     render::render_nodes(tree.root(), &ctx, transform, pixmap);
-    Some(())
+    Ok(())
 }
 
 /// Renders a node onto the pixmap.
@@ -58,30 +68,26 @@ pub fn render(
 ///
 /// The expected pixmap size can be retrieved from `usvg::Node::abs_layer_bounding_box()`.
 ///
-/// Returns `None` when `node` has a zero size.
+/// Returns `Ok(None)` when `node` has a zero size.
 ///
 /// The produced content is in the sRGB color space.
 pub fn render_node(
     node: &usvg::Node,
     mut transform: tiny_skia::Transform,
     pixmap: &mut tiny_skia::PixmapMut,
-) -> Option<()> {
-    let bbox = node.abs_layer_bounding_box()?;
+) -> Result<Option<()>, Error> {
+    let Some(bbox) = node.abs_layer_bounding_box() else {
+        return Ok(None);
+    };
 
-    let target_size = tiny_skia::IntSize::from_wh(pixmap.width(), pixmap.height())?;
-    let max_bbox = tiny_skia::IntRect::from_xywh(
-        -(target_size.width() as i32) * 2,
-        -(target_size.height() as i32) * 2,
-        target_size.width() * 5,
-        target_size.height() * 5,
-    )?;
+    let max_bbox = max_filter_bbox(pixmap.width(), pixmap.height())?;
 
     transform = transform.pre_translate(-bbox.x(), -bbox.y());
 
     let ctx = render::Context { max_bbox };
     render::render_node(node, &ctx, transform, pixmap);
 
-    Some(())
+    Ok(Some(()))
 }
 
 pub(crate) trait OptionLog {
@@ -96,4 +102,16 @@ impl<T> OptionLog for Option<T> {
             None
         })
     }
+}
+
+fn max_filter_bbox(width: u32, height: u32) -> Result<tiny_skia::IntRect, Error> {
+    (|| {
+        tiny_skia::IntRect::from_xywh(
+            i32::try_from(width).ok()?.checked_mul(-2)?,
+            i32::try_from(height).ok()?.checked_mul(-2)?,
+            width.checked_mul(5)?,
+            height.checked_mul(5)?,
+        )
+    })()
+    .ok_or(Error::FilterTooLarge)
 }

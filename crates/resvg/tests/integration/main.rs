@@ -91,7 +91,9 @@ pub fn render_inner(name: &str, test_mode: TestMode) -> usize {
             let node = tree.node_by_id(id).unwrap();
             size = node.abs_layer_bounding_box().unwrap().size().to_int_size();
             pixmap = tiny_skia::Pixmap::new(size.width(), size.height()).unwrap();
-            resvg::render_node(node, tiny_skia::Transform::identity(), &mut pixmap.as_mut());
+            resvg::render_node(node, tiny_skia::Transform::identity(), &mut pixmap.as_mut())
+                .expect("Failed to render")
+                .expect("Node has zero size");
         }
         TestMode::Extra(scale) => {
             size = tree.size().to_int_size().scale_by(scale).unwrap();

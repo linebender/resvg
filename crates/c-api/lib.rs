@@ -935,7 +935,10 @@ pub extern "C" fn resvg_render_node(
             unsafe { std::slice::from_raw_parts_mut(pixmap as *mut u8, pixmap_len) };
         let mut pixmap = tiny_skia::PixmapMut::from_bytes(pixmap, width, height).unwrap();
 
-        resvg::render_node(node, transform.to_tiny_skia(), &mut pixmap).is_some()
+        matches!(
+            resvg::render_node(node, transform.to_tiny_skia(), &mut pixmap),
+            Ok(Some(()))
+        )
     } else {
         log::warn!("A node with '{}' ID wasn't found.", id);
         false
