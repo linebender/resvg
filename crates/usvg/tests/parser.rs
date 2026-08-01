@@ -228,6 +228,34 @@ fn size_detection_5() {
 }
 
 #[test]
+fn size_detection_6() {
+    let svg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' width='30'/>";
+    let tree = usvg::Tree::from_str(&svg, &usvg::Options::default()).unwrap();
+    assert_eq!(tree.size(), usvg::Size::from_wh(30.0, 30.0).unwrap());
+}
+
+#[test]
+fn size_detection_7() {
+    let svg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 20' width='30'/>";
+    let tree = usvg::Tree::from_str(&svg, &usvg::Options::default()).unwrap();
+    assert_eq!(tree.size(), usvg::Size::from_wh(30.0, 60.0).unwrap());
+}
+
+#[test]
+fn size_detection_8() {
+    let svg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' height='30'/>";
+    let tree = usvg::Tree::from_str(&svg, &usvg::Options::default()).unwrap();
+    assert_eq!(tree.size(), usvg::Size::from_wh(30.0, 30.0).unwrap());
+}
+
+#[test]
+fn size_detection_9() {
+    let svg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 20' height='30'/>";
+    let tree = usvg::Tree::from_str(&svg, &usvg::Options::default()).unwrap();
+    assert_eq!(tree.size(), usvg::Size::from_wh(15.0, 30.0).unwrap());
+}
+
+#[test]
 fn invalid_size_1() {
     let svg = "<svg width='0' height='0' viewBox='0 0 10 20' xmlns='http://www.w3.org/2000/svg'/>";
     let result = usvg::Tree::from_str(&svg, &usvg::Options::default());
