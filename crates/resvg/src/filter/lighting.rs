@@ -128,16 +128,14 @@ impl Normal {
 ///
 /// Does nothing when `src` is less than 3x3.
 ///
-/// # Panics
-///
-/// - When `src` and `dest` have different sizes.
+/// `src` and `dest` dimensions must match.
 pub fn diffuse_lighting(
     fe: &DiffuseLighting,
     light_source: LightSource,
     src: ImageRef,
     dest: ImageRefMut,
 ) {
-    assert!(src.width == dest.width && src.height == dest.height);
+    debug_assert!(src.width == dest.width && src.height == dest.height);
 
     let light_factor = |normal: Normal, light_vector: Vector3| {
         let k = if normal.normal.approx_zero() {
@@ -173,16 +171,14 @@ pub fn diffuse_lighting(
 ///
 /// Does nothing when `src` is less than 3x3.
 ///
-/// # Panics
-///
-/// - When `src` and `dest` have different sizes.
+/// `src` and `dest` dimensions must match.
 pub fn specular_lighting(
     fe: &SpecularLighting,
     light_source: LightSource,
     src: ImageRef,
     dest: ImageRefMut,
 ) {
-    assert!(src.width == dest.width && src.height == dest.height);
+    debug_assert!(src.width == dest.width && src.height == dest.height);
 
     let light_factor = |normal: Normal, light_vector: Vector3| {
         let h = light_vector + Vector3::new(0.0, 0.0, 1.0);
