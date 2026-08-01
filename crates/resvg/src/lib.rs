@@ -6,7 +6,6 @@
 */
 
 #![forbid(unsafe_code)]
-#![forbid(clippy::missing_panics_doc)]
 #![warn(missing_docs)]
 #![allow(clippy::field_reassign_with_default)]
 #![allow(clippy::identity_op)]

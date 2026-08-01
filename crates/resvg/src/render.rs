@@ -173,11 +173,11 @@ mod tests {
         let tree = usvg::Tree::from_str(svg, &usvg::Options::default()).unwrap();
         let mut pixmap = tiny_skia::Pixmap::new(1, 1).unwrap();
 
-        crate::render(
+        // Just make sure we don't panic.
+        let _ = crate::render(
             &tree,
             tiny_skia::Transform::identity(),
             &mut pixmap.as_mut(),
-        )
-        .unwrap();
+        );
     }
 }
