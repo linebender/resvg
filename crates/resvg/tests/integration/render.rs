@@ -1198,6 +1198,7 @@ use crate::render;
 #[test] fn structure_svg_nested_svg_with_rect_and_viewBox_and_percent_values() { assert_eq!(render("tests/structure/svg/nested-svg-with-rect-and-viewBox-and-percent-values"), 0); }
 #[test] fn structure_svg_nested_svg_with_rect() { assert_eq!(render("tests/structure/svg/nested-svg-with-rect"), 0); }
 #[test] fn structure_svg_nested_svg_with_relative_width_and_height() { assert_eq!(render("tests/structure/svg/nested-svg-with-relative-width-and-height"), 0); }
+#[test] fn structure_svg_nested_svg_with_transform() { assert_eq!(render("tests/structure/svg/nested-svg-with-transform"), 0); }
 #[test] fn structure_svg_nested_svg_with_viewBox_and_percent_values() { assert_eq!(render("tests/structure/svg/nested-svg-with-viewBox-and-percent-values"), 0); }
 #[test] fn structure_svg_nested_svg_with_viewBox() { assert_eq!(render("tests/structure/svg/nested-svg-with-viewBox"), 0); }
 #[test] fn structure_svg_nested_svg() { assert_eq!(render("tests/structure/svg/nested-svg"), 0); }
