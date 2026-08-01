@@ -25,24 +25,6 @@ mod mask;
 mod path;
 mod render;
 
-/// A rendering error.
-#[non_exhaustive]
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum Error {
-    /// The SVG contains a too large filter region.
-    FilterTooLarge,
-}
-
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::FilterTooLarge => write!(f, "filter region is too large"),
-        }
-    }
-}
-
-impl std::error::Error for Error {}
-
 /// Renders a tree onto the pixmap.
 ///
 /// `transform` will be used as a root transform.
@@ -53,12 +35,11 @@ pub fn render(
     tree: &usvg::Tree,
     transform: tiny_skia::Transform,
     pixmap: &mut tiny_skia::PixmapMut,
-) -> Result<(), Error> {
-    let max_bbox = max_filter_bbox(pixmap.width(), pixmap.height())?;
+) {
+    let max_bbox = max_filter_bbox(pixmap.width(), pixmap.height());
 
     let ctx = render::Context { max_bbox };
     render::render_nodes(tree.root(), &ctx, transform, pixmap);
-    Ok(())
 }
 
 /// Renders a node onto the pixmap.
@@ -68,26 +49,24 @@ pub fn render(
 ///
 /// The expected pixmap size can be retrieved from `usvg::Node::abs_layer_bounding_box()`.
 ///
-/// Returns `Ok(None)` when `node` has a zero size.
+/// Returns `None` when `node` has a zero size.
 ///
 /// The produced content is in the sRGB color space.
 pub fn render_node(
     node: &usvg::Node,
     mut transform: tiny_skia::Transform,
     pixmap: &mut tiny_skia::PixmapMut,
-) -> Result<Option<()>, Error> {
-    let Some(bbox) = node.abs_layer_bounding_box() else {
-        return Ok(None);
-    };
+) -> Option<()> {
+    let bbox = node.abs_layer_bounding_box()?;
 
-    let max_bbox = max_filter_bbox(pixmap.width(), pixmap.height())?;
+    let max_bbox = max_filter_bbox(pixmap.width(), pixmap.height());
 
     transform = transform.pre_translate(-bbox.x(), -bbox.y());
 
     let ctx = render::Context { max_bbox };
     render::render_node(node, &ctx, transform, pixmap);
 
-    Ok(Some(()))
+    Some(())
 }
 
 pub(crate) trait OptionLog {
@@ -104,14 +83,31 @@ impl<T> OptionLog for Option<T> {
     }
 }
 
-fn max_filter_bbox(width: u32, height: u32) -> Result<tiny_skia::IntRect, Error> {
-    (|| {
-        tiny_skia::IntRect::from_xywh(
-            i32::try_from(width).ok()?.checked_mul(-2)?,
-            i32::try_from(height).ok()?.checked_mul(-2)?,
-            width.checked_mul(5)?,
-            height.checked_mul(5)?,
-        )
-    })()
-    .ok_or(Error::FilterTooLarge)
+fn max_filter_bbox(width: u32, height: u32) -> tiny_skia::IntRect {
+    let (x, width) = max_filter_axis(width);
+    let (y, height) = max_filter_axis(height);
+    tiny_skia::IntRect::from_xywh(x, y, width, height).unwrap()
+}
+
+fn max_filter_axis(length: u32) -> (i32, u32) {
+    let max = i32::MAX as u32;
+    let canvas = length.min(max);
+    let margin = canvas.saturating_mul(2).min((max - canvas) / 2);
+    let extent = canvas + margin * 2;
+    (-(margin as i32), extent)
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn max_filter_bbox_is_clamped() {
+        for size in [1, i32::MAX as u32 / 5, i32::MAX as u32, u32::MAX] {
+            let (origin, extent) = super::max_filter_axis(size);
+            let canvas = size.min(i32::MAX as u32) as i32;
+            assert!(origin <= 0);
+            assert!(origin + extent as i32 >= canvas);
+        }
+
+        assert_eq!(super::max_filter_axis(100), (-200, 500));
+    }
 }

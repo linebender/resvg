@@ -174,7 +174,7 @@ mod tests {
         let mut pixmap = tiny_skia::Pixmap::new(1, 1).unwrap();
 
         // Just make sure we don't panic.
-        let _ = crate::render(
+        crate::render(
             &tree,
             tiny_skia::Transform::identity(),
             &mut pixmap.as_mut(),

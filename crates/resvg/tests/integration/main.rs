@@ -85,21 +85,19 @@ pub fn render_inner(name: &str, test_mode: TestMode) -> usize {
                 size.width() as f32 / tree.size().width() as f32,
                 size.height() as f32 / tree.size().height() as f32,
             );
-            resvg::render(&tree, render_ts, &mut pixmap.as_mut()).expect("Failed to render");
+            resvg::render(&tree, render_ts, &mut pixmap.as_mut());
         }
         TestMode::Node(id) => {
             let node = tree.node_by_id(id).unwrap();
             size = node.abs_layer_bounding_box().unwrap().size().to_int_size();
             pixmap = tiny_skia::Pixmap::new(size.width(), size.height()).unwrap();
-            resvg::render_node(node, tiny_skia::Transform::identity(), &mut pixmap.as_mut())
-                .expect("Failed to render")
-                .expect("Node has zero size");
+            resvg::render_node(node, tiny_skia::Transform::identity(), &mut pixmap.as_mut());
         }
         TestMode::Extra(scale) => {
             size = tree.size().to_int_size().scale_by(scale).unwrap();
             pixmap = tiny_skia::Pixmap::new(size.width(), size.height()).unwrap();
             let render_ts = tiny_skia::Transform::from_scale(scale, scale);
-            resvg::render(&tree, render_ts, &mut pixmap.as_mut()).expect("Failed to render");
+            resvg::render(&tree, render_ts, &mut pixmap.as_mut());
         }
     }
 

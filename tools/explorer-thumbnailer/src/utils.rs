@@ -56,7 +56,7 @@ pub fn render_thumbnail(tree: &Option<usvg::Tree>, cx: u32) -> Result<tiny_skia:
     );
 
     let mut pixmap = tiny_skia::Pixmap::new(size.width(), size.height()).unwrap();
-    resvg::render(&tree, transform, &mut pixmap.as_mut()).map_err(|_| Error::RenderError)?;
+    resvg::render(&tree, transform, &mut pixmap.as_mut());
     Ok(pixmap)
 }
 

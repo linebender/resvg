@@ -890,7 +890,6 @@ pub extern "C" fn resvg_render(
     let mut pixmap = tiny_skia::PixmapMut::from_bytes(pixmap, width, height).unwrap();
 
     resvg::render(&tree.0, transform.to_tiny_skia(), &mut pixmap)
-        .expect("Failed to render to pixmap");
 }
 
 /// @brief Renders a Node by ID onto the image.
@@ -935,10 +934,7 @@ pub extern "C" fn resvg_render_node(
             unsafe { std::slice::from_raw_parts_mut(pixmap as *mut u8, pixmap_len) };
         let mut pixmap = tiny_skia::PixmapMut::from_bytes(pixmap, width, height).unwrap();
 
-        matches!(
-            resvg::render_node(node, transform.to_tiny_skia(), &mut pixmap),
-            Ok(Some(()))
-        )
+        resvg::render_node(node, transform.to_tiny_skia(), &mut pixmap).is_some()
     } else {
         log::warn!("A node with '{}' ID wasn't found.", id);
         false
