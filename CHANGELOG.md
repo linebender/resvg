@@ -14,6 +14,15 @@ This release has an MSRV of 1.89.0 for `usvg` and `resvg` and the C API.
 
 - MSRV bumped from 1.87 to 1.89. The requirement comes from `font-types`.
 
+### Fixed
+- Freeze when rendering a size-less SVG whose content bounding box is huge. The
+  auto-derived canvas size is now capped, so inputs like
+  `<svg><path d="M-7-96 6 0 07 4E7"/></svg>` no longer produce a multi-gigabyte
+  canvas. (#939)
+- Panic in `resvg::render`/`render_node` when rendering into a very large
+  (heavily upscaled) pixmap, caused by an `i32` overflow while computing the
+  clip region. (#939)
+
 ## [0.47.0] 2026-02-05
 
 This release has an MSRV of 1.87.0 for `usvg` and `resvg` and the C API.
