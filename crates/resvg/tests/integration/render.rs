@@ -508,6 +508,8 @@ use crate::render;
 #[test] fn paint_servers_linearGradient_gradientUnits_eq_objectBoundingBox_with_percent() { assert_eq!(render("tests/paint-servers/linearGradient/gradientUnits=objectBoundingBox-with-percent"), 0); }
 #[test] fn paint_servers_linearGradient_gradientUnits_eq_userSpaceOnUse_with_percent() { assert_eq!(render("tests/paint-servers/linearGradient/gradientUnits=userSpaceOnUse-with-percent"), 0); }
 #[test] fn paint_servers_linearGradient_gradientUnits_eq_userSpaceOnUse() { assert_eq!(render("tests/paint-servers/linearGradient/gradientUnits=userSpaceOnUse"), 0); }
+#[test] fn paint_servers_linearGradient_href_precedence_over_xlink() { assert_eq!(render("tests/paint-servers/linearGradient/href-precedence-over-xlink"), 0); }
+#[test] fn paint_servers_linearGradient_href_with_invalid_prefix() { assert_eq!(render("tests/paint-servers/linearGradient/href-with-invalid-prefix"), 0); }
 #[test] fn paint_servers_linearGradient_hsla_color() { assert_eq!(render("tests/paint-servers/linearGradient/hsla-color"), 0); }
 #[test] fn paint_servers_linearGradient_invalid_child_1() { assert_eq!(render("tests/paint-servers/linearGradient/invalid-child-1"), 0); }
 #[test] fn paint_servers_linearGradient_invalid_child_2() { assert_eq!(render("tests/paint-servers/linearGradient/invalid-child-2"), 0); }
@@ -1305,6 +1307,7 @@ use crate::render;
 #[test] fn structure_use_duplicated_IDs() { assert_eq!(render("tests/structure/use/duplicated-IDs"), 0); }
 #[test] fn structure_use_fill_opacity_inheritance() { assert_eq!(render("tests/structure/use/fill-opacity-inheritance"), 0); }
 #[test] fn structure_use_from_defs() { assert_eq!(render("tests/structure/use/from-defs"), 0); }
+#[test] fn structure_use_href_precedence_over_xlink() { assert_eq!(render("tests/structure/use/href-precedence-over-xlink"), 0); }
 #[test] fn structure_use_href_without_the_xlink_namespace() { assert_eq!(render("tests/structure/use/href-without-the-xlink-namespace"), 0); }
 #[test] fn structure_use_indirect_recursive_1() { assert_eq!(render("tests/structure/use/indirect-recursive-1"), 0); }
 #[test] fn structure_use_indirect_recursive_2() { assert_eq!(render("tests/structure/use/indirect-recursive-2"), 0); }

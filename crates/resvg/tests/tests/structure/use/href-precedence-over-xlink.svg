@@ -1,0 +1,15 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"
+     xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>`href` precedence over `xlink:href` on `use`</title>
+
+    <defs id="defs1">
+        <rect id="red" width="50" height="50" fill="red"/>
+        <rect id="green" width="50" height="50" fill="green"/>
+    </defs>
+
+    <rect id="background1" x="75" y="75" width="50" height="50" fill="red"/>
+    <use id="use1" x="75" y="75" xlink:href="#red" href="#green"/>
+
+    <!-- image frame -->
+    <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>

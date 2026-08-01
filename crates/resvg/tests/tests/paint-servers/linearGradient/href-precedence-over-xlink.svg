@@ -1,0 +1,25 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"
+     xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>`href` precedence over `xlink:href` on gradients</title>
+
+    <defs id="defs1">
+        <linearGradient id="red">
+            <stop id="red-stop1" offset="0" stop-color="red"/>
+            <stop id="red-stop2" offset="1" stop-color="red"/>
+        </linearGradient>
+        <linearGradient id="green">
+            <stop id="green-stop1" offset="0" stop-color="green"/>
+            <stop id="green-stop2" offset="1" stop-color="green"/>
+        </linearGradient>
+        <linearGradient id="gradient1" href="#green" xlink:href="#red"/>
+        <linearGradient id="gradient2" xlink:href="#red" href="#green"/>
+    </defs>
+
+    <rect id="background1" x="15" y="60" width="80" height="80" fill="red"/>
+    <rect id="background2" x="105" y="60" width="80" height="80" fill="red"/>
+    <rect id="rect1" x="15" y="60" width="80" height="80" fill="url(#gradient1)"/>
+    <rect id="rect2" x="105" y="60" width="80" height="80" fill="url(#gradient2)"/>
+
+    <!-- image frame -->
+    <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>
