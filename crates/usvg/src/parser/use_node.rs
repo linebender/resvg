@@ -200,7 +200,7 @@ pub(crate) fn convert_svg(
 
     if let Some(clip_rect) = get_clip_rect(node, node, state) {
         let mut g = clip_element(node, clip_rect, orig_ts, state, cache);
-        g.abs_transform = parent.abs_transform;
+        g.abs_transform = parent.abs_transform.pre_concat(orig_ts);
         convert_children(node, new_ts, &new_state, cache, false, &mut g);
         g.calculate_bounding_boxes();
         parent.children.push(Node::Group(Box::new(g)));

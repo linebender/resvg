@@ -1,0 +1,11 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <title>Transform on clipped nested svg</title>
+
+    <svg id="svg2" width="100" height="100"
+         transform="translate(50 50)" xmlns="http://www.w3.org/2000/svg">
+        <rect id="rect1" width="150" height="150" fill="green"/>
+    </svg>
+
+    <!-- image frame -->
+    <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>

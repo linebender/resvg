@@ -16,6 +16,9 @@ This release has an MSRV of 1.89.0 for `usvg` and `resvg` and the C API.
 
 ### Fixed
 - Panic in `feComposite` with the `arithmetic` operator when the filter region is larger than the clamped layer. (#1021, #1007)
+- A `transform` (and other group properties like `opacity`) on a nested `svg`
+  element was applied twice, because the element was wrapped in a redundant group.
+  Nested `svg` is now handled like `use`.
 
 ## [0.47.0] 2026-02-05
 
