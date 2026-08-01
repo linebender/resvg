@@ -540,8 +540,8 @@ fn resolve_svg_size(svg: &SvgNode, opt: &Options) -> (Result<Size, Error>, bool)
             svg.convert_user_length(AId::Height, &state, def)
         };
 
-        // If only one of height/width is not specified, its value should be
-        // computed from the other and the viewbox' aspect ratio.
+        // If exactly one of width and height is specified, compute the missing
+        // dimension from the specified one and the viewBox aspect ratio.
         match (
             svg.attribute::<Length>(AId::Width),
             svg.attribute::<Length>(AId::Height),
