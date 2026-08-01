@@ -80,3 +80,8 @@ fn render_node_filter_on_empty_group() {
 fn render_node_filter_with_transform_on_shape() {
     assert_eq!(render_node("extra/filter-with-transform-on-shape", "g1"), 0);
 }
+
+#[test]
+fn filter_region_outside_i32_range() {
+    assert_eq!(render_extra("extra/filter-region-outside-i32-range"), 0);
+}
