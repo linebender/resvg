@@ -19,8 +19,6 @@ This release has an MSRV of 1.89.0 for `usvg` and `resvg` and the C API.
 - A `transform` (and other group properties like `opacity`) on a nested `svg`
   element was applied twice, because the element was wrapped in a redundant group.
   Nested `svg` is now handled like `use`.
-
-### Fixed
 - The unprefixed `href` attribute now takes precedence over the deprecated `xlink:href` when both are present, as required by SVG 2. (#1015)
 
 ## [0.47.0] 2026-02-05
