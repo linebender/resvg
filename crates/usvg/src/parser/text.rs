@@ -408,7 +408,7 @@ fn convert_font(node: SvgNode, state: &converter::State) -> Font {
     let has_slnt = variations.iter().any(|v| &v.tag == b"slnt");
 
     // Map font-weight to wght axis (if not already set)
-    if !has_wght && weight != 400 {
+    if !has_wght {
         variations.push(FontVariation::new(*b"wght", weight as f32));
     }
 
