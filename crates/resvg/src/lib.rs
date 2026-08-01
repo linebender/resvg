@@ -27,6 +27,7 @@ mod path;
 mod render;
 
 /// A rendering error.
+#[non_exhaustive]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Error {
     /// The SVG contains a too large filter region.
