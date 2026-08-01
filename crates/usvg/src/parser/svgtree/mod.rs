@@ -888,10 +888,7 @@ impl<'a, 'input: 'a> FromValue<'a, 'input> for Transform {
     fn parse(_: SvgNode, _: AId, value: &str) -> Option<Self> {
         let ts = match svgtypes::Transform::from_str(value) {
             Ok(v) => v,
-            Err(e) => {
-                log::warn!("Error parsing the transform: {e}");
-                return None;
-            }
+            Err(_) => return None,
         };
 
         let ts = Transform::from_row(
