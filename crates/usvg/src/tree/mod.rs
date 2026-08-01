@@ -1602,7 +1602,9 @@ impl Tree {
     /// `width` and `height` in SVG.
     ///
     /// Note that this does not necessarily represent the bounding box of the
-    /// rendered contents.
+    /// rendered contents. Use
+    /// [`self.root().abs_layer_bounding_box()`](Group::abs_layer_bounding_box)
+    /// to retrieve it instead.
     pub fn size(&self) -> Size {
         self.size
     }
