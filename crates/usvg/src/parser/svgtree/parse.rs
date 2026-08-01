@@ -228,6 +228,7 @@ pub(crate) fn parse_svg_element<'input>(
     doc: &mut Document<'input>,
 ) -> Result<NodeId, Error> {
     let attrs_start_idx = doc.attrs.len();
+    let mut href_idx: Option<usize> = None;
 
     // Copy presentational attributes first.
     for attr in xml_node.attributes() {
@@ -262,23 +263,20 @@ pub(crate) fn parse_svg_element<'input>(
         // SVG 2: when both `href` and `xlink:href` are present, the unprefixed
         // `href` takes precedence and the XLink one must be ignored, regardless
         // of their order in the source document.
-        // https://www.w3.org/TR/SVG2/linking.html
+        // https://www.w3.org/TR/SVG2/linking.html#XLinkRefAttrs
         if aid == AId::Href {
             let is_xlink = attr.namespace() == Some(XLINK_NS);
-            if let Some(existing) = doc.attrs[attrs_start_idx..]
-                .iter_mut()
-                .find(|a| a.name == AId::Href)
-            {
+            if let Some(idx) = href_idx {
                 // An `href` was already stored. Only an unprefixed `href` is
                 // allowed to override it; an `xlink:href` is ignored.
                 if !is_xlink {
-                    existing.value = attr.value_storage().clone();
+                    doc.attrs[idx].value = attr.value_storage().clone();
                 }
                 continue;
             }
         }
 
-        append_attribute(
+        let added = append_attribute(
             parent_id,
             tag_name,
             aid,
@@ -286,6 +284,9 @@ pub(crate) fn parse_svg_element<'input>(
             false,
             doc,
         );
+        if added && aid == AId::Href {
+            href_idx = Some(doc.attrs.len() - 1);
+        }
     }
 
     let mut insert_attribute = |aid, value: &str, important: bool| {
