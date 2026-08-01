@@ -36,14 +36,7 @@ pub fn render(
     transform: tiny_skia::Transform,
     pixmap: &mut tiny_skia::PixmapMut,
 ) {
-    let target_size = tiny_skia::IntSize::from_wh(pixmap.width(), pixmap.height()).unwrap();
-    let max_bbox = tiny_skia::IntRect::from_xywh(
-        -(target_size.width() as i32) * 2,
-        -(target_size.height() as i32) * 2,
-        target_size.width() * 5,
-        target_size.height() * 5,
-    )
-    .unwrap();
+    let max_bbox = max_filter_bbox(pixmap.width(), pixmap.height());
 
     let ctx = render::Context { max_bbox };
     render::render_nodes(tree.root(), &ctx, transform, pixmap);
@@ -66,14 +59,7 @@ pub fn render_node(
 ) -> Option<()> {
     let bbox = node.abs_layer_bounding_box()?;
 
-    let target_size = tiny_skia::IntSize::from_wh(pixmap.width(), pixmap.height()).unwrap();
-    let max_bbox = tiny_skia::IntRect::from_xywh(
-        -(target_size.width() as i32) * 2,
-        -(target_size.height() as i32) * 2,
-        target_size.width() * 5,
-        target_size.height() * 5,
-    )
-    .unwrap();
+    let max_bbox = max_filter_bbox(pixmap.width(), pixmap.height());
 
     transform = transform.pre_translate(-bbox.x(), -bbox.y());
 
@@ -94,5 +80,30 @@ impl<T> OptionLog for Option<T> {
             f();
             None
         })
+    }
+}
+
+fn max_filter_bbox(width: u32, height: u32) -> tiny_skia::IntRect {
+    tiny_skia::IntRect::from_xywh(
+        i32::try_from(width).unwrap_or(i32::MAX).saturating_mul(-2),
+        i32::try_from(height).unwrap_or(i32::MAX).saturating_mul(-2),
+        width.saturating_mul(5),
+        height.saturating_mul(5),
+    )
+    .unwrap_or_else(|| {
+        tiny_skia::IntRect::from_ltrb(i32::MIN / 2, i32::MIN / 2, i32::MAX / 2, i32::MAX / 2)
+            .unwrap()
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn max_filter_bbox_is_clamped() {
+        let bbox = super::max_filter_bbox(u32::MAX, u32::MAX);
+        assert_eq!(bbox.left(), i32::MIN / 2);
+        assert_eq!(bbox.top(), i32::MIN / 2);
+        assert_eq!(bbox.right(), i32::MAX / 2);
+        assert_eq!(bbox.bottom(), i32::MAX / 2);
     }
 }
