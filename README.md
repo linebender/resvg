@@ -41,7 +41,7 @@ and stack overflows (via recursion).
 
 ### Zero bloat
 
-Right now, the `resvg` CLI application is less than 3MB in size and doesn't require any external dependencies.
+Right now, the `resvg` CLI application is less than 5MB in size and doesn't require any external dependencies.
 The binary contains nothing that isn't needed for rendering SVG files.
 
 ### Portable
@@ -108,27 +108,6 @@ It also includes some alternative libraries.
 We're not testing against all SVG libraries since many of them are pretty bad.
 Some libraries are not on the list because they don't pass the 25% mark.
 Such libraries are: wxSvg, LunaSVG and nanosvg.
-
-## resvg project
-
-There is a subtle difference between resvg as a _library_ and resvg as a _project_.
-While most users will interact only with the resvg library, it's just a tip of an iceberg.
-There are a lot of libraries that I had to write to make resvg possible.
-Here are some of them:
-
-- resvg - the actual SVG renderer
-- [usvg] - an SVG preprocessor/simplifier
-- [tiny-skia] - a [Skia](https://github.com/google/skia) subset ported to Rust
-- [rustybuzz] - a [harfbuzz](https://github.com/harfbuzz/harfbuzz) subset ported to Rust
-- [ttf-parser] - a TrueType/OpenType font parser
-- [fontdb] - a simple, in-memory font database with CSS-like queries
-- [roxmltree] - an XML parsing library
-- [simplecss] - a pretty decent CSS 2 parser and selector
-- [pico-args] - an absolutely minimal, but surprisingly popular command-line arguments parser
-
-So while the resvg _library_ is deceptively small (around 2500 LOC), the resvg _project_
-is nearing 75'000 LOC. Which is not that much considering how much resvg does.
-It's definitely the smallest option out there.
 
 ## License
 
