@@ -10,16 +10,45 @@ This changelog also contains important changes in dependencies.
 
 This release has an MSRV of 1.89.0 for `usvg` and `resvg` and the C API.
 
+The big change in this release is that text support is now backed by
+[`skrifa`](https://github.com/googlefonts/fontations) and
+[`harfrust`](https://github.com/harfbuzz/harfrust) rather than
+[`ttf-parser`](https://github.com/harfbuzz/ttf-parser) and
+[`rustybuzz`](https://github.com/harfbuzz/rustybuzz):
+
+- Moves resvg onto an actively maintained font stack.
+- Should have faster and more correct text rendering.
+- Will enable further improvements to things like variable font rendering in future.
+- May impact binary size (expected +~500kb for people not otherwise including fontations dependencies in their tree).
+- May result in small rendering changes compared to older versions of resvg.
+
+### Added
+
+- New `svgz` and `writer` feature gates to reduce the number of required dependencies. (#1088 by @reed-smout)
+- Warnings when parsing malformed paths. (#1011)
+- A `Display` implementation for `Units`. (#986)
+
 ### Changed
 
 - MSRV bumped from 1.87 to 1.89. The requirement comes from `font-types`.
+- Text shaping now uses `harfrust` instead of `rustybuzz`, and font parsing uses `skrifa` (fontations) instead of `ttf-parser`. (#922 by @nicoburns)
+- Filter input dimension checks are now debug-only assertions. (#991)
 
 ### Fixed
+
+- Glyph advances are now calculated correctly. (#1043 by @fundon)
+- Text nodes now inherit their absolute transform. (#1040 by @fundon)
+- Fixes related to non-finite values. (#1049 by @SAY-5)
+- Transforms are no longer applied twice in `abs_transform`. (#1056 by @fundon)
+- `fr` is now resolved for radial gradients referenced via `href`. (#1098 by @T1mVo)
 - Panic in `feComposite` with the `arithmetic` operator when the filter region is larger than the clamped layer. (#1021, #1007)
-- A `transform` (and other group properties like `opacity`) on a nested `svg`
-  element was applied twice, because the element was wrapped in a redundant group.
-  Nested `svg` is now handled like `use`.
+- Application of `transform` (and other group properties like `opacity`) on a nested `svg`
+  element.
+- The missing dimension of an `svg` with only `width` or `height` specified is now computed from its `viewBox` aspect ratio. (#1045)
+- The `wght` variation coordinate is now set even when `font-weight` has its default value. (#1099)
 - The unprefixed `href` attribute now takes precedence over the deprecated `xlink:href` when both are present, as required by SVG 2. (#1015)
+- Incorrect y-axis offsets when transforming `feSpotLight` sources. (#1052)
+- Panics caused by bounding boxes that exceed the supported integer range. (#989)
 
 ## [0.47.0] 2026-02-05
 
