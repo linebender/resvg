@@ -553,10 +553,7 @@ fn resolve_href<'a, 'input: 'a>(
     node: roxmltree::Node<'a, 'input>,
     id_map: &HashMap<&str, roxmltree::Node<'a, 'input>>,
 ) -> Option<roxmltree::Node<'a, 'input>> {
-    // SVG 2 mandates that the unprefixed `href` takes precedence over the
-    // deprecated `xlink:href` when both are present, regardless of their order
-    // in the source document.
-    // https://www.w3.org/TR/SVG2/linking.html
+    // See the comment in `parse_svg_element` about `href` precedence.
     //
     // Note: `roxmltree::Node::attribute("href")` matches by local name only and
     // would return whichever `href`/`xlink:href` comes first, so we have to
