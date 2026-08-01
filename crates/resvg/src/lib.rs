@@ -84,30 +84,26 @@ impl<T> OptionLog for Option<T> {
 }
 
 fn max_filter_bbox(width: u32, height: u32) -> tiny_skia::IntRect {
-    let (x, width) = max_filter_axis(width);
-    let (y, height) = max_filter_axis(height);
-    tiny_skia::IntRect::from_xywh(x, y, width, height).unwrap()
-}
-
-fn max_filter_axis(length: u32) -> (i32, u32) {
-    let max = i32::MAX as u32;
-    let canvas = length.min(max);
-    let margin = canvas.saturating_mul(2).min((max - canvas) / 2);
-    let extent = canvas + margin * 2;
-    (-(margin as i32), extent)
+    tiny_skia::IntRect::from_xywh(
+        i32::try_from(width).unwrap_or(i32::MAX).saturating_mul(-2),
+        i32::try_from(height).unwrap_or(i32::MAX).saturating_mul(-2),
+        width.saturating_mul(5),
+        height.saturating_mul(5),
+    )
+    .unwrap_or_else(|| {
+        tiny_skia::IntRect::from_ltrb(i32::MIN / 2, i32::MIN / 2, i32::MAX / 2, i32::MAX / 2)
+            .unwrap()
+    })
 }
 
 #[cfg(test)]
 mod tests {
     #[test]
     fn max_filter_bbox_is_clamped() {
-        for size in [1, i32::MAX as u32 / 5, i32::MAX as u32, u32::MAX] {
-            let (origin, extent) = super::max_filter_axis(size);
-            let canvas = size.min(i32::MAX as u32) as i32;
-            assert!(origin <= 0);
-            assert!(origin + extent as i32 >= canvas);
-        }
-
-        assert_eq!(super::max_filter_axis(100), (-200, 500));
+        let bbox = super::max_filter_bbox(u32::MAX, u32::MAX);
+        assert_eq!(bbox.left(), i32::MIN / 2);
+        assert_eq!(bbox.top(), i32::MIN / 2);
+        assert_eq!(bbox.right(), i32::MAX / 2);
+        assert_eq!(bbox.bottom(), i32::MAX / 2);
     }
 }
