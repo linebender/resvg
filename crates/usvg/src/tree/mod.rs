@@ -1600,6 +1600,9 @@ impl Tree {
     /// Size of an image that should be created to fit the SVG.
     ///
     /// `width` and `height` in SVG.
+    ///
+    /// Note that this does not necessarily represent the bounding box of the
+    /// rendered contents.
     pub fn size(&self) -> Size {
         self.size
     }
