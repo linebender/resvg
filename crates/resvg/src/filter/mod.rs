@@ -367,10 +367,7 @@ fn apply_inner(
 
     // The source pixmap is clamped to `max_bbox` in `render_group`, so the filter
     // region (derived directly from the unclamped filter rect) can be larger than
-    // the buffer we actually render into. All intermediate filter images share the
-    // source's dimensions, so clamp the region to the source bounds to keep them
-    // consistent. Otherwise `feComposite` with the `arithmetic` operator, which
-    // requires equally sized inputs, would panic on a size mismatch.
+    // the buffer we actually render into.
     let source_rect =
         IntRect::from_xywh(0, 0, source.width(), source.height()).ok_or(Error::InvalidRegion)?;
     let region = crate::geom::fit_to_rect(region, source_rect).ok_or(Error::InvalidRegion)?;
