@@ -10,6 +10,10 @@ This changelog also contains important changes in dependencies.
 
 This release has an MSRV of 1.89.0 for `usvg` and `resvg` and the C API.
 
+## [0.48.0] 2026-07-31
+
+This release has an MSRV of 1.89.0 for `usvg` and `resvg` and the C API.
+
 The big change in this release is that text support is now backed by
 [`skrifa`](https://github.com/googlefonts/fontations) and
 [`harfrust`](https://github.com/harfbuzz/harfrust) rather than
@@ -1380,7 +1384,8 @@ This release has an MSRV of 1.65 for `usvg` and 1.67.1 for `resvg` and the C API
 
 [#897]: https://github.com/linebender/resvg/pull/897
 
-[Unreleased]: https://github.com/linebender/resvg/compare/v0.47.0...HEAD
+[Unreleased]: https://github.com/linebender/resvg/compare/v0.48.0...HEAD
+[0.48.0]: https://github.com/linebender/resvg/compare/v0.47.0...v0.48.0
 [0.47.0]: https://github.com/linebender/resvg/compare/v0.46.0...v0.47.0
 [0.46.0]: https://github.com/linebender/resvg/compare/v0.45.1...v0.46.0
 [0.45.1]: https://github.com/linebender/resvg/compare/v0.45.0...v0.45.1
