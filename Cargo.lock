@@ -522,6 +522,7 @@ dependencies = [
 name = "resvg"
 version = "0.48.0"
 dependencies = [
+ "bytemuck",
  "gif",
  "image-webp",
  "log",
