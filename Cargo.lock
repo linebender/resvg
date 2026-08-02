@@ -625,12 +625,6 @@ name = "strict-num"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6637bab7722d379c8b41ba849228d680cc12d0a45ba1fa2b48f2a30577a06731"
-
-[[package]]
-name = "strict-num"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "290fd5eab900654f4c270bc1cfaeb0f2c17b6851fa448fc22e1778dec105ac68"
 dependencies = [
  "float-cmp",
 ]
@@ -679,7 +673,7 @@ checksum = "edca365c3faccca67d06593c5980fa6c57687de727a03131735bb85f01fdeeb9"
 dependencies = [
  "arrayref",
  "bytemuck",
- "strict-num 0.1.1",
+ "strict-num",
 ]
 
 [[package]]
@@ -739,7 +733,7 @@ dependencies = [
  "simplecss",
  "siphasher 1.0.3",
  "skrifa",
- "strict-num 0.2.0",
+ "strict-num",
  "svgtypes",
  "tiny-skia-path",
  "unicode-bidi",
