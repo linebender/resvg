@@ -15,6 +15,7 @@ name = "resvg"
 required-features = ["svgz", "text", "system-fonts", "memmap-fonts"]
 
 [dependencies]
+bytemuck = "1.16"
 gif = { version = "0.14.1", optional = true }
 image-webp = { version = "0.2.4", optional = true }
 log = "0.4"
