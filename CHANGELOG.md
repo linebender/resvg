@@ -8,7 +8,18 @@ This changelog also contains important changes in dependencies.
 
 ## [Unreleased]
 
-This release has an MSRV of 1.89.0 for `usvg` and `resvg` and the C API.
+## [0.48.1] 2026-08-02
+
+This release has an MSRV of 1.85.0 for `usvg` and `resvg` and the C API.
+
+### Changed
+
+- MSRV lowered from 1.89 to 1.85. (#1109)
+- Downgraded strict-num dependency to 0.1.1. This prevents duplicate versions from being included (#1110)
+
+### Fixed
+
+- Fixed an `as_mut_slice` future-compatibility warning. (#1108)
 
 ## [0.48.0] 2026-07-31
 
@@ -1384,7 +1395,8 @@ This release has an MSRV of 1.65 for `usvg` and 1.67.1 for `resvg` and the C API
 
 [#897]: https://github.com/linebender/resvg/pull/897
 
-[Unreleased]: https://github.com/linebender/resvg/compare/v0.48.0...HEAD
+[Unreleased]: https://github.com/linebender/resvg/compare/v0.48.1...HEAD
+[0.48.1]: https://github.com/linebender/resvg/compare/v0.48.0...v0.48.1
 [0.48.0]: https://github.com/linebender/resvg/compare/v0.47.0...v0.48.0
 [0.47.0]: https://github.com/linebender/resvg/compare/v0.46.0...v0.47.0
 [0.46.0]: https://github.com/linebender/resvg/compare/v0.45.1...v0.46.0
