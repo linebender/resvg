@@ -436,12 +436,21 @@ impl DatabaseExt for Database {
             let location = LocationRef::default();
             let image = bitmap_strikes.glyph_for_size(size, glyph_id.into())?;
 
-            let png_data = match image.data {
-                BitmapData::Png(data) => data.to_vec(),
-                BitmapData::Bgra(data) => bgra_to_png(data, image.width, image.height)?,
-                BitmapData::Mask(mask) => {
-                    mask_to_png(&mask, image.width, image.height, mask_color, mask_opacity)?
-                }
+            // A mask comes from a pixel font, which is drawn for one specific
+            // size. Smoothing one of those blurs the very pixel grid it was
+            // drawn on, and bleeds into the transparent border of the image
+            // where a stem touches the edge of the glyph box, so keep the
+            // pixels intact instead.
+            let (png_data, rendering_mode) = match image.data {
+                BitmapData::Png(data) => (data.to_vec(), ImageRendering::OptimizeQuality),
+                BitmapData::Bgra(data) => (
+                    bgra_to_png(data, image.width, image.height)?,
+                    ImageRendering::OptimizeQuality,
+                ),
+                BitmapData::Mask(mask) => (
+                    mask_to_png(&mask, image.width, image.height, mask_color, mask_opacity)?,
+                    ImageRendering::Pixelated,
+                ),
             };
 
             let metrics = font.glyph_metrics(size, location);
@@ -457,7 +466,7 @@ impl DatabaseExt for Database {
                     id: String::new(),
                     visible: true,
                     size: Size::from_wh(image.width as f32, image.height as f32)?,
-                    rendering_mode: ImageRendering::OptimizeQuality,
+                    rendering_mode,
                     kind: ImageKind::PNG(Arc::new(png_data)),
                     abs_transform: Transform::default(),
                     abs_bounding_box: NonZeroRect::from_xywh(

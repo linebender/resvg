@@ -1,8 +1,11 @@
 <svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"
-     font-family="Bitmap Mono" font-size="32">
-    <title>A monochrome `EBDT` bitmap strike</title>
+     font-family="Bitmap Mono">
+    <title>A monochrome `EBDT` bitmap strike at its own size and scaled up</title>
 
-    <text id="text1" x="20" y="100">Bitmap</text>
+    <!-- The strike is drawn for 16px, so the first line is pixel for pixel
+         what the font contains and the second one is doubled. -->
+    <text id="text1" x="20" y="60" font-size="16">Bitmap</text>
+    <text id="text2" x="20" y="120" font-size="32">Bitmap</text>
 
     <!-- image frame -->
     <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
