@@ -87,7 +87,7 @@ jobs:
 
   release-windows:
     name: Release Windows
-    runs-on: windows-2019
+    runs-on: windows-latest
     needs: ["create-release"]
     steps:
       - name: Checkout
