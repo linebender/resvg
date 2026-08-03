@@ -20,3 +20,12 @@ Roboto Flex (Variable Font)
 1. Download: https://github.com/googlefonts/roboto-flex/raw/main/fonts/RobotoFlex%5BGRAD%2CXOPQ%2CXTRA%2CYOPQ%2CYTAS%2CYTDE%2CYTFI%2CYTLC%2CYTUC%2Copsz%2Cslnt%2Cwdth%2Cwght%5D.ttf
 2. Run `pyftsubset RobotoFlex*.ttf --unicodes="U+0020-007E" --layout-features='*' --output-file=RobotoFlex.subset.ttf`
 3. Copy OFL license from https://github.com/googlefonts/roboto-flex/blob/main/OFL.txt
+
+Bitmap Mono (monochrome EBDT/EBLC strike)
+1. Download: https://files.ax86.net/terminus-ttf/files/4.49.3/terminus-ttf-4.49.3.zip
+2. Run `python make-bitmap-mono.py` next to `TerminusTTF-Regular.ttf`
+
+`pyftsubset` drops `EBDT`/`EBLC`, so the script prunes the 16ppem strike by hand and
+re-attaches it to the subsetted font. Terminus is released under the OFL with the
+Reserved Font Names "Terminus Font" and "Terminus (TTF)", so the script also renames
+the font, as required for a Modified Version.
