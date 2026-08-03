@@ -8,6 +8,13 @@ This changelog also contains important changes in dependencies.
 
 ## [Unreleased]
 
+### Added
+
+- Optional font hinting via `Options::hinting`, which grid-fits glyph outlines so that
+  stems align to whole pixels. Disabled by default, since an SVG is resolution independent
+  while hinting is not. Elements with `text-rendering="geometricPrecision"` are never
+  hinted. The `usvg` and `resvg` CLIs gained a `--hinting` flag.
+
 ## [0.48.1] 2026-08-02
 
 This release has an MSRV of 1.85.0 for `usvg` and `resvg` and the C API.

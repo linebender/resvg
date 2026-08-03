@@ -240,6 +240,7 @@ struct CliArgs {
     skip_system_fonts: bool,
     list_fonts: bool,
     style_sheet: Option<path::PathBuf>,
+    hinting: bool,
 
     query_all: bool,
     export_id: Option<String>,
@@ -310,6 +311,7 @@ fn collect_args() -> Result<CliArgs, pico_args::Error> {
 
         export_area_drawing: input.contains("--export-area-drawing"),
         style_sheet: input.opt_value_from_str("--stylesheet").unwrap_or_default(),
+        hinting: input.contains("--hinting"),
 
         perf: input.contains("--perf"),
         quiet: input.contains("--quiet"),
@@ -577,6 +579,7 @@ fn parse_args() -> Result<Args, String> {
         image_href_resolver: usvg::ImageHrefResolver::default(),
         font_resolver: usvg::FontResolver::default(),
         fontdb: Arc::new(fontdb::Database::new()),
+        hinting: args.hinting.then(usvg::HintingOptions::default),
         style_sheet,
     };
 

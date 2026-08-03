@@ -1,0 +1,11 @@
+<svg viewBox="0 0 200 100" width="200" height="100" xmlns="http://www.w3.org/2000/svg"
+     font-family="Noto Sans">
+    <title>Text at the sizes where hinting matters</title>
+
+    <text x="10" y="20" font-size="9">Hamburgefonstiv 9</text>
+    <text x="10" y="40" font-size="12">Hamburgefonstiv 12</text>
+    <text x="10" y="62" font-size="16">Hamburgefonstiv 16</text>
+
+    <!-- `geometricPrecision` opts out of hinting. -->
+    <text x="10" y="86" font-size="12" text-rendering="geometricPrecision">Exact outlines 12</text>
+</svg>

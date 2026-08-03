@@ -9,7 +9,7 @@ use fontdb::{Database, ID};
 use skrifa::MetadataProvider;
 use skrifa::Tag;
 use skrifa::bitmap::{BitmapData, BitmapFormat};
-use skrifa::outline::{DrawSettings, OutlinePen};
+use skrifa::outline::{DrawSettings, HintingInstance, OutlinePen};
 use skrifa::prelude::LocationRef;
 use skrifa::raw::TableProvider as _;
 use skrifa::raw::types::BoundingBox;
@@ -19,7 +19,24 @@ use xmlwriter::XmlWriter;
 
 use crate::text::OPSZ;
 use crate::text::colr::GlyphPainter;
+use crate::text::hinting::HintingOptions;
 use crate::*;
+
+/// The hinting configuration for a single glyph.
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub(crate) struct GlyphHinting {
+    pub(crate) options: HintingOptions,
+    /// The pixel grid to fit the outline to. Derived from the font size, so
+    /// hinted glyphs only land on whole pixels at an unscaled render.
+    pub(crate) ppem: f32,
+}
+
+impl GlyphHinting {
+    /// A key that identifies this configuration, since `f32` is not hashable.
+    pub(crate) fn cache_key(&self) -> (HintingOptions, u32) {
+        (self.options, self.ppem.to_bits())
+    }
+}
 
 fn resolve_rendering_mode(text: &Text) -> ShapeRendering {
     match text.rendering_mode {
@@ -74,11 +91,22 @@ fn push_outline_paths(
     }
 }
 
-pub(crate) fn flatten(text: &mut Text, cache: &mut Cache) -> Option<(Group, NonZeroRect)> {
+pub(crate) fn flatten(
+    text: &mut Text,
+    cache: &mut Cache,
+    hinting: Option<HintingOptions>,
+) -> Option<(Group, NonZeroRect)> {
     let mut new_children = vec![];
 
     let abs_transform = text.abs_transform;
     let rendering_mode = resolve_rendering_mode(text);
+
+    // `geometricPrecision` asks for the exact outlines, which is the opposite
+    // of what hinting does.
+    let hinting = match text.rendering_mode {
+        TextRendering::GeometricPrecision => None,
+        _ => hinting,
+    };
 
     for span in &text.layouted {
         if let Some(path) = span.overline.as_ref() {
@@ -168,7 +196,11 @@ pub(crate) fn flatten(text: &mut Text, cache: &mut Cache) -> Option<(Group, NonZ
 
                 new_children.push(Node::Group(Box::new(group)));
             } else {
-                let outline = cache.fontdb_outline(glyph.font, glyph.id, &variations);
+                let hinting = hinting.map(|options| GlyphHinting {
+                    options,
+                    ppem: glyph.font_size(),
+                });
+                let outline = cache.fontdb_outline(glyph.font, glyph.id, &variations, hinting);
 
                 if let Some(outline) = outline.and_then(|p| p.transform(glyph.outline_transform()))
                 {
@@ -239,6 +271,7 @@ pub(crate) trait DatabaseExt {
         id: ID,
         glyph_id: GlyphId,
         variations: &[crate::FontVariation],
+        hinting: Option<GlyphHinting>,
     ) -> Option<tiny_skia_path::Path>;
     fn has_opsz_axis(&self, id: ID) -> bool;
     fn raster(&self, id: ID, glyph_id: GlyphId) -> Option<BitmapImage>;
@@ -263,14 +296,15 @@ impl DatabaseExt for Database {
         id: ID,
         glyph_id: GlyphId,
         variations: &[crate::FontVariation],
+        hinting: Option<GlyphHinting>,
     ) -> Option<tiny_skia_path::Path> {
         self.with_face_data(id, |data, face_index| -> Option<tiny_skia_path::Path> {
             let font = skrifa::FontRef::from_index(data, face_index).ok()?;
-            let outline = font.outline_glyphs().get(glyph_id.into())?;
+            let outlines = font.outline_glyphs();
+            let outline = outlines.get(glyph_id.into())?;
 
             let mut builder = PathBuilder::default();
 
-            let size = skrifa::prelude::Size::unscaled();
             // An empty variation list resolves to the default value of every
             // variation axis, which is what we want for non-variable fonts and
             // for variable fonts used without variations.
@@ -279,11 +313,37 @@ impl DatabaseExt for Database {
                     .iter()
                     .map(|v| (Tag::from_be_bytes(v.tag), v.value)),
             );
+
+            let Some(hinting) = hinting else {
+                let size = skrifa::prelude::Size::unscaled();
+                outline
+                    .draw(DrawSettings::unhinted(size, &location), &mut builder)
+                    .ok()?;
+                return builder.builder.finish();
+            };
+
+            // A hinted outline has to be drawn at the size it is fitted for,
+            // which yields pixels rather than font units.
+            let size = skrifa::prelude::Size::new(hinting.ppem);
+            let instance = HintingInstance::new(
+                &outlines,
+                size,
+                &location,
+                skrifa::outline::HintingOptions::from(hinting.options),
+            )
+            .ok()?;
             outline
-                .draw(DrawSettings::unhinted(size, &location), &mut builder)
+                .draw(DrawSettings::hinted(&instance, false), &mut builder)
                 .ok()?;
 
-            builder.builder.finish()
+            // Scale back to font units, so that the glyph transform, which
+            // undoes this again, applies to hinted and unhinted glyphs alike.
+            let units_per_em = font.head().ok()?.units_per_em() as f32;
+            let scale = units_per_em / hinting.ppem;
+            builder
+                .builder
+                .finish()?
+                .transform(Transform::from_scale(scale, scale))
         })?
     }
 

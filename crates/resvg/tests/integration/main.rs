@@ -34,11 +34,23 @@ static GLOBAL_FONTDB: Lazy<Arc<fontdb::Database>> = Lazy::new(|| {
 });
 
 pub fn render(name: &str) -> usize {
-    render_inner(name, TestMode::Normal)
+    render_inner(name, TestMode::Normal, None)
+}
+
+/// Renders unscaled with hinting enabled, since a hinted outline is fitted to
+/// the pixel grid of the size it is drawn at. Every configuration shares one
+/// SVG and is compared against `<name>-<variant>.png`.
+pub fn render_hinted(name: &str, variant: &str, hinting: usvg::HintingOptions) -> usize {
+    render_inner_with_ref(
+        name,
+        &format!("{name}-{variant}"),
+        TestMode::Extra(1.0),
+        Some(hinting),
+    )
 }
 
 pub fn render_extra_with_scale(name: &str, scale: f32) -> usize {
-    render_inner(name, TestMode::Extra(scale))
+    render_inner(name, TestMode::Extra(scale), None)
 }
 
 pub fn render_extra(name: &str) -> usize {
@@ -46,16 +58,30 @@ pub fn render_extra(name: &str) -> usize {
 }
 
 pub fn render_node(name: &str, id: &str) -> usize {
-    render_inner(name, TestMode::Node(id))
+    render_inner(name, TestMode::Node(id), None)
 }
 
-pub fn render_inner(name: &str, test_mode: TestMode) -> usize {
+pub fn render_inner(
+    name: &str,
+    test_mode: TestMode,
+    hinting: Option<usvg::HintingOptions>,
+) -> usize {
+    render_inner_with_ref(name, name, test_mode, hinting)
+}
+
+pub fn render_inner_with_ref(
+    name: &str,
+    reference: &str,
+    test_mode: TestMode,
+    hinting: Option<usvg::HintingOptions>,
+) -> usize {
     let svg_path = format!("tests/{}.svg", name);
-    let png_path = format!("tests/{}.png", name);
+    let png_path = format!("tests/{}.png", reference);
     let make_ref = std::env::var("MAKE_REF").is_ok();
 
     let opt = usvg::Options {
         fontdb: GLOBAL_FONTDB.clone(),
+        hinting,
         resources_dir: Some(
             std::path::PathBuf::from(&svg_path)
                 .parent()
