@@ -40,9 +40,9 @@ subsetter.subset(font)
 # Subsetting can pull in additional glyphs, and only the ones that survived it
 # may be referenced by the strike.
 kept = set(font.getGlyphOrder())
-for index_subtable in strike.indexSubTables:
-    index_subtable.names = [n for n in index_subtable.names if n in kept]
-strike.indexSubTables = [ist for ist in strike.indexSubTables if ist.names]
+for subtable in strike.indexSubTables:
+    subtable.names = [n for n in subtable.names if n in kept]
+strike.indexSubTables = [s for s in strike.indexSubTables if s.names]
 eblc.strikes = [strike]
 ebdt.strikeData = [{n: b for n, b in bitmaps.items() if n in kept}]
 
