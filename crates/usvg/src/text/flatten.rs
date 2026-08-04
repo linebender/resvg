@@ -253,9 +253,13 @@ pub(crate) fn flatten(text: &mut Text, cache: &mut Cache) -> Option<(Group, NonZ
                 new_children.push(Node::Group(Box::new(group)));
             }
             // A bitmap glyph.
-            else if let Some(img) =
-                cache.fontdb_raster(glyph.font, glyph.id, mask_color, mask_opacity)
-            {
+            else if let Some(img) = cache.fontdb_raster(
+                glyph.font,
+                glyph.id,
+                glyph.font_size(),
+                mask_color,
+                mask_opacity,
+            ) {
                 push_outline_paths(
                     span,
                     &mut span_builder,
@@ -363,6 +367,7 @@ pub(crate) trait DatabaseExt {
         &self,
         id: ID,
         glyph_id: GlyphId,
+        font_size: f32,
         mask_color: crate::Color,
         mask_opacity: u8,
     ) -> Option<BitmapImage>;
@@ -424,6 +429,7 @@ impl DatabaseExt for Database {
         &self,
         id: ID,
         glyph_id: GlyphId,
+        font_size: f32,
         mask_color: crate::Color,
         mask_opacity: u8,
     ) -> Option<BitmapImage> {
@@ -431,10 +437,33 @@ impl DatabaseExt for Database {
             let font = skrifa::FontRef::from_index(data, face_index).ok()?;
             let bitmap_strikes = font.bitmap_strikes();
 
-            // We set size to unscaled to get the largest image available
+            // An unscaled size asks for the largest image available.
             let size = skrifa::prelude::Size::unscaled();
             let location = LocationRef::default();
             let image = bitmap_strikes.glyph_for_size(size, glyph_id.into())?;
+
+            // A pixel font draws every strike for one exact size, and is meant
+            // to be used at those sizes only. Scaling one of its bitmaps looks
+            // far worse than the outline it also ships, so prefer the strike
+            // that matches, and leave the glyph to the outline otherwise.
+            //
+            // Color bitmaps work the other way around: an emoji font tends to
+            // carry a single large strike for every size, and usually has no
+            // outline to fall back to, so those keep using the largest one.
+            let image = if matches!(image.data, BitmapData::Mask(_)) {
+                let matching = bitmap_strikes
+                    .glyph_for_size(skrifa::prelude::Size::new(font_size), glyph_id.into())
+                    .filter(|image| image.ppem_y == font_size);
+
+                match matching {
+                    Some(matching) => matching,
+                    // Keep the unscaled bitmap for a glyph that has nothing else.
+                    None if font.outline_glyphs().get(glyph_id.into()).is_none() => image,
+                    None => return None,
+                }
+            } else {
+                image
+            };
 
             // A mask comes from a pixel font, which is drawn for one specific
             // size. Smoothing one of those blurs the very pixel grid it was

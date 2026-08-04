@@ -55,10 +55,11 @@ pub struct Cache {
     cache_colr: HashMap<(ID, GlyphId, Vec<FontVariation>), Option<Tree>>,
     #[cfg(feature = "text")]
     cache_svg: HashMap<(ID, GlyphId), Option<Node>>,
-    /// Keyed by the mask color as well, since bitmap masks are painted with the
-    /// span's fill and the same glyph can appear in differently colored spans.
+    /// Keyed by the font size and the mask color as well: the size selects the
+    /// strike, and a mask is painted with the span's fill, so the same glyph can
+    /// differ between spans.
     #[cfg(feature = "text")]
-    cache_raster: HashMap<(ID, GlyphId, [u8; 4]), Option<BitmapImage>>,
+    cache_raster: HashMap<(ID, GlyphId, u32, [u8; 4]), Option<BitmapImage>>,
     #[cfg(feature = "text")]
     cache_has_opsz: HashMap<ID, bool>,
 
@@ -213,12 +214,14 @@ impl Cache {
         &mut self,
         font: ID,
         glyph: GlyphId,
+        font_size: f32,
         mask_color: Color,
         mask_opacity: u8,
     ) -> Option<BitmapImage> {
         let key = (
             font,
             glyph,
+            font_size.to_bits(),
             [
                 mask_color.red,
                 mask_color.green,
@@ -229,7 +232,9 @@ impl Cache {
         match self.cache_raster.get(&key) {
             Some(cache_hit) => cache_hit.clone(),
             None => {
-                let lookup = self.fontdb.raster(font, glyph, mask_color, mask_opacity);
+                let lookup = self
+                    .fontdb
+                    .raster(font, glyph, font_size, mask_color, mask_opacity);
                 self.cache_raster.insert(key, lookup.clone());
                 lookup
             }
