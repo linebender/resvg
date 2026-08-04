@@ -675,3 +675,39 @@ fn nested_svg_abs_bounding_box() {
         Rect::from_xywh(10.0, 20.0, 10.0, 10.0).unwrap()
     );
 }
+
+#[test]
+fn intrinsic_dimensions_all_declared() {
+    let svg =
+        "<svg xmlns='http://www.w3.org/2000/svg' width='100' height='50%' viewBox='0 0 200 100'/>";
+    let tree = usvg::Tree::from_str(svg, &usvg::Options::default()).unwrap();
+    let dims = tree.intrinsic_dimensions();
+    assert_eq!(
+        dims.width,
+        Some(usvg::svgtypes::Length::new(
+            100.0,
+            usvg::svgtypes::LengthUnit::None
+        ))
+    );
+    assert_eq!(
+        dims.height,
+        Some(usvg::svgtypes::Length::new(
+            50.0,
+            usvg::svgtypes::LengthUnit::Percent
+        ))
+    );
+    assert_eq!(
+        dims.view_box,
+        usvg::tiny_skia_path::NonZeroRect::from_xywh(0.0, 0.0, 200.0, 100.0)
+    );
+}
+
+#[test]
+fn intrinsic_dimensions_none_declared() {
+    let svg = "<svg xmlns='http://www.w3.org/2000/svg'/>";
+    let tree = usvg::Tree::from_str(svg, &usvg::Options::default()).unwrap();
+    let dims = tree.intrinsic_dimensions();
+    assert_eq!(dims.width, None);
+    assert_eq!(dims.height, None);
+    assert!(dims.view_box.is_none());
+}
