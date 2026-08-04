@@ -1587,11 +1587,29 @@ impl Image {
     }
 }
 
+/// Dimensions declared on the root `<svg>` element, before any resolution.
+///
+/// Unlike [`Tree::size`], which always produces a concrete size, this
+/// preserves what the SVG actually declared: absent attributes are `None` and
+/// percentage lengths are kept unresolved. This allows embedders (e.g. HTML
+/// renderers) to apply their own sizing rules, such as the CSS default sizing
+/// algorithm for replaced elements.
+#[derive(Clone, Copy, Debug)]
+pub struct IntrinsicDimensions {
+    /// The root `width` attribute, if declared. Percentages are unresolved.
+    pub width: Option<svgtypes::Length>,
+    /// The root `height` attribute, if declared. Percentages are unresolved.
+    pub height: Option<svgtypes::Length>,
+    /// The root `viewBox` rectangle, if declared and valid.
+    pub view_box: Option<NonZeroRect>,
+}
+
 /// A nodes tree container.
 #[allow(missing_debug_implementations)]
 #[derive(Clone, Debug)]
 pub struct Tree {
     pub(crate) size: Size,
+    pub(crate) intrinsic_dimensions: IntrinsicDimensions,
     pub(crate) root: Group,
     pub(crate) linear_gradients: Vec<Arc<LinearGradient>>,
     pub(crate) radial_gradients: Vec<Arc<RadialGradient>>,
@@ -1616,6 +1634,14 @@ impl Tree {
     /// to retrieve it instead.
     pub fn size(&self) -> Size {
         self.size
+    }
+
+    /// The dimensions declared on the root `<svg>` element, with absent
+    /// attributes as `None` and percentages unresolved.
+    ///
+    /// See [`IntrinsicDimensions`] for details.
+    pub fn intrinsic_dimensions(&self) -> IntrinsicDimensions {
+        self.intrinsic_dimensions
     }
 
     /// The root element of the SVG tree.
