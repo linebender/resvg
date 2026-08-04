@@ -25,6 +25,70 @@ mod mask;
 mod path;
 mod render;
 
+/// Encodes a pixmap as a PNG that declares a physical resolution.
+///
+/// A plain PNG carries no resolution, so a viewer or a word processor has to
+/// guess one, and most guess 96 DPI. An image rendered for print or for a high
+/// resolution display then shows up at the wrong physical size. Writing the
+/// resolution into the `pHYs` chunk states the size the image is meant to be
+/// shown at.
+///
+/// `dpi` is the resolution of the pixmap itself, which is only the same as
+/// [`usvg::Options::dpi`] when the tree was rendered without scaling. Rendering
+/// twice as large also doubles the resolution of the result.
+///
+/// # Example
+///
+/// ```no_run
+/// # let tree = usvg::Tree::from_str("<svg/>", &usvg::Options::default()).unwrap();
+/// let size = tree.size().to_int_size();
+/// let mut pixmap = tiny_skia::Pixmap::new(size.width(), size.height()).unwrap();
+/// resvg::render(&tree, tiny_skia::Transform::default(), &mut pixmap.as_mut());
+/// let png = resvg::encode_png_with_dpi(pixmap.as_ref(), 300.0).unwrap();
+/// ```
+pub fn encode_png_with_dpi(
+    pixmap: tiny_skia::PixmapRef,
+    dpi: f32,
+) -> Result<Vec<u8>, png::EncodingError> {
+    // `pHYs` counts pixels per meter, and an inch is 0.0254 of one.
+    let pixels_per_meter = (dpi / 0.0254).round().max(0.0) as u32;
+
+    // A pixmap stores premultiplied pixels, while PNG wants straight alpha.
+    let mut data = Vec::with_capacity(pixmap.data().len());
+    for pixel in pixmap.pixels() {
+        let color = pixel.demultiply();
+        data.extend_from_slice(&[color.red(), color.green(), color.blue(), color.alpha()]);
+    }
+
+    let mut png_data = Vec::new();
+    let mut encoder = png::Encoder::new(&mut png_data, pixmap.width(), pixmap.height());
+    encoder.set_color(png::ColorType::Rgba);
+    encoder.set_depth(png::BitDepth::Eight);
+    encoder.set_pixel_dims(Some(png::PixelDimensions {
+        xppu: pixels_per_meter,
+        yppu: pixels_per_meter,
+        unit: png::Unit::Meter,
+    }));
+    let mut writer = encoder.write_header()?;
+    writer.write_image_data(&data)?;
+    writer.finish()?;
+
+    Ok(png_data)
+}
+
+/// Saves a pixmap as a PNG file that declares a physical resolution.
+///
+/// See [`encode_png_with_dpi`].
+pub fn save_png_with_dpi<P: AsRef<std::path::Path>>(
+    pixmap: tiny_skia::PixmapRef,
+    path: P,
+    dpi: f32,
+) -> Result<(), png::EncodingError> {
+    let data = encode_png_with_dpi(pixmap, dpi)?;
+    std::fs::write(path, data)?;
+    Ok(())
+}
+
 /// Renders a tree onto the pixmap.
 ///
 /// `transform` will be used as a root transform.

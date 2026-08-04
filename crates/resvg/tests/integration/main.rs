@@ -15,6 +15,7 @@ use usvg::fontdb;
 mod render;
 
 mod extra;
+mod png_dpi;
 
 const IMAGE_SIZE: u32 = 300;
 

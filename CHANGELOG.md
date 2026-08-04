@@ -8,6 +8,13 @@ This changelog also contains important changes in dependencies.
 
 ## [Unreleased]
 
+### Added
+
+- `resvg::encode_png_with_dpi` and `resvg::save_png_with_dpi`, which write a `pHYs` chunk
+  so that the PNG declares the resolution it is meant to be shown at. Without it a viewer
+  has to guess, and most guess 96 DPI, which shows an image rendered for print or a high
+  resolution display at the wrong physical size. The `resvg` CLI gained a `--png-dpi` flag.
+
 ## [0.48.1] 2026-08-02
 
 This release has an MSRV of 1.85.0 for `usvg` and `resvg` and the C API.

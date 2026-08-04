@@ -102,15 +102,25 @@ fn process() -> Result<(), String> {
     // Render.
     let img = render_svg(&args, &tree)?;
 
+    let png_dpi = args.raw_args.png_dpi.map(|dpi| dpi as f32);
+
     match args.out_png.unwrap() {
         OutputTo::Stdout => {
             use std::io::Write;
-            let buf = img.encode_png().map_err(|e| e.to_string())?;
+            let buf = match png_dpi {
+                Some(dpi) => resvg::encode_png_with_dpi(img.as_ref(), dpi),
+                None => img.encode_png(),
+            }
+            .map_err(|e| e.to_string())?;
             std::io::stdout().write_all(&buf).unwrap();
         }
         OutputTo::File(ref file) => {
             timed(args.perf, "Saving", || {
-                img.save_png(file).map_err(|e| e.to_string())
+                match png_dpi {
+                    Some(dpi) => resvg::save_png_with_dpi(img.as_ref(), file, dpi),
+                    None => img.save_png(file),
+                }
+                .map_err(|e| e.to_string())
             })?;
         }
     };
@@ -139,6 +149,12 @@ OPTIONS:
   -w, --width LENGTH            Sets the width in pixels
   -h, --height LENGTH           Sets the height in pixels
   -z, --zoom FACTOR             Zooms the image by a factor
+      --png-dpi DPI             Writes this resolution into the PNG, so that it is
+                                displayed and printed at the intended physical size.
+                                This is the resolution of the rendered image, which
+                                differs from '--dpi' when '--zoom', '--width' or
+                                '--height' scale the output
+                                [values: 10..4000 (inclusive)]
       --dpi DPI                 Sets the resolution
                                 [default: 96] [possible values: 10..4000 (inclusive)]
   --background COLOR            Sets the background color
@@ -220,6 +236,7 @@ struct CliArgs {
     height: Option<u32>,
     zoom: Option<f32>,
     dpi: u32,
+    png_dpi: Option<u32>,
     background: Option<svgtypes::Color>,
 
     languages: Vec<String>,
@@ -272,6 +289,7 @@ fn collect_args() -> Result<CliArgs, pico_args::Error> {
         height: input.opt_value_from_fn(["-h", "--height"], parse_length)?,
         zoom: input.opt_value_from_fn(["-z", "--zoom"], parse_zoom)?,
         dpi: input.opt_value_from_fn("--dpi", parse_dpi)?.unwrap_or(96),
+        png_dpi: input.opt_value_from_fn("--png-dpi", parse_dpi)?,
         background: input.opt_value_from_str("--background")?,
 
         languages: input
