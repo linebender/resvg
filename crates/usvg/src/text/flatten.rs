@@ -1,6 +1,7 @@
 // Copyright 2022 the Resvg Authors
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+use std::collections::HashMap;
 use std::mem;
 use std::sync::Arc;
 
@@ -29,20 +30,103 @@ fn resolve_rendering_mode(text: &Text) -> ShapeRendering {
     }
 }
 
+/// An ephemeral cache used during text flattening to avoid re-extracting
+/// the same glyph multiple times.
+#[derive(Default)]
+pub(crate) struct FlattenCache {
+    outline: HashMap<(ID, GlyphId, Vec<FontVariation>), Option<tiny_skia_path::Path>>,
+    colr: HashMap<(ID, GlyphId, Vec<FontVariation>), Option<Tree>>,
+    svg: HashMap<(ID, GlyphId), Option<Node>>,
+    raster: HashMap<(ID, GlyphId), Option<BitmapImage>>,
+    has_opsz: HashMap<ID, bool>,
+}
+
+impl FlattenCache {
+    fn outline(
+        &mut self,
+        fontdb: &Database,
+        font: ID,
+        glyph: GlyphId,
+        variations: &[FontVariation],
+    ) -> Option<tiny_skia_path::Path> {
+        let key = (font, glyph, variations.to_vec());
+        match self.outline.get(&key) {
+            Some(cache_hit) => cache_hit.clone(),
+            None => {
+                let lookup = fontdb.outline(font, glyph, variations);
+                self.outline.insert(key, lookup.clone());
+                lookup
+            }
+        }
+    }
+
+    fn colr(
+        &mut self,
+        fontdb: &Database,
+        font: ID,
+        glyph: GlyphId,
+        variations: &[FontVariation],
+    ) -> Option<Tree> {
+        let key = (font, glyph, variations.to_vec());
+        match self.colr.get(&key) {
+            Some(cache_hit) => cache_hit.clone(),
+            None => {
+                let lookup = fontdb.colr(font, glyph, variations);
+                self.colr.insert(key, lookup.clone());
+                lookup
+            }
+        }
+    }
+
+    fn svg(&mut self, fontdb: &Database, font: ID, glyph: GlyphId) -> Option<Node> {
+        let key = (font, glyph);
+        match self.svg.get(&key) {
+            Some(cache_hit) => cache_hit.clone(),
+            None => {
+                let lookup = fontdb.svg(font, glyph);
+                self.svg.insert(key, lookup.clone());
+                lookup
+            }
+        }
+    }
+
+    fn raster(&mut self, fontdb: &Database, font: ID, glyph: GlyphId) -> Option<BitmapImage> {
+        let key = (font, glyph);
+        match self.raster.get(&key) {
+            Some(cache_hit) => cache_hit.clone(),
+            None => {
+                let lookup = fontdb.raster(font, glyph);
+                self.raster.insert(key, lookup.clone());
+                lookup
+            }
+        }
+    }
+
+    fn has_opsz_axis(&mut self, fontdb: &Database, font: ID) -> bool {
+        if let Some(&cached) = self.has_opsz.get(&font) {
+            return cached;
+        }
+        let has_opsz = fontdb.has_opsz_axis(font);
+        self.has_opsz.insert(font, has_opsz);
+        has_opsz
+    }
+}
+
 /// Returns the effective variation settings for a glyph: the span's explicit
 /// variations plus an automatically computed `opsz` value when
 /// `font-optical-sizing: auto` is in effect and the font has an `opsz` axis
 /// that wasn't set explicitly. This matches browser behavior
 /// (CSS font-optical-sizing: auto).
 fn effective_variations(
-    cache: &mut Cache,
+    cache: &mut FlattenCache,
+    fontdb: &Database,
     span: &layout::Span,
     glyph: &layout::PositionedGlyph,
 ) -> Vec<FontVariation> {
     let mut variations = span.variations.clone();
     if span.font_optical_sizing == crate::FontOpticalSizing::Auto
         && !variations.iter().any(|v| &v.tag == b"opsz")
-        && cache.has_opsz_axis(glyph.font)
+        && cache.has_opsz_axis(fontdb, glyph.font)
     {
         variations.push(FontVariation::new(*b"opsz", glyph.font_size()));
     }
@@ -74,7 +158,7 @@ fn push_outline_paths(
     }
 }
 
-pub(crate) fn flatten(text: &mut Text, cache: &mut Cache) -> Option<(Group, NonZeroRect)> {
+pub(crate) fn flatten(text: &Text, fontdb: &Database, cache: &mut FlattenCache) -> Option<Group> {
     let mut new_children = vec![];
 
     let abs_transform = text.abs_transform;
@@ -102,10 +186,10 @@ pub(crate) fn flatten(text: &mut Text, cache: &mut Cache) -> Option<(Group, NonZ
         let mut span_builder = tiny_skia_path::PathBuilder::new();
 
         for glyph in &span.positioned_glyphs {
-            let variations = effective_variations(cache, span, glyph);
+            let variations = effective_variations(cache, fontdb, span, glyph);
 
             // A (best-effort conversion of a) COLR glyph.
-            if let Some(tree) = cache.fontdb_colr(glyph.font, glyph.id, &variations) {
+            if let Some(tree) = cache.colr(fontdb, glyph.font, glyph.id, &variations) {
                 let mut group = Group {
                     transform: glyph.colr_transform(),
                     ..Group::empty()
@@ -118,7 +202,7 @@ pub(crate) fn flatten(text: &mut Text, cache: &mut Cache) -> Option<(Group, NonZ
                 new_children.push(Node::Group(Box::new(group)));
             }
             // An SVG glyph. Will return the usvg node containing the glyph descriptions.
-            else if let Some(node) = cache.fontdb_svg(glyph.font, glyph.id) {
+            else if let Some(node) = cache.svg(fontdb, glyph.font, glyph.id) {
                 push_outline_paths(
                     span,
                     &mut span_builder,
@@ -137,7 +221,7 @@ pub(crate) fn flatten(text: &mut Text, cache: &mut Cache) -> Option<(Group, NonZ
                 new_children.push(Node::Group(Box::new(group)));
             }
             // A bitmap glyph.
-            else if let Some(img) = cache.fontdb_raster(glyph.font, glyph.id) {
+            else if let Some(img) = cache.raster(fontdb, glyph.font, glyph.id) {
                 push_outline_paths(
                     span,
                     &mut span_builder,
@@ -168,7 +252,7 @@ pub(crate) fn flatten(text: &mut Text, cache: &mut Cache) -> Option<(Group, NonZ
 
                 new_children.push(Node::Group(Box::new(group)));
             } else {
-                let outline = cache.fontdb_outline(glyph.font, glyph.id, &variations);
+                let outline = cache.outline(fontdb, glyph.font, glyph.id, &variations);
 
                 if let Some(outline) = outline.and_then(|p| p.transform(glyph.outline_transform()))
                 {
@@ -202,8 +286,7 @@ pub(crate) fn flatten(text: &mut Text, cache: &mut Cache) -> Option<(Group, NonZ
     }
 
     group.calculate_bounding_boxes();
-    let stroke_bbox = group.stroke_bounding_box().to_non_zero_rect()?;
-    Some((group, stroke_bbox))
+    Some(group)
 }
 
 #[derive(Default)]
@@ -241,6 +324,12 @@ pub(crate) trait DatabaseExt {
         variations: &[crate::FontVariation],
     ) -> Option<tiny_skia_path::Path>;
     fn has_opsz_axis(&self, id: ID) -> bool;
+    fn bounds(
+        &self,
+        id: ID,
+        glyph_id: GlyphId,
+        variations: &[crate::FontVariation],
+    ) -> Option<tiny_skia_path::Rect>;
     fn raster(&self, id: ID, glyph_id: GlyphId) -> Option<BitmapImage>;
     fn svg(&self, id: ID, glyph_id: GlyphId) -> Option<Node>;
     fn colr(&self, id: ID, glyph_id: GlyphId, variations: &[crate::FontVariation]) -> Option<Tree>;
@@ -294,6 +383,28 @@ impl DatabaseExt for Database {
         })
         .flatten()
         .unwrap_or(false)
+    }
+
+    fn bounds(
+        &self,
+        id: ID,
+        glyph_id: GlyphId,
+        variations: &[crate::FontVariation],
+    ) -> Option<tiny_skia_path::Rect> {
+        self.with_face_data(id, |data, face_index| -> Option<tiny_skia_path::Rect> {
+            let font = skrifa::FontRef::from_index(data, face_index).ok()?;
+            let location = font.axes().location(
+                variations
+                    .iter()
+                    .map(|v| (Tag::from_be_bytes(v.tag), v.value)),
+            );
+            let metrics = font.glyph_metrics(
+                skrifa::prelude::Size::unscaled(),
+                LocationRef::from(&location),
+            );
+            let bbox = metrics.bounds(glyph_id.into())?;
+            tiny_skia_path::Rect::from_ltrb(bbox.x_min, bbox.y_min, bbox.x_max, bbox.y_max)
+        })?
     }
 
     fn raster(&self, id: ID, glyph_id: GlyphId) -> Option<BitmapImage> {

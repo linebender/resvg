@@ -664,10 +664,13 @@ fn node_to_user_coordinates(
             // paint servers.
             let bbox = text.bounding_box;
 
-            // We need to update three things:
+            // We need to update two things:
             // 1. The fills/strokes of the original elements in the usvg tree.
             // 2. The fills/strokes of the layouted elements of the text.
-            // 3. The fills/strokes of the outlined text.
+            //
+            // The outlined text is generated lazily after parsing and clones
+            // the (already processed) fills/strokes of the layouted elements,
+            // so it doesn't need to be processed here.
 
             // 1.
             for chunk in &mut text.chunks {
@@ -745,15 +748,6 @@ fn node_to_user_coordinates(
                     process_decoration(path);
                 }
             }
-
-            // 3.
-            update_paint_servers(
-                &mut text.flattened,
-                context_transform,
-                context_bbox,
-                Some(bbox),
-                cache,
-            );
         }
     }
 }

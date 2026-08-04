@@ -136,8 +136,9 @@ pub(crate) fn convert(
         abs_bounding_box: dummy,
         stroke_bounding_box: dummy,
         abs_stroke_bounding_box: dummy,
-        flattened: Box::new(Group::empty()),
+        flattened: std::sync::OnceLock::new(),
         layouted: vec![],
+        fontdb: cache.fontdb.clone(),
     };
 
     if text::convert(&mut text, &state.opt.font_resolver, cache).is_none() {

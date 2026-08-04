@@ -1685,6 +1685,24 @@ impl Tree {
         &self.fontdb
     }
 
+    /// Converts all text nodes in the tree into paths.
+    ///
+    /// Text flattening is performed lazily: parsing an SVG only lays the text
+    /// out, and the outlines are computed on the first access to
+    /// [`Text::flattened`]. This method computes the flattened representation
+    /// of every text node in the tree (including ones inside clip paths,
+    /// masks, patterns and filters) upfront, while sharing a glyph cache
+    /// between all of them, which is faster than flattening each text node
+    /// separately when glyphs are reused across text nodes.
+    ///
+    /// Calling this method (or [`Text::flattened`]) more than once is cheap:
+    /// already-flattened text nodes are skipped.
+    #[cfg(feature = "text")]
+    pub fn compute_flattened_text(&self) {
+        let mut cache = crate::text::flatten::FlattenCache::default();
+        crate::text::flatten_group(&self.root, &mut cache);
+    }
+
     pub(crate) fn collect_paint_servers(&mut self) {
         loop_over_paint_servers(&self.root, &mut |paint| match paint {
             Paint::Color(_) => {}
@@ -1757,7 +1775,7 @@ fn has_text_nodes(root: &Group) -> bool {
     false
 }
 
-fn loop_over_paint_servers(parent: &Group, f: &mut dyn FnMut(&Paint)) {
+pub(crate) fn loop_over_paint_servers(parent: &Group, f: &mut dyn FnMut(&Paint)) {
     fn push(paint: Option<&Paint>, f: &mut dyn FnMut(&Paint)) {
         if let Some(paint) = paint {
             f(paint);
@@ -1772,7 +1790,24 @@ fn loop_over_paint_servers(parent: &Group, f: &mut dyn FnMut(&Paint)) {
                 push(path.stroke.as_ref().map(|f| &f.paint), f);
             }
             Node::Image(_) => {}
-            // Flattened text would be used instead.
+            // Flattened text shares the fills/strokes of the layouted spans,
+            // but is generated lazily, so collect the span paints instead.
+            #[cfg(feature = "text")]
+            Node::Text(text) => {
+                for span in &text.layouted {
+                    push(span.fill.as_ref().map(|f| &f.paint), f);
+                    push(span.stroke.as_ref().map(|f| &f.paint), f);
+
+                    for path in [&span.underline, &span.overline, &span.line_through]
+                        .into_iter()
+                        .flatten()
+                    {
+                        push(path.fill.as_ref().map(|f| &f.paint), f);
+                        push(path.stroke.as_ref().map(|f| &f.paint), f);
+                    }
+                }
+            }
+            #[cfg(not(feature = "text"))]
             Node::Text(_) => {}
         }
 
