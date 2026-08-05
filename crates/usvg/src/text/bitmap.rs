@@ -193,14 +193,16 @@ pub(crate) fn glyph(fontdb: &Database, key: BitmapGlyphKey) -> Option<BitmapImag
         let location = LocationRef::default();
         let image = bitmap_strikes.glyph_for_size(size, glyph_id.into())?;
 
-        // A pixel font draws every strike for one exact size, and is meant
-        // to be used at those sizes only. Scaling one of its bitmaps looks
-        // far worse than the outline it also ships, so prefer the strike
-        // that matches, and leave the glyph to the outline otherwise.
+        // A mask is one size specific rendering of the same design the outline
+        // already describes, drawn for the exact size of its strike. Scaling one
+        // looks far worse than drawing that outline, so prefer a strike that
+        // matches the size and leave the glyph to its outline otherwise.
         //
-        // Color bitmaps work the other way around: an emoji font tends to
-        // carry a single large strike for every size, and usually has no
-        // outline to fall back to, so those keep using the largest one.
+        // A color bitmap is the intended appearance of the glyph rather than a
+        // rendering of the outline, so it stays preferred at any size. An sbix
+        // font relies on that: it ships outlines behind its bitmaps as a
+        // fallback for renderers without sbix support, so treating the outline
+        // as the better choice would invert what the font intends.
         let image = if matches!(image.data, BitmapData::Mask(_)) {
             let matching = bitmap_strikes
                 .glyph_for_size(skrifa::prelude::Size::new(font_size), glyph_id.into())
