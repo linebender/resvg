@@ -18,9 +18,9 @@ use tiny_skia_path::PathBuilder;
 use super::svgtree::{self, AId, EId, FromValue, SvgNode};
 use super::units::{self, convert_length};
 use super::{Error, Options, marker};
-#[cfg(feature = "text")]
-use crate::flatten::BitmapImage;
 use crate::parser::paint_server::process_paint;
+#[cfg(feature = "text")]
+use crate::text::bitmap::{BitmapGlyphKey, BitmapImage};
 #[cfg(feature = "text")]
 use crate::text::flatten::DatabaseExt;
 use crate::*;
@@ -55,11 +55,8 @@ pub struct Cache {
     cache_colr: HashMap<(ID, GlyphId, Vec<FontVariation>), Option<Tree>>,
     #[cfg(feature = "text")]
     cache_svg: HashMap<(ID, GlyphId), Option<Node>>,
-    /// Keyed by the font size and the mask color as well: the size selects the
-    /// strike, and a mask is painted with the span's fill, so the same glyph can
-    /// differ between spans.
     #[cfg(feature = "text")]
-    cache_raster: HashMap<(ID, GlyphId, u32, [u8; 4]), Option<BitmapImage>>,
+    cache_raster: HashMap<BitmapGlyphKey, Option<BitmapImage>>,
     #[cfg(feature = "text")]
     cache_has_opsz: HashMap<ID, bool>,
 
@@ -210,31 +207,11 @@ impl Cache {
     font_lookup!(fontdb_svg, cache_svg, svg, Node);
 
     #[cfg(feature = "text")]
-    pub(crate) fn fontdb_raster(
-        &mut self,
-        font: ID,
-        glyph: GlyphId,
-        font_size: f32,
-        mask_color: Color,
-        mask_opacity: u8,
-    ) -> Option<BitmapImage> {
-        let key = (
-            font,
-            glyph,
-            font_size.to_bits(),
-            [
-                mask_color.red,
-                mask_color.green,
-                mask_color.blue,
-                mask_opacity,
-            ],
-        );
+    pub(crate) fn fontdb_raster(&mut self, key: BitmapGlyphKey) -> Option<BitmapImage> {
         match self.cache_raster.get(&key) {
             Some(cache_hit) => cache_hit.clone(),
             None => {
-                let lookup = self
-                    .fontdb
-                    .raster(font, glyph, font_size, mask_color, mask_opacity);
+                let lookup = crate::text::bitmap::glyph(&self.fontdb, key);
                 self.cache_raster.insert(key, lookup.clone());
                 lookup
             }
