@@ -1,0 +1,18 @@
+<svg id="svg1" viewBox="0 0 300 200" xmlns="http://www.w3.org/2000/svg"
+     font-family="Bitmap Mono">
+    <title>Monochrome `EBDT` strikes are used at the sizes they were drawn for</title>
+
+    <!-- The viewBox is as wide as the rendered test image, so that the strikes
+         land on whole pixels. -->
+
+    <!-- The font carries a 16px and a 24px strike. Those two sizes come
+         straight from the strike, pixel for pixel, while the sizes in between
+         and beyond fall back to the outline. -->
+    <text id="text1" x="20" y="40" font-size="16">Bitmap 16</text>
+    <text id="text2" x="20" y="80" font-size="20">Bitmap 20</text>
+    <text id="text3" x="20" y="125" font-size="24">Bitmap 24</text>
+    <text id="text4" x="20" y="170" font-size="28">Bitmap 28</text>
+
+    <!-- image frame -->
+    <rect id="frame" x="1" y="1" width="298" height="198" fill="none" stroke="black"/>
+</svg>

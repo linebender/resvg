@@ -8,16 +8,15 @@ use crate::GlyphId;
 use fontdb::{Database, ID};
 use skrifa::MetadataProvider;
 use skrifa::Tag;
-use skrifa::bitmap::{BitmapData, BitmapFormat};
 use skrifa::outline::{DrawSettings, OutlinePen};
 use skrifa::prelude::LocationRef;
 use skrifa::raw::TableProvider as _;
-use skrifa::raw::types::BoundingBox;
 use svgtypes::Color;
-use tiny_skia_path::{NonZeroRect, Size, Transform};
+use tiny_skia_path::{NonZeroRect, Transform};
 use xmlwriter::XmlWriter;
 
 use crate::text::OPSZ;
+use crate::text::bitmap;
 use crate::text::colr::GlyphPainter;
 use crate::*;
 
@@ -101,6 +100,20 @@ pub(crate) fn flatten(text: &mut Text, cache: &mut Cache) -> Option<(Group, NonZ
         // with just outlines (which is the most common case).
         let mut span_builder = tiny_skia_path::PathBuilder::new();
 
+        // Bitmap masks store coverage only, so they are painted like an outline
+        // glyph would be. Non-solid paints cannot be expressed by an image and
+        // fall back to black, which is also what an absent fill resolves to.
+        let (mask_color, mask_opacity) = match span.fill.as_ref() {
+            Some(fill) => {
+                let color = match fill.paint {
+                    Paint::Color(color) => color,
+                    _ => crate::Color::black(),
+                };
+                (color, (fill.opacity.get() * 255.0).round() as u8)
+            }
+            None => (crate::Color::black(), 255),
+        };
+
         for glyph in &span.positioned_glyphs {
             let variations = effective_variations(cache, span, glyph);
 
@@ -137,7 +150,13 @@ pub(crate) fn flatten(text: &mut Text, cache: &mut Cache) -> Option<(Group, NonZ
                 new_children.push(Node::Group(Box::new(group)));
             }
             // A bitmap glyph.
-            else if let Some(img) = cache.fontdb_raster(glyph.font, glyph.id) {
+            else if let Some(img) = cache.fontdb_raster(bitmap::BitmapGlyphKey::new(
+                glyph.font,
+                glyph.id,
+                glyph.font_size(),
+                mask_color,
+                mask_opacity,
+            )) {
                 push_outline_paths(
                     span,
                     &mut span_builder,
@@ -241,19 +260,8 @@ pub(crate) trait DatabaseExt {
         variations: &[crate::FontVariation],
     ) -> Option<tiny_skia_path::Path>;
     fn has_opsz_axis(&self, id: ID) -> bool;
-    fn raster(&self, id: ID, glyph_id: GlyphId) -> Option<BitmapImage>;
     fn svg(&self, id: ID, glyph_id: GlyphId) -> Option<Node>;
     fn colr(&self, id: ID, glyph_id: GlyphId, variations: &[crate::FontVariation]) -> Option<Tree>;
-}
-
-#[derive(Clone)]
-pub(crate) struct BitmapImage {
-    image: Image,
-    x: i16,
-    y: i16,
-    pixels_per_em: u16,
-    glyph_bbox: Option<BoundingBox<i16>>,
-    is_sbix: bool,
 }
 
 impl DatabaseExt for Database {
@@ -294,56 +302,6 @@ impl DatabaseExt for Database {
         })
         .flatten()
         .unwrap_or(false)
-    }
-
-    fn raster(&self, id: ID, glyph_id: GlyphId) -> Option<BitmapImage> {
-        self.with_face_data(id, |data, face_index| -> Option<BitmapImage> {
-            let font = skrifa::FontRef::from_index(data, face_index).ok()?;
-            let bitmap_strikes = font.bitmap_strikes();
-
-            // We set size to unscaled to get the largest image available
-            let size = skrifa::prelude::Size::unscaled();
-            let location = LocationRef::default();
-            let image = bitmap_strikes.glyph_for_size(size, glyph_id.into())?;
-
-            match image.data {
-                BitmapData::Png(data) => {
-                    let metrics = font.glyph_metrics(size, location);
-                    let bounding_box = metrics.bounds(glyph_id.into()).map(|bbox| BoundingBox {
-                        x_min: bbox.x_min as i16,
-                        y_min: bbox.y_min as i16,
-                        x_max: bbox.x_max as i16,
-                        y_max: bbox.y_max as i16,
-                    });
-
-                    let bitmap_image = BitmapImage {
-                        image: Image {
-                            id: String::new(),
-                            visible: true,
-                            size: Size::from_wh(image.width as f32, image.height as f32)?,
-                            rendering_mode: ImageRendering::OptimizeQuality,
-                            kind: ImageKind::PNG(Arc::new(data.to_vec())),
-                            abs_transform: Transform::default(),
-                            abs_bounding_box: NonZeroRect::from_xywh(
-                                0.0,
-                                0.0,
-                                image.width as f32,
-                                image.height as f32,
-                            )?,
-                        },
-                        x: image.inner_bearing_x as i16,
-                        y: image.inner_bearing_y as i16,
-                        pixels_per_em: image.ppem_x as u16,
-                        glyph_bbox: bounding_box,
-                        is_sbix: bitmap_strikes.format() == Some(BitmapFormat::Sbix),
-                    };
-
-                    Some(bitmap_image)
-                }
-                // TODO: implement other bitmap formats
-                BitmapData::Bgra(_) | BitmapData::Mask(_) => None,
-            }
-        })?
     }
 
     fn svg(&self, id: ID, glyph_id: GlyphId) -> Option<Node> {

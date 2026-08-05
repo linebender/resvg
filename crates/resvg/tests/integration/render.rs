@@ -1384,6 +1384,8 @@ use crate::render;
 #[test] fn text_baseline_shift_sub() { assert_eq!(render("tests/text/baseline-shift/sub"), 0); }
 #[test] fn text_baseline_shift_super() { assert_eq!(render("tests/text/baseline-shift/super"), 0); }
 #[test] fn text_baseline_shift_with_rotate() { assert_eq!(render("tests/text/baseline-shift/with-rotate"), 0); }
+#[test] fn text_bitmap_font_monochrome_fill() { assert_eq!(render("tests/text/bitmap-font/monochrome-fill"), 0); }
+#[test] fn text_bitmap_font_monochrome() { assert_eq!(render("tests/text/bitmap-font/monochrome"), 0); }
 #[test] fn text_color_font_cbdt() { assert_eq!(render("tests/text/color-font/cbdt"), 0); }
 #[test] fn text_color_font_colrv0() { assert_eq!(render("tests/text/color-font/colrv0"), 0); }
 #[test] fn text_color_font_colrv1() { assert_eq!(render("tests/text/color-font/colrv1"), 0); }

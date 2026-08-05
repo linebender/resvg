@@ -8,6 +8,14 @@ This changelog also contains important changes in dependencies.
 
 ## [Unreleased]
 
+### Added
+
+- Support for monochrome and grayscale bitmap glyphs (`EBDT`/`CBDT` masks with 1, 2, 4
+  and 8 bits per pixel) and for uncompressed BGRA bitmap glyphs. Previously only PNG
+  bitmap glyphs were rendered. Mask glyphs are painted with the text fill color and are
+  drawn without interpolation, and a monochrome strike is only used at the size it was
+  drawn for, leaving the other sizes to the outline.
+
 ## [0.48.1] 2026-08-02
 
 This release has an MSRV of 1.85.0 for `usvg` and `resvg` and the C API.

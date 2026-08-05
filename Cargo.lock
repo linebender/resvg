@@ -729,6 +729,7 @@ dependencies = [
  "log",
  "once_cell",
  "pico-args",
+ "png",
  "roxmltree 0.21.1",
  "simplecss",
  "siphasher 1.0.3",
