@@ -15,6 +15,7 @@ use usvg::fontdb;
 mod render;
 
 mod extra;
+mod hinting;
 
 const IMAGE_SIZE: u32 = 300;
 
@@ -37,14 +38,13 @@ pub fn render(name: &str) -> usize {
     render_inner(name, TestMode::Normal, None)
 }
 
-/// Renders unscaled with hinting enabled, since a hinted outline is fitted to
-/// the pixel grid of the size it is drawn at. Every configuration shares one
-/// SVG and is compared against `<name>-<variant>.png`.
+/// Renders like [`render`] does, but with hinting enabled. Every configuration
+/// shares one SVG and is compared against `<name>-<variant>.png`.
 pub fn render_hinted(name: &str, variant: &str, hinting: usvg::HintingOptions) -> usize {
     render_inner_with_ref(
         name,
         &format!("{name}-{variant}"),
-        TestMode::Extra(1.0),
+        TestMode::Normal,
         Some(hinting),
     )
 }

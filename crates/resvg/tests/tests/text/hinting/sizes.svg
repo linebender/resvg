@@ -1,0 +1,14 @@
+<svg id="svg1" viewBox="0 0 300 120" xmlns="http://www.w3.org/2000/svg"
+     font-family="Noto Sans">
+    <title>Text at the sizes where hinting matters</title>
+
+    <!-- The viewBox is as wide as the rendered test image, so that the hinted
+         outlines land on the pixel grid they were fitted for. -->
+
+    <text id="text1" x="10" y="20" font-size="9">Hamburgefonstiv 9</text>
+    <text id="text2" x="10" y="42" font-size="12">Hamburgefonstiv 12</text>
+    <text id="text3" x="10" y="68" font-size="16">Hamburgefonstiv 16</text>
+
+    <!-- `geometricPrecision` asks for the exact outlines, so it is never hinted. -->
+    <text id="text4" x="10" y="95" font-size="12" text-rendering="geometricPrecision">Exact outlines 12</text>
+</svg>

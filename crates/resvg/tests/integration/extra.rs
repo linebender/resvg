@@ -1,7 +1,7 @@
 // Copyright 2023 the Resvg Authors
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use crate::{render_extra, render_extra_with_scale, render_hinted, render_node};
+use crate::{render_extra, render_extra_with_scale, render_node};
 
 #[test]
 fn group_with_only_transform() {
@@ -79,35 +79,4 @@ fn render_node_filter_on_empty_group() {
 #[test]
 fn render_node_filter_with_transform_on_shape() {
     assert_eq!(render_node("extra/filter-with-transform-on-shape", "g1"), 0);
-}
-
-#[test]
-fn hinting_unhinted() {
-    assert_eq!(render_extra("extra/hinting"), 0);
-}
-
-#[test]
-fn hinting_smooth() {
-    assert_eq!(
-        render_hinted("extra/hinting", "smooth", usvg::HintingOptions::default()),
-        0
-    );
-}
-
-#[test]
-fn hinting_mono() {
-    let hinting = usvg::HintingOptions {
-        engine: usvg::HintingEngine::Auto,
-        target: usvg::HintingTarget::Mono,
-    };
-    assert_eq!(render_hinted("extra/hinting", "mono", hinting), 0);
-}
-
-#[test]
-fn hinting_autohinter() {
-    let hinting = usvg::HintingOptions {
-        engine: usvg::HintingEngine::Auto,
-        ..usvg::HintingOptions::default()
-    };
-    assert_eq!(render_hinted("extra/hinting", "auto", hinting), 0);
 }
