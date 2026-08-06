@@ -5,7 +5,7 @@
 
 /// The hinting engine to use.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Default)]
-pub enum HintingEngine {
+pub enum FontHintingEngine {
     /// The TrueType or PostScript interpreter, i.e. the hints embedded in the
     /// font itself.
     Interpreter,
@@ -18,9 +18,9 @@ pub enum HintingEngine {
     AutoFallback,
 }
 
-/// The basic mode for [`HintingTarget::Smooth`].
+/// The basic mode for [`FontHintingTarget::Smooth`].
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Default)]
-pub enum SmoothMode {
+pub enum FontHintingSmoothMode {
     /// The standard smooth hinting mode.
     #[default]
     Normal,
@@ -35,19 +35,19 @@ pub enum SmoothMode {
 
 /// The rasterization the hinted outline is being prepared for.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum HintingTarget {
+pub enum FontHintingTarget {
     /// A strong hinting style intended for aliased, monochrome rasterization.
     ///
     /// Since resvg anti-aliases text, this mostly serves to align stems to the
     /// pixel grid as aggressively as possible. Note that the TrueType
     /// interpreter largely ignores the distinction between this and
-    /// [`HintingTarget::Smooth`], so it mainly takes effect together with
-    /// [`HintingEngine::Auto`].
+    /// [`FontHintingTarget::Smooth`], so it mainly takes effect together with
+    /// [`FontHintingEngine::Auto`].
     Mono,
     /// A hinting style suitable for anti-aliased rasterization.
     Smooth {
         /// The basic mode for smooth hinting.
-        mode: SmoothMode,
+        mode: FontHintingSmoothMode,
         /// If true, TrueType bytecode may assume that the outline will be
         /// rasterized with vertical supersampling.
         ///
@@ -60,11 +60,11 @@ pub enum HintingTarget {
     },
 }
 
-impl Default for HintingTarget {
+impl Default for FontHintingTarget {
     /// The same defaults skrifa uses for a smooth target.
     fn default() -> Self {
         Self::Smooth {
-            mode: SmoothMode::Normal,
+            mode: FontHintingSmoothMode::Normal,
             symmetric_rendering: true,
             preserve_linear_metrics: false,
         }
@@ -90,39 +90,39 @@ impl Default for HintingTarget {
 /// Elements with `text-rendering="geometricPrecision"` are never hinted, since
 /// that property asks for exact outlines.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Default)]
-pub struct HintingOptions {
+pub struct FontHintingOptions {
     /// The hinting engine to use.
-    pub engine: HintingEngine,
+    pub engine: FontHintingEngine,
     /// The rasterization the outline is being prepared for.
-    pub target: HintingTarget,
+    pub target: FontHintingTarget,
 }
 
-impl From<HintingEngine> for skrifa::outline::Engine {
-    fn from(engine: HintingEngine) -> Self {
+impl From<FontHintingEngine> for skrifa::outline::Engine {
+    fn from(engine: FontHintingEngine) -> Self {
         match engine {
-            HintingEngine::Interpreter => Self::Interpreter,
-            HintingEngine::Auto => Self::Auto(None),
-            HintingEngine::AutoFallback => Self::AutoFallback,
+            FontHintingEngine::Interpreter => Self::Interpreter,
+            FontHintingEngine::Auto => Self::Auto(None),
+            FontHintingEngine::AutoFallback => Self::AutoFallback,
         }
     }
 }
 
-impl From<SmoothMode> for skrifa::outline::SmoothMode {
-    fn from(mode: SmoothMode) -> Self {
+impl From<FontHintingSmoothMode> for skrifa::outline::SmoothMode {
+    fn from(mode: FontHintingSmoothMode) -> Self {
         match mode {
-            SmoothMode::Normal => Self::Normal,
-            SmoothMode::Light => Self::Light,
-            SmoothMode::Lcd => Self::Lcd,
-            SmoothMode::VerticalLcd => Self::VerticalLcd,
+            FontHintingSmoothMode::Normal => Self::Normal,
+            FontHintingSmoothMode::Light => Self::Light,
+            FontHintingSmoothMode::Lcd => Self::Lcd,
+            FontHintingSmoothMode::VerticalLcd => Self::VerticalLcd,
         }
     }
 }
 
-impl From<HintingTarget> for skrifa::outline::Target {
-    fn from(target: HintingTarget) -> Self {
+impl From<FontHintingTarget> for skrifa::outline::Target {
+    fn from(target: FontHintingTarget) -> Self {
         match target {
-            HintingTarget::Mono => Self::Mono,
-            HintingTarget::Smooth {
+            FontHintingTarget::Mono => Self::Mono,
+            FontHintingTarget::Smooth {
                 mode,
                 symmetric_rendering,
                 preserve_linear_metrics,
@@ -135,8 +135,8 @@ impl From<HintingTarget> for skrifa::outline::Target {
     }
 }
 
-impl From<HintingOptions> for skrifa::outline::HintingOptions {
-    fn from(options: HintingOptions) -> Self {
+impl From<FontHintingOptions> for skrifa::outline::HintingOptions {
+    fn from(options: FontHintingOptions) -> Self {
         Self {
             engine: options.engine.into(),
             target: options.target.into(),

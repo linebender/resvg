@@ -19,13 +19,13 @@ use xmlwriter::XmlWriter;
 
 use crate::text::OPSZ;
 use crate::text::colr::GlyphPainter;
-use crate::text::hinting::HintingOptions;
+use crate::text::hinting::FontHintingOptions;
 use crate::*;
 
 /// The hinting configuration for a single glyph.
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub(crate) struct GlyphHinting {
-    pub(crate) options: HintingOptions,
+    pub(crate) options: FontHintingOptions,
     /// The pixel grid to fit the outline to. Derived from the font size, so
     /// hinted glyphs only land on whole pixels at an unscaled render.
     pub(crate) ppem: f32,
@@ -33,7 +33,7 @@ pub(crate) struct GlyphHinting {
 
 impl GlyphHinting {
     /// A key that identifies this configuration, since `f32` is not hashable.
-    pub(crate) fn cache_key(&self) -> (HintingOptions, u32) {
+    pub(crate) fn cache_key(&self) -> (FontHintingOptions, u32) {
         (self.options, self.ppem.to_bits())
     }
 }
@@ -94,7 +94,7 @@ fn push_outline_paths(
 pub(crate) fn flatten(
     text: &mut Text,
     cache: &mut Cache,
-    hinting: Option<HintingOptions>,
+    hinting: Option<FontHintingOptions>,
 ) -> Option<(Group, NonZeroRect)> {
     let mut new_children = vec![];
 

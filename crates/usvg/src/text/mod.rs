@@ -17,7 +17,9 @@ mod hinting;
 /// Provides access to the layout of a text node.
 pub mod layout;
 
-pub use hinting::{HintingEngine, HintingOptions, HintingTarget, SmoothMode};
+pub use hinting::{
+    FontHintingEngine, FontHintingOptions, FontHintingSmoothMode, FontHintingTarget,
+};
 
 /// The optical sizing variation axis tag.
 pub(crate) const OPSZ: skrifa::Tag = skrifa::Tag::from_be_bytes(*b"opsz");
@@ -221,7 +223,7 @@ impl std::fmt::Debug for FontResolver<'_> {
 pub(crate) fn convert(
     text: &mut Text,
     resolver: &FontResolver,
-    hinting: Option<HintingOptions>,
+    hinting: Option<FontHintingOptions>,
     cache: &mut Cache,
 ) -> Option<()> {
     let (text_fragments, bbox) = layout::layout_text(text, resolver, &mut cache.fontdb)?;

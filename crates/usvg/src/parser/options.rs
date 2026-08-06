@@ -5,7 +5,7 @@
 use std::sync::Arc;
 
 #[cfg(feature = "text")]
-use crate::{FontResolver, HintingOptions};
+use crate::{FontHintingOptions, FontResolver};
 use crate::{ImageHrefResolver, ImageRendering, ShapeRendering, Size, TextRendering};
 
 /// Processing options.
@@ -98,9 +98,9 @@ pub struct Options<'a> {
     /// Whether and how glyph outlines should be hinted.
     ///
     /// Hinting is not applied when this is `None`, which is the default. See
-    /// [`HintingOptions`] for why, and for what enabling it implies.
+    /// [`FontHintingOptions`] for why, and for what enabling it implies.
     #[cfg(feature = "text")]
-    pub font_hinting: Option<HintingOptions>,
+    pub font_hinting: Option<FontHintingOptions>,
 
     /// A CSS stylesheet that should be injected into the SVG. Can be used to overwrite
     /// certain attributes.

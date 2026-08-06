@@ -40,7 +40,7 @@ pub fn render(name: &str) -> usize {
 
 /// Renders like [`render`] does, but with hinting enabled. Every configuration
 /// shares one SVG and is compared against `<name>-<variant>.png`.
-pub fn render_hinted(name: &str, variant: &str, hinting: usvg::HintingOptions) -> usize {
+pub fn render_hinted(name: &str, variant: &str, hinting: usvg::FontHintingOptions) -> usize {
     render_inner_with_ref(
         name,
         &format!("{name}-{variant}"),
@@ -64,7 +64,7 @@ pub fn render_node(name: &str, id: &str) -> usize {
 pub fn render_inner(
     name: &str,
     test_mode: TestMode,
-    hinting: Option<usvg::HintingOptions>,
+    hinting: Option<usvg::FontHintingOptions>,
 ) -> usize {
     render_inner_with_ref(name, name, test_mode, hinting)
 }
@@ -73,7 +73,7 @@ pub fn render_inner_with_ref(
     name: &str,
     reference: &str,
     test_mode: TestMode,
-    hinting: Option<usvg::HintingOptions>,
+    hinting: Option<usvg::FontHintingOptions>,
 ) -> usize {
     let svg_path = format!("tests/{}.svg", name);
     let png_path = format!("tests/{}.png", reference);

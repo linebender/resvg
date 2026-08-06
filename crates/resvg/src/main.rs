@@ -197,6 +197,9 @@ OPTIONS:
                                 Otherwise, text elements will not be processes
   --list-fonts                  Lists successfully loaded font faces.
                                 Useful for debugging
+  --font-hinting                Grid-fits glyph outlines to whole pixels.
+                                Only lands on the pixel grid when the output
+                                is not scaled
 
 
   --query-all                   Queries all valid SVG ids with bounding boxes
@@ -240,7 +243,7 @@ struct CliArgs {
     skip_system_fonts: bool,
     list_fonts: bool,
     style_sheet: Option<path::PathBuf>,
-    hinting: bool,
+    font_hinting: bool,
 
     query_all: bool,
     export_id: Option<String>,
@@ -311,7 +314,7 @@ fn collect_args() -> Result<CliArgs, pico_args::Error> {
 
         export_area_drawing: input.contains("--export-area-drawing"),
         style_sheet: input.opt_value_from_str("--stylesheet").unwrap_or_default(),
-        hinting: input.contains("--hinting"),
+        font_hinting: input.contains("--font-hinting"),
 
         perf: input.contains("--perf"),
         quiet: input.contains("--quiet"),
@@ -579,7 +582,7 @@ fn parse_args() -> Result<Args, String> {
         image_href_resolver: usvg::ImageHrefResolver::default(),
         font_resolver: usvg::FontResolver::default(),
         fontdb: Arc::new(fontdb::Database::new()),
-        font_hinting: args.hinting.then(usvg::HintingOptions::default),
+        font_hinting: args.font_hinting.then(usvg::FontHintingOptions::default),
         style_sheet,
     };
 

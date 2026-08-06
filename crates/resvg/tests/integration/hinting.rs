@@ -9,7 +9,7 @@ use crate::render_hinted;
 
 #[test]
 fn smooth() {
-    let hinting = usvg::HintingOptions::default();
+    let hinting = usvg::FontHintingOptions::default();
     assert_eq!(
         render_hinted("tests/text/hinting/sizes", "smooth", hinting),
         0
@@ -18,9 +18,9 @@ fn smooth() {
 
 #[test]
 fn autohinter() {
-    let hinting = usvg::HintingOptions {
-        engine: usvg::HintingEngine::Auto,
-        ..usvg::HintingOptions::default()
+    let hinting = usvg::FontHintingOptions {
+        engine: usvg::FontHintingEngine::Auto,
+        ..usvg::FontHintingOptions::default()
     };
     assert_eq!(
         render_hinted("tests/text/hinting/sizes", "auto", hinting),
@@ -32,9 +32,9 @@ fn autohinter() {
 fn autohinter_mono() {
     // The TrueType interpreter barely distinguishes a mono target from a smooth
     // one, so this pairs it with the engine that does.
-    let hinting = usvg::HintingOptions {
-        engine: usvg::HintingEngine::Auto,
-        target: usvg::HintingTarget::Mono,
+    let hinting = usvg::FontHintingOptions {
+        engine: usvg::FontHintingEngine::Auto,
+        target: usvg::FontHintingTarget::Mono,
     };
     assert_eq!(
         render_hinted("tests/text/hinting/sizes", "mono", hinting),

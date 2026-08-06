@@ -80,7 +80,7 @@ OPTIONS:
                                     Otherwise, text elements will not be processes
   --list-fonts                      Lists successfully loaded font faces.
                                     Useful for debugging
-  --hinting                         Grid-fits glyph outlines to whole pixels.
+  --font-hinting                    Grid-fits glyph outlines to whole pixels.
                                     Only lands on the pixel grid when the output
                                     is not scaled
   --default-width LENGTH            Sets the default width of the SVG viewport. Like
@@ -142,7 +142,7 @@ struct Args {
     coordinates_precision: Option<u8>,
     transforms_precision: Option<u8>,
     style_sheet: Option<PathBuf>,
-    hinting: bool,
+    font_hinting: bool,
 
     quiet: bool,
 
@@ -213,7 +213,7 @@ fn collect_args() -> Result<Args, pico_args::Error> {
             .opt_value_from_fn("--coordinates-precision", parse_precision)?,
         transforms_precision: input.opt_value_from_fn("--transforms-precision", parse_precision)?,
         style_sheet: input.opt_value_from_str("--stylesheet").unwrap_or_default(),
-        hinting: input.contains("--hinting"),
+        font_hinting: input.contains("--font-hinting"),
 
         quiet: input.contains("--quiet"),
 
@@ -436,7 +436,7 @@ fn process(args: Args) -> Result<(), String> {
         image_href_resolver: usvg::ImageHrefResolver::default(),
         font_resolver: usvg::FontResolver::default(),
         fontdb: Arc::new(fontdb),
-        font_hinting: args.hinting.then(usvg::HintingOptions::default),
+        font_hinting: args.font_hinting.then(usvg::FontHintingOptions::default),
         style_sheet,
     };
 

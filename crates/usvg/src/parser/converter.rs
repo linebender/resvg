@@ -7,7 +7,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 #[cfg(feature = "text")]
-use crate::{FontVariation, GlyphId, HintingOptions};
+use crate::{FontHintingOptions, FontVariation, GlyphId};
 
 /// Identifies a cached glyph outline. Hinting is keyed by the raw bits of the
 /// pixel grid, since `f32` is not hashable.
@@ -16,7 +16,7 @@ type OutlineCacheKey = (
     ID,
     GlyphId,
     Vec<FontVariation>,
-    Option<(HintingOptions, u32)>,
+    Option<(FontHintingOptions, u32)>,
 );
 #[cfg(feature = "text")]
 use fontdb::Database;
