@@ -14,8 +14,8 @@ use usvg::filter::MorphologyOperator;
 /// This method will allocate a copy of the `src` image as a back buffer.
 pub fn apply(operator: MorphologyOperator, rx: f32, ry: f32, src: ImageRefMut) {
     // No point in making matrix larger than image.
-    let columns = std::cmp::min(rx.ceil() as u32 * 2, src.width);
-    let rows = std::cmp::min(ry.ceil() as u32 * 2, src.height);
+    let columns = std::cmp::min(rx.ceil() as u32 * 2 + 1, src.width);
+    let rows = std::cmp::min(ry.ceil() as u32 * 2 + 1, src.height);
     let target_x = (columns as f32 / 2.0).floor() as u32;
     let target_y = (rows as f32 / 2.0).floor() as u32;
 
