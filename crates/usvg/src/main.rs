@@ -436,7 +436,7 @@ fn process(args: Args) -> Result<(), String> {
         image_href_resolver: usvg::ImageHrefResolver::default(),
         font_resolver: usvg::FontResolver::default(),
         fontdb: Arc::new(fontdb),
-        hinting: args.hinting.then(usvg::HintingOptions::default),
+        font_hinting: args.hinting.then(usvg::HintingOptions::default),
         style_sheet,
     };
 

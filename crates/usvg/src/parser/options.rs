@@ -100,7 +100,7 @@ pub struct Options<'a> {
     /// Hinting is not applied when this is `None`, which is the default. See
     /// [`HintingOptions`] for why, and for what enabling it implies.
     #[cfg(feature = "text")]
-    pub hinting: Option<HintingOptions>,
+    pub font_hinting: Option<HintingOptions>,
 
     /// A CSS stylesheet that should be injected into the SVG. Can be used to overwrite
     /// certain attributes.
@@ -126,7 +126,7 @@ impl Default for Options<'_> {
             #[cfg(feature = "text")]
             fontdb: Arc::new(fontdb::Database::new()),
             #[cfg(feature = "text")]
-            hinting: None,
+            font_hinting: None,
             style_sheet: None,
         }
     }

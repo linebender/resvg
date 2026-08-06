@@ -81,7 +81,7 @@ pub fn render_inner_with_ref(
 
     let opt = usvg::Options {
         fontdb: GLOBAL_FONTDB.clone(),
-        hinting,
+        font_hinting: hinting,
         resources_dir: Some(
             std::path::PathBuf::from(&svg_path)
                 .parent()

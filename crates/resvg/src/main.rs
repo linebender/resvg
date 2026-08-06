@@ -579,7 +579,7 @@ fn parse_args() -> Result<Args, String> {
         image_href_resolver: usvg::ImageHrefResolver::default(),
         font_resolver: usvg::FontResolver::default(),
         fontdb: Arc::new(fontdb::Database::new()),
-        hinting: args.hinting.then(usvg::HintingOptions::default),
+        font_hinting: args.hinting.then(usvg::HintingOptions::default),
         style_sheet,
     };
 

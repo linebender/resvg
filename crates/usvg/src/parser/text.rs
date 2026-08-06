@@ -143,7 +143,7 @@ pub(crate) fn convert(
     if text::convert(
         &mut text,
         &state.opt.font_resolver,
-        state.opt.hinting,
+        state.opt.font_hinting,
         cache,
     )
     .is_none()
