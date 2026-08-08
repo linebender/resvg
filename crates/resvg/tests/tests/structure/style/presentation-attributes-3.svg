@@ -1,0 +1,12 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <title>Presentation attributes (SVG 2)</title>
+    <desc>`cx` can be set via CSS</desc>
+
+    <style id="style1">
+        #circle1 { cx:100px }
+    </style>
+    <circle id="circle1" cy="100" r="80" fill="green"/>
+
+    <!-- image frame -->
+    <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>
