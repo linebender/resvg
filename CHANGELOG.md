@@ -8,6 +8,10 @@ This changelog also contains important changes in dependencies.
 
 ## [Unreleased]
 
+### Fixed
+
+- Local `<image>` hrefs are now percent-decoded when the raw href doesn't point to an existing file. (#1073)
+
 ## [0.48.1] 2026-08-02
 
 This release has an MSRV of 1.85.0 for `usvg` and `resvg` and the C API.

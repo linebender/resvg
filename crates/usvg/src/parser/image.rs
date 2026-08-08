@@ -84,7 +84,17 @@ impl ImageHrefResolver<'_> {
     /// [Options::resources_dir](crate::Options::resources_dir).
     pub fn default_string_resolver() -> ImageHrefStringResolverFn<'static> {
         Box::new(move |href: &str, opts: &Options| {
-            let path = opts.get_abs_path(std::path::Path::new(href));
+            let mut path = opts.get_abs_path(std::path::Path::new(href));
+
+            // `href` is an IRI and therefore can be percent-encoded.
+            // Editors like Inkscape store non-ASCII file names this way.
+            // A file name can contain a literal `%` as well,
+            // so the raw path is checked first.
+            if !path.exists() {
+                if let Some(decoded) = percent_decode(href) {
+                    path = opts.get_abs_path(std::path::Path::new(&decoded));
+                }
+            }
 
             if path.exists() {
                 let data = match std::fs::read(&path) {
@@ -118,6 +128,39 @@ impl std::fmt::Debug for ImageHrefResolver<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("ImageHrefResolver { .. }")
     }
+}
+
+/// Decodes percent-encoded characters in an IRI.
+///
+/// Returns `None` when there is nothing to decode
+/// or when the decoded data is not a valid UTF-8 string.
+/// Invalid escape sequences are preserved as is.
+fn percent_decode(href: &str) -> Option<String> {
+    if !href.contains('%') {
+        return None;
+    }
+
+    fn hex_digit(c: u8) -> Option<u8> {
+        (c as char).to_digit(16).map(|d| d as u8)
+    }
+
+    let src = href.as_bytes();
+    let mut dst = Vec::with_capacity(src.len());
+    let mut i = 0;
+    while i < src.len() {
+        if src[i] == b'%' && i + 2 < src.len() {
+            if let (Some(h), Some(l)) = (hex_digit(src[i + 1]), hex_digit(src[i + 2])) {
+                dst.push(h * 16 + l);
+                i += 3;
+                continue;
+            }
+        }
+
+        dst.push(src[i]);
+        i += 1;
+    }
+
+    String::from_utf8(dst).ok()
 }
 
 #[derive(Clone, Copy, PartialEq, Debug)]
