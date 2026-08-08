@@ -572,6 +572,63 @@ fn image_bbox_with_parent_transform() {
     );
 }
 
+// An external image used by the tests below.
+const EXTERNAL_IMAGE: &str = "<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10'>\
+    <rect width='10' height='10'/>\
+</svg>";
+
+// Creates an empty directory for external image tests.
+fn resources_dir(name: &str) -> std::path::PathBuf {
+    let dir = std::path::Path::new(env!("CARGO_TARGET_TMPDIR")).join(name);
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    dir
+}
+
+// Checks that an `<image>` with the provided `href` was resolved
+// relative to `resources_dir`.
+fn is_image_resolved(dir: &std::path::Path, href: &str) -> bool {
+    let svg = format!(
+        "<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100'>\
+            <image href='{}' width='100' height='100'/>\
+        </svg>",
+        href
+    );
+
+    let opt = usvg::Options {
+        resources_dir: Some(dir.to_path_buf()),
+        ..usvg::Options::default()
+    };
+
+    let tree = usvg::Tree::from_str(&svg, &opt).unwrap();
+    let Some(usvg::Node::Group(group)) = tree.root().children().first() else {
+        return false;
+    };
+    matches!(group.children().first(), Some(usvg::Node::Image(_)))
+}
+
+#[test]
+fn percent_encoded_image_href() {
+    let dir = resources_dir("percent-encoded-image-href");
+    std::fs::create_dir(dir.join("images")).unwrap();
+    std::fs::write(dir.join("images").join("细节3-mine.svg"), EXTERNAL_IMAGE).unwrap();
+
+    // Editors like Inkscape store non-ASCII file names percent-encoded.
+    assert!(is_image_resolved(
+        &dir,
+        "images/%E7%BB%86%E8%8A%823-mine.svg"
+    ));
+}
+
+#[test]
+fn image_href_with_literal_percent() {
+    let dir = resources_dir("image-href-with-literal-percent");
+    // `%41` is a valid escape sequence for `A`, but here it's just a file name.
+    std::fs::write(dir.join("%41.svg"), EXTERNAL_IMAGE).unwrap();
+
+    assert!(is_image_resolved(&dir, "%41.svg"));
+}
+
 #[test]
 fn no_text_nodes() {
     let svg = "
