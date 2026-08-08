@@ -1,0 +1,16 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <title>Inherited through a nested tspan</title>
+
+    <!-- Regression test for https://github.com/linebender/resvg/issues/864 -->
+    <!-- `dominant-baseline` is an inherited property, so the nested `<tspan>` -->
+    <!-- around "hello" must pick up `hanging` from the `<text>` element and -->
+    <!-- stay on the same baseline as the sibling "world". -->
+
+    <path id="crosshair" d="M 20 100 L 180 100 M 100 20 L 100 180"
+          stroke="gray" stroke-width="0.5"/>
+
+    <text id="text1" x="100" y="100" text-anchor="middle" font-family="Noto Sans" font-size="20"
+          dominant-baseline="hanging">
+        <tspan x="100"><tspan>hello</tspan> world</tspan>
+    </text>
+</svg>

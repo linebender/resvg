@@ -65,6 +65,10 @@ The big change in this release is that text support is now backed by
 - Incorrect y-axis offsets when transforming `feSpotLight` sources. (#1052)
 - Panics caused by bounding boxes that exceed the supported integer range. (#989)
 
+### Fixed
+- `dominant-baseline` is now correctly inherited by nested `<tspan>` elements,
+  so a nested span stays on the same baseline as its siblings. (#864)
+
 ## [0.47.0] 2026-02-05
 
 This release has an MSRV of 1.87.0 for `usvg` and `resvg` and the C API.
