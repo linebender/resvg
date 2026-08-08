@@ -65,6 +65,10 @@ The big change in this release is that text support is now backed by
 - Incorrect y-axis offsets when transforming `feSpotLight` sources. (#1052)
 - Panics caused by bounding boxes that exceed the supported integer range. (#989)
 
+### Fixed
+- Panic during text layout when a font/shaper returns clusters for an RTL run in a
+  non-descending order (e.g. some builds of Times New Roman shaping Arabic). (#1044)
+
 ## [0.47.0] 2026-02-05
 
 This release has an MSRV of 1.87.0 for `usvg` and `resvg` and the C API.
