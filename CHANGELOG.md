@@ -65,6 +65,11 @@ The big change in this release is that text support is now backed by
 - Incorrect y-axis offsets when transforming `feSpotLight` sources. (#1052)
 - Panics caused by bounding boxes that exceed the supported integer range. (#989)
 
+### Fixed
+- A `transform` on the outermost `svg` element is now applied in the SVG viewport
+  coordinate system (i.e. after the viewBox-to-viewport mapping), matching Chromium,
+  Firefox and Inkscape. (#899)
+
 ## [0.47.0] 2026-02-05
 
 This release has an MSRV of 1.87.0 for `usvg` and `resvg` and the C API.
