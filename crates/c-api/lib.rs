@@ -22,7 +22,7 @@ pub enum resvg_error {
     OK = 0,
     /// Only UTF-8 content are supported.
     NOT_AN_UTF8_STR,
-    /// `resvg` must be compiled with SVGZ decoding support.
+    /// SVGZ decoding is unsupported.
     SVGZ_UNSUPPORTED,
     /// Failed to open the provided file.
     FILE_OPEN_FAILED,

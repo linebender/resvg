@@ -31,6 +31,10 @@ typedef enum {
      */
     RESVG_ERROR_NOT_AN_UTF8_STR,
     /**
+     * SVGZ decoding is unsupported.
+     */
+    RESVG_ERROR_SVGZ_UNSUPPORTED,
+    /**
      * Failed to open the provided file.
      */
     RESVG_ERROR_FILE_OPEN_FAILED,
