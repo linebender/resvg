@@ -675,3 +675,30 @@ fn nested_svg_abs_bounding_box() {
         Rect::from_xywh(10.0, 20.0, 10.0, 10.0).unwrap()
     );
 }
+
+#[test]
+fn resolve_fr_from_referenced_radial_gradient() {
+    let svg = "
+    <svg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink'>
+        <defs>
+            <radialGradient id='base' gradientUnits='userSpaceOnUse' cx='50' cy='50' r='50' fx='50' fy='50' fr='25'>
+                <stop offset='0%' stop-color='red'/>
+                <stop offset='100%' stop-color='blue'/>
+            </radialGradient>
+            <radialGradient id='ref' href='#base' xlink:href='#base'/>
+        </defs>
+        <rect width='100' height='100' fill='url(#ref)'/>
+    </svg>
+    ";
+
+    let tree = usvg::Tree::from_str(svg, &usvg::Options::default()).unwrap();
+
+    let usvg::Node::Path(path) = &tree.root().children()[0] else {
+        unreachable!()
+    };
+    let usvg::Paint::RadialGradient(rg) = path.fill().unwrap().paint() else {
+        unreachable!()
+    };
+
+    assert_eq!(rg.fr().get(), 25.0);
+}
