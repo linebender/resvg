@@ -372,6 +372,12 @@ fn write_filters(tree: &Tree, opt: &WriteOptions, xml: &mut XmlWriter) {
                             "false"
                         },
                     );
+                    if let Some((kx, ky)) = matrix.kernel_unit_length {
+                        xml.write_attribute_fmt(
+                            AId::KernelUnitLength.to_str(),
+                            format_args!("{} {}", kx.get(), ky.get()),
+                        );
+                    }
 
                     xml.end_element();
                 }
@@ -464,6 +470,12 @@ fn write_filters(tree: &Tree, opt: &WriteOptions, xml: &mut XmlWriter) {
                     xml.write_svg_attribute(AId::SurfaceScale, &light.surface_scale);
                     xml.write_svg_attribute(AId::DiffuseConstant, &light.diffuse_constant);
                     xml.write_color(AId::LightingColor, light.lighting_color);
+                    if let Some((kx, ky)) = light.kernel_unit_length {
+                        xml.write_attribute_fmt(
+                            AId::KernelUnitLength.to_str(),
+                            format_args!("{} {}", kx.get(), ky.get()),
+                        );
+                    }
                     write_light_source(&light.light_source, xml);
 
                     xml.end_element();
@@ -477,6 +489,12 @@ fn write_filters(tree: &Tree, opt: &WriteOptions, xml: &mut XmlWriter) {
                     xml.write_svg_attribute(AId::SpecularConstant, &light.specular_constant);
                     xml.write_svg_attribute(AId::SpecularExponent, &light.specular_exponent);
                     xml.write_color(AId::LightingColor, light.lighting_color);
+                    if let Some((kx, ky)) = light.kernel_unit_length {
+                        xml.write_attribute_fmt(
+                            AId::KernelUnitLength.to_str(),
+                            format_args!("{} {}", kx.get(), ky.get()),
+                        );
+                    }
                     write_light_source(&light.light_source, xml);
 
                     xml.end_element();
