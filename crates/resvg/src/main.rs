@@ -143,6 +143,12 @@ OPTIONS:
                                 [default: 96] [possible values: 10..4000 (inclusive)]
   --background COLOR            Sets the background color
                                 Examples: red, #fff, #fff000
+  --bit-depth DEPTH             Sets the color bit depth per channel for rendering
+                                [default: 8] [possible values: 8, 16]
+  --16bpc                       Shortcut for --bit-depth 16
+  --output-bit-depth DEPTH      Sets the output PNG color bit depth per channel
+                                [default: same as --bit-depth] [possible values: 8, 16]
+  --dither                      Enables blue noise dithering when converting 16bpc to 8bpc
   --stylesheet PATH             Inject a stylesheet that should be used when resolving
                                 CSS attributes.
 
@@ -195,23 +201,21 @@ OPTIONS:
                                 You should add some fonts manually using
                                 --use-font-file and/or --use-fonts-dir
                                 Otherwise, text elements will not be processes
-  --list-fonts                  Lists successfully loaded font faces.
-                                Useful for debugging
+  --list-fonts                  Lists available fonts and exits
 
 
-  --query-all                   Queries all valid SVG ids with bounding boxes
-  --export-id ID                Renders an object only with a specified ID
-  --export-area-page            Use an image size instead of an object size during ID exporting
+  --query-all                   Queries dimensions of all valid elements
+  --export-id ID                Renders a single element with the specified ID
+  --export-area-page            Render a whole SVG page when exporting a single element.
+                                Requires --export-id
+  --export-area-drawing         Adjust subregion to fit object bounding box
 
-  --export-area-drawing         Use drawing's tight bounding box instead of image size.
-                                Used during normal rendering and not during --export-id
-
-  --perf                        Prints performance stats
+  --perf                        Prints performance metrics
   --quiet                       Disables warnings
 
 ARGS:
-  <in-svg>                      Input file
-  <out-png>                     Output file
+  <in-svg>                      Input SVG file
+  <out-png>                     Output PNG file
 ";
 
 #[derive(Debug)]
@@ -246,6 +250,9 @@ struct CliArgs {
     export_area_page: bool,
 
     export_area_drawing: bool,
+    bit_depth: u8,
+    output_bit_depth: Option<u8>,
+    dither: bool,
 
     perf: bool,
     quiet: bool,
@@ -266,6 +273,9 @@ fn collect_args() -> Result<CliArgs, pico_args::Error> {
         println!("{}", env!("CARGO_PKG_VERSION"));
         std::process::exit(0);
     }
+
+    let dither = input.contains("--dither");
+    let output_bit_depth = input.opt_value_from_str("--output-bit-depth")?;
 
     Ok(CliArgs {
         width: input.opt_value_from_fn(["-w", "--width"], parse_length)?,
@@ -309,6 +319,17 @@ fn collect_args() -> Result<CliArgs, pico_args::Error> {
         export_area_page: input.contains("--export-area-page"),
 
         export_area_drawing: input.contains("--export-area-drawing"),
+        output_bit_depth,
+        dither,
+        bit_depth: {
+            let explicit = input.opt_value_from_str("--bit-depth")?;
+            let is_16bpc_flag = input.contains("--16bpc");
+            if is_16bpc_flag || dither {
+                16
+            } else {
+                explicit.unwrap_or(8)
+            }
+        },
         style_sheet: input.opt_value_from_str("--stylesheet").unwrap_or_default(),
 
         perf: input.contains("--perf"),
@@ -461,6 +482,9 @@ struct Args {
     export_id: Option<String>,
     export_area_page: bool,
     export_area_drawing: bool,
+    bit_depth: u8,
+    output_bit_depth: u8,
+    dither: bool,
     perf: bool,
     quiet: bool,
     usvg: usvg::Options<'static>,
@@ -507,6 +531,32 @@ fn parse_args() -> Result<Args, String> {
     if !args.query_all && out_png.is_none() {
         return Err("<out-png> must be set".to_string());
     }
+
+    let bit_depth = args.bit_depth;
+    if bit_depth != 8 && bit_depth != 16 {
+        return Err("bit-depth must be either 8 or 16".to_string());
+    }
+
+    let output_bit_depth = match args.output_bit_depth {
+        Some(depth) => {
+            if depth != 8 && depth != 16 {
+                return Err("output-bit-depth must be either 8 or 16".to_string());
+            }
+            if depth == 16 && bit_depth != 16 {
+                return Err(
+                    "output-bit-depth 16 requires rendering with --bit-depth 16".to_string()
+                );
+            }
+            depth
+        }
+        None => {
+            if args.dither {
+                8
+            } else {
+                bit_depth
+            }
+        }
+    };
 
     if in_svg == InputFrom::Stdin && args.resources_dir.is_none() {
         eprintln!("Warning: Make sure to set --resources-dir when reading SVG from stdin.");
@@ -587,6 +637,9 @@ fn parse_args() -> Result<Args, String> {
         export_id,
         export_area_page: args.export_area_page,
         export_area_drawing: args.export_area_drawing,
+        bit_depth,
+        output_bit_depth,
+        dither: args.dither,
         perf: args.perf,
         quiet: args.quiet,
         usvg,
@@ -666,7 +719,17 @@ fn query_all_impl(parent: &usvg::Group) -> usize {
     count
 }
 
-fn render_svg(args: &Args, tree: &usvg::Tree) -> Result<tiny_skia::Pixmap, String> {
+#[cfg(feature = "16bpc")]
+type RenderPixmap = tiny_skia::DynamicPixmap;
+#[cfg(not(feature = "16bpc"))]
+type RenderPixmap = tiny_skia::Pixmap;
+
+fn render_svg(args: &Args, tree: &usvg::Tree) -> Result<RenderPixmap, String> {
+    #[cfg(not(feature = "16bpc"))]
+    if args.bit_depth == 16 || args.output_bit_depth == 16 || args.dither {
+        return Err("resvg was compiled without 16bpc support".to_string());
+    }
+
     let now = std::time::Instant::now();
 
     let img = if let Some(ref id) = args.export_id {
@@ -682,47 +745,131 @@ fn render_svg(args: &Args, tree: &usvg::Tree) -> Result<tiny_skia::Pixmap, Strin
             .fit_to_size(bbox.size().to_int_size())
             .ok_or("target size is zero")?;
 
-        // Pixmap's width is limited by i32::MAX/4, we handle the creation error.
-        let mut pixmap =
-            tiny_skia::Pixmap::new(size.width(), size.height()).ok_or("cannot create pixmap")?;
+        let ts = args.fit_to.fit_to_transform(tree.size().to_int_size());
 
-        if !args.export_area_page {
-            if let Some(background) = args.background {
-                pixmap.fill(svg_to_skia_color(background));
+        #[cfg(feature = "16bpc")]
+        if args.bit_depth == 16 {
+            let mut pixmap = tiny_skia::PixmapU16::new(size.width(), size.height())
+                .ok_or("cannot create pixmap")?;
+
+            if !args.export_area_page {
+                if let Some(background) = args.background {
+                    pixmap.fill(svg_to_skia_color(background));
+                }
+            }
+
+            resvg::render_node_u16(node, ts, &mut pixmap.as_mut());
+
+            let pixmap = if args.export_area_page {
+                let size = args
+                    .fit_to
+                    .fit_to_size(tree.size().to_int_size())
+                    .ok_or("target size is zero")?;
+
+                let mut page_pixmap = tiny_skia::PixmapU16::new(size.width(), size.height())
+                    .ok_or("cannot create pixmap")?;
+
+                if let Some(background) = args.background {
+                    page_pixmap.fill(svg_to_skia_color(background));
+                }
+
+                page_pixmap.draw_pixmap(
+                    bbox.x() as i32,
+                    bbox.y() as i32,
+                    pixmap.as_ref(),
+                    &tiny_skia::PixmapPaint::default(),
+                    tiny_skia::Transform::default(),
+                    None,
+                );
+                page_pixmap
+            } else {
+                pixmap
+            };
+
+            if args.output_bit_depth == 16 {
+                tiny_skia::DynamicPixmap::U16(pixmap)
+            } else if args.dither {
+                tiny_skia::DynamicPixmap::U8(resvg::dither::dither_u16_to_u8(&pixmap))
+            } else {
+                tiny_skia::DynamicPixmap::U8(resvg::dither::downsample_u16_to_u8(&pixmap))
+            }
+        } else {
+            let mut pixmap = tiny_skia::Pixmap::new(size.width(), size.height())
+                .ok_or("cannot create pixmap")?;
+
+            if !args.export_area_page {
+                if let Some(background) = args.background {
+                    pixmap.fill(svg_to_skia_color(background));
+                }
+            }
+
+            resvg::render_node(node, ts, &mut pixmap.as_mut());
+
+            if args.export_area_page {
+                let size = args
+                    .fit_to
+                    .fit_to_size(tree.size().to_int_size())
+                    .ok_or("target size is zero")?;
+
+                let mut page_pixmap = tiny_skia::Pixmap::new(size.width(), size.height())
+                    .ok_or("cannot create pixmap")?;
+
+                if let Some(background) = args.background {
+                    page_pixmap.fill(svg_to_skia_color(background));
+                }
+
+                page_pixmap.draw_pixmap(
+                    bbox.x() as i32,
+                    bbox.y() as i32,
+                    pixmap.as_ref(),
+                    &tiny_skia::PixmapPaint::default(),
+                    tiny_skia::Transform::default(),
+                    None,
+                );
+                tiny_skia::DynamicPixmap::U8(page_pixmap)
+            } else {
+                tiny_skia::DynamicPixmap::U8(pixmap)
             }
         }
 
-        let ts = args.fit_to.fit_to_transform(tree.size().to_int_size());
-
-        resvg::render_node(node, ts, &mut pixmap.as_mut());
-
-        if args.export_area_page {
-            // TODO: add offset support to render_node() so we would not need an additional pixmap
-
-            let size = args
-                .fit_to
-                .fit_to_size(tree.size().to_int_size())
-                .ok_or("target size is zero")?;
-
-            // Pixmap's width is limited by i32::MAX/4, we handle the creation error.
-            let mut page_pixmap = tiny_skia::Pixmap::new(size.width(), size.height())
+        #[cfg(not(feature = "16bpc"))]
+        {
+            let mut pixmap = tiny_skia::Pixmap::new(size.width(), size.height())
                 .ok_or("cannot create pixmap")?;
 
-            if let Some(background) = args.background {
-                page_pixmap.fill(svg_to_skia_color(background));
+            if !args.export_area_page {
+                if let Some(background) = args.background {
+                    pixmap.fill(svg_to_skia_color(background));
+                }
             }
 
-            page_pixmap.draw_pixmap(
-                bbox.x() as i32,
-                bbox.y() as i32,
-                pixmap.as_ref(),
-                &tiny_skia::PixmapPaint::default(),
-                tiny_skia::Transform::default(),
-                None,
-            );
-            page_pixmap
-        } else {
-            pixmap
+            resvg::render_node(node, ts, &mut pixmap.as_mut());
+
+            if args.export_area_page {
+                let size = args
+                    .fit_to
+                    .fit_to_size(tree.size().to_int_size())
+                    .ok_or("target size is zero")?;
+
+                let mut page_pixmap = tiny_skia::Pixmap::new(size.width(), size.height())
+                    .ok_or("cannot create pixmap")?;
+
+                if let Some(background) = args.background {
+                    page_pixmap.fill(svg_to_skia_color(background));
+                }
+
+                page_pixmap.draw_pixmap(
+                    bbox.x() as i32,
+                    bbox.y() as i32,
+                    pixmap.as_ref(),
+                    &tiny_skia::PixmapPaint::default(),
+                    tiny_skia::Transform::default(),
+                    None,
+                );
+                page_pixmap
+            } else {
+                pixmap
+            }
         }
     } else {
         let size = args
@@ -730,22 +877,66 @@ fn render_svg(args: &Args, tree: &usvg::Tree) -> Result<tiny_skia::Pixmap, Strin
             .fit_to_size(tree.size().to_int_size())
             .ok_or("target size is zero")?;
 
-        // Pixmap's width is limited by i32::MAX/4, we handle the creation error.
-        let mut pixmap =
-            tiny_skia::Pixmap::new(size.width(), size.height()).ok_or("cannot create pixmap")?;
-
-        if let Some(background) = args.background {
-            pixmap.fill(svg_to_skia_color(background));
-        }
-
         let ts = args.fit_to.fit_to_transform(tree.size().to_int_size());
 
-        resvg::render(tree, ts, &mut pixmap.as_mut());
+        #[cfg(feature = "16bpc")]
+        if args.bit_depth == 16 {
+            let mut pixmap = tiny_skia::PixmapU16::new(size.width(), size.height())
+                .ok_or("cannot create pixmap")?;
 
-        if args.export_area_drawing {
-            trim_pixmap(tree, ts, &pixmap).unwrap_or(pixmap)
+            if let Some(background) = args.background {
+                pixmap.fill(svg_to_skia_color(background));
+            }
+
+            resvg::render_u16(tree, ts, &mut pixmap.as_mut());
+
+            let pixmap = if args.export_area_drawing {
+                trim_pixmap(tree, ts, &pixmap).unwrap_or(pixmap)
+            } else {
+                pixmap
+            };
+
+            if args.output_bit_depth == 16 {
+                tiny_skia::DynamicPixmap::U16(pixmap)
+            } else if args.dither {
+                tiny_skia::DynamicPixmap::U8(resvg::dither::dither_u16_to_u8(&pixmap))
+            } else {
+                tiny_skia::DynamicPixmap::U8(resvg::dither::downsample_u16_to_u8(&pixmap))
+            }
         } else {
-            pixmap
+            let mut pixmap = tiny_skia::Pixmap::new(size.width(), size.height())
+                .ok_or("cannot create pixmap")?;
+
+            if let Some(background) = args.background {
+                pixmap.fill(svg_to_skia_color(background));
+            }
+
+            resvg::render(tree, ts, &mut pixmap.as_mut());
+
+            let pixmap = if args.export_area_drawing {
+                trim_pixmap(tree, ts, &pixmap).unwrap_or(pixmap)
+            } else {
+                pixmap
+            };
+            tiny_skia::DynamicPixmap::U8(pixmap)
+        }
+
+        #[cfg(not(feature = "16bpc"))]
+        {
+            let mut pixmap = tiny_skia::Pixmap::new(size.width(), size.height())
+                .ok_or("cannot create pixmap")?;
+
+            if let Some(background) = args.background {
+                pixmap.fill(svg_to_skia_color(background));
+            }
+
+            resvg::render(tree, ts, &mut pixmap.as_mut());
+
+            if args.export_area_drawing {
+                trim_pixmap(tree, ts, &pixmap).unwrap_or(pixmap)
+            } else {
+                pixmap
+            }
         }
     };
 
@@ -757,11 +948,11 @@ fn render_svg(args: &Args, tree: &usvg::Tree) -> Result<tiny_skia::Pixmap, Strin
     Ok(img)
 }
 
-fn trim_pixmap(
+fn trim_pixmap<P: tiny_skia::Pixel>(
     tree: &usvg::Tree,
     transform: tiny_skia::Transform,
-    pixmap: &tiny_skia::Pixmap,
-) -> Option<tiny_skia::Pixmap> {
+    pixmap: &tiny_skia::PixmapGeneric<P>,
+) -> Option<tiny_skia::PixmapGeneric<P>> {
     let content_area = tree.root().layer_bounding_box();
 
     let limit = tiny_skia::IntRect::from_xywh(0, 0, pixmap.width(), pixmap.height()).unwrap();

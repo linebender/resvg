@@ -2,27 +2,28 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 use crate::OptionLog;
+use tiny_skia::HighPixel;
 
 pub struct Context {
     pub max_bbox: tiny_skia::IntRect,
 }
 
-pub fn render_nodes(
+pub fn render_nodes<P: HighPixel>(
     parent: &usvg::Group,
     ctx: &Context,
     transform: tiny_skia::Transform,
-    pixmap: &mut tiny_skia::PixmapMut,
+    pixmap: &mut tiny_skia::PixmapMutGeneric<'_, P>,
 ) {
     for node in parent.children() {
         render_node(node, ctx, transform, pixmap);
     }
 }
 
-pub fn render_node(
+pub fn render_node<P: HighPixel>(
     node: &usvg::Node,
     ctx: &Context,
     transform: tiny_skia::Transform,
-    pixmap: &mut tiny_skia::PixmapMut,
+    pixmap: &mut tiny_skia::PixmapMutGeneric<'_, P>,
 ) {
     match node {
         usvg::Node::Group(group) => {
@@ -46,11 +47,11 @@ pub fn render_node(
     }
 }
 
-fn render_group(
+fn render_group<P: HighPixel>(
     group: &usvg::Group,
     ctx: &Context,
     transform: tiny_skia::Transform,
-    pixmap: &mut tiny_skia::PixmapMut,
+    pixmap: &mut tiny_skia::PixmapMutGeneric<'_, P>,
 ) -> Option<()> {
     let transform = transform.pre_concat(group.transform());
 
@@ -105,7 +106,7 @@ fn render_group(
 
     let transform = shift_ts.pre_concat(transform);
 
-    let mut sub_pixmap = tiny_skia::Pixmap::new(ibbox.width(), ibbox.height())
+    let mut sub_pixmap = tiny_skia::PixmapGeneric::<P>::new(ibbox.width(), ibbox.height())
         .log_none(|| log::warn!("Failed to allocate a group layer for: {:?}.", ibbox))?;
 
     render_nodes(group, ctx, transform, &mut sub_pixmap.as_mut());

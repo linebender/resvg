@@ -90,6 +90,70 @@ pub fn apply(
     }
 }
 
+#[cfg(feature = "16bpc")]
+/// Applies a turbulence filter to a 16-bit pixel buffer.
+pub fn apply_u16(
+    offset_x: f64,
+    offset_y: f64,
+    sx: f64,
+    sy: f64,
+    base_frequency_x: f64,
+    base_frequency_y: f64,
+    num_octaves: u32,
+    seed: i32,
+    stitch_tiles: bool,
+    fractal_noise: bool,
+    width: u32,
+    height: u32,
+    dest: &mut [tiny_skia::PremultipliedColorU16],
+) {
+    let (lattice_selector, gradient) = init(seed);
+    let mut x = 0;
+    let mut y = 0;
+    for pixel in dest.iter_mut() {
+        let turb = |channel| {
+            let (tx, ty) = ((x as f64 + offset_x) / sx, (y as f64 + offset_y) / sy);
+            let n = turbulence(
+                channel,
+                tx,
+                ty,
+                x as f64,
+                y as f64,
+                width as f64,
+                height as f64,
+                base_frequency_x,
+                base_frequency_y,
+                num_octaves,
+                fractal_noise,
+                stitch_tiles,
+                &lattice_selector,
+                &gradient,
+            );
+
+            let n = if fractal_noise {
+                (n * 65535.0 + 65535.0) / 2.0
+            } else {
+                n * 65535.0
+            };
+
+            (f32_bound(0.0, n as f32, 65535.0) + 0.5) as u16
+        };
+
+        let r = turb(0);
+        let g = turb(1);
+        let b = turb(2);
+        let a = turb(3);
+
+        *pixel = tiny_skia::ColorU16::from_rgba(r, g, b, a).premultiply();
+
+        x += 1;
+        if x == width {
+            x = 0;
+            y += 1;
+        }
+    }
+}
+
 fn init(mut seed: i32) -> (Vec<usize>, Vec<Vec<Vec<f64>>>) {
     let mut lattice_selector = vec![0; B_LEN];
     let mut gradient = vec![vec![vec![0.0; 2]; B_LEN]; 4];

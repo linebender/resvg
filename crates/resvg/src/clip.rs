@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 use crate::render::Context;
+use tiny_skia::HighPixel;
 
-pub fn apply(
+pub fn apply<P: HighPixel>(
     clip: &usvg::ClipPath,
     transform: tiny_skia::Transform,
-    pixmap: &mut tiny_skia::Pixmap,
+    pixmap: &mut tiny_skia::PixmapGeneric<P>,
 ) {
     let mut clip_pixmap = tiny_skia::Pixmap::new(pixmap.width(), pixmap.height()).unwrap();
     clip_pixmap.fill(tiny_skia::Color::BLACK);

@@ -334,3 +334,285 @@ fn round(mut x: f32) -> f32 {
 fn sub(c1: u8, c2: u8) -> isize {
     c1 as isize - c2 as isize
 }
+
+#[cfg(feature = "16bpc")]
+pub use u16_impl::apply_u16;
+
+#[cfg(feature = "16bpc")]
+mod u16_impl {
+    use super::*;
+
+    /// Applies a box blur to a 16-bit premultiplied pixel buffer.
+    pub fn apply_u16(
+        sigma_x: f64,
+        sigma_y: f64,
+        width: u32,
+        height: u32,
+        data: &mut [tiny_skia::PremultipliedColorU16],
+    ) {
+        let boxes_horz = create_box_gauss(sigma_x as f32);
+        let boxes_vert = create_box_gauss(sigma_y as f32);
+        let mut backbuf = data.to_vec();
+
+        for (box_size_horz, box_size_vert) in boxes_horz.iter().zip(boxes_vert.iter()) {
+            let radius_horz = ((box_size_horz - 1) / 2) as usize;
+            let radius_vert = ((box_size_vert - 1) / 2) as usize;
+            box_blur_impl_u16(
+                radius_horz,
+                radius_vert,
+                width as usize,
+                height as usize,
+                &mut backbuf,
+                data,
+            );
+        }
+    }
+
+    #[inline]
+    fn box_blur_impl_u16(
+        blur_radius_horz: usize,
+        blur_radius_vert: usize,
+        width: usize,
+        height: usize,
+        backbuf: &mut [tiny_skia::PremultipliedColorU16],
+        frontbuf: &mut [tiny_skia::PremultipliedColorU16],
+    ) {
+        box_blur_vert_u16(blur_radius_vert, width, height, frontbuf, backbuf);
+        box_blur_horz_u16(blur_radius_horz, width, height, backbuf, frontbuf);
+    }
+
+    #[inline]
+    fn box_blur_vert_u16(
+        blur_radius: usize,
+        width: usize,
+        height: usize,
+        backbuf: &[tiny_skia::PremultipliedColorU16],
+        frontbuf: &mut [tiny_skia::PremultipliedColorU16],
+    ) {
+        if blur_radius == 0 {
+            frontbuf.copy_from_slice(backbuf);
+            return;
+        }
+
+        let iarr = 1.0 / (blur_radius + blur_radius + 1) as f32;
+        let blur_radius_prev = blur_radius as i64 - height as i64;
+        let blur_radius_next = blur_radius as i64 + 1;
+
+        for i in 0..width {
+            let col_start = i;
+            let col_end = i + width * (height - 1);
+            let mut ti = i;
+            let mut li = ti;
+            let mut ri = ti + blur_radius * width;
+
+            let fv = tiny_skia::PremultipliedColorU16::TRANSPARENT;
+            let lv = tiny_skia::PremultipliedColorU16::TRANSPARENT;
+
+            let mut val_r = blur_radius_next * (fv.red() as i64);
+            let mut val_g = blur_radius_next * (fv.green() as i64);
+            let mut val_b = blur_radius_next * (fv.blue() as i64);
+            let mut val_a = blur_radius_next * (fv.alpha() as i64);
+
+            let get_top = |i| {
+                if i < col_start { fv } else { backbuf[i] }
+            };
+
+            let get_bottom = |i| {
+                if i > col_end { lv } else { backbuf[i] }
+            };
+
+            for j in 0..cmp::min(blur_radius, height) {
+                let bb = backbuf[ti + j * width];
+                val_r += bb.red() as i64;
+                val_g += bb.green() as i64;
+                val_b += bb.blue() as i64;
+                val_a += bb.alpha() as i64;
+            }
+            if blur_radius > height {
+                val_r += blur_radius_prev * (lv.red() as i64);
+                val_g += blur_radius_prev * (lv.green() as i64);
+                val_b += blur_radius_prev * (lv.blue() as i64);
+                val_a += blur_radius_prev * (lv.alpha() as i64);
+            }
+
+            for _ in 0..cmp::min(height, blur_radius + 1) {
+                let bb = get_bottom(ri);
+                ri += width;
+                val_r += sub_u16(bb.red(), fv.red());
+                val_g += sub_u16(bb.green(), fv.green());
+                val_b += sub_u16(bb.blue(), fv.blue());
+                val_a += sub_u16(bb.alpha(), fv.alpha());
+
+                frontbuf[ti] = tiny_skia::PremultipliedColorU16::from_rgba_unchecked(
+                    round(val_r as f32 * iarr) as u16,
+                    round(val_g as f32 * iarr) as u16,
+                    round(val_b as f32 * iarr) as u16,
+                    round(val_a as f32 * iarr) as u16,
+                );
+                ti += width;
+            }
+
+            if height <= blur_radius {
+                continue;
+            }
+
+            for _ in (blur_radius + 1)..(height - blur_radius) {
+                let bb1 = backbuf[ri];
+                ri += width;
+                let bb2 = backbuf[li];
+                li += width;
+
+                val_r += sub_u16(bb1.red(), bb2.red());
+                val_g += sub_u16(bb1.green(), bb2.green());
+                val_b += sub_u16(bb1.blue(), bb2.blue());
+                val_a += sub_u16(bb1.alpha(), bb2.alpha());
+
+                frontbuf[ti] = tiny_skia::PremultipliedColorU16::from_rgba_unchecked(
+                    round(val_r as f32 * iarr) as u16,
+                    round(val_g as f32 * iarr) as u16,
+                    round(val_b as f32 * iarr) as u16,
+                    round(val_a as f32 * iarr) as u16,
+                );
+                ti += width;
+            }
+
+            for _ in 0..cmp::min(height - blur_radius - 1, blur_radius) {
+                let bb = get_top(li);
+                li += width;
+
+                val_r += sub_u16(lv.red(), bb.red());
+                val_g += sub_u16(lv.green(), bb.green());
+                val_b += sub_u16(lv.blue(), bb.blue());
+                val_a += sub_u16(lv.alpha(), bb.alpha());
+
+                frontbuf[ti] = tiny_skia::PremultipliedColorU16::from_rgba_unchecked(
+                    round(val_r as f32 * iarr) as u16,
+                    round(val_g as f32 * iarr) as u16,
+                    round(val_b as f32 * iarr) as u16,
+                    round(val_a as f32 * iarr) as u16,
+                );
+                ti += width;
+            }
+        }
+    }
+
+    #[inline]
+    fn box_blur_horz_u16(
+        blur_radius: usize,
+        width: usize,
+        height: usize,
+        backbuf: &[tiny_skia::PremultipliedColorU16],
+        frontbuf: &mut [tiny_skia::PremultipliedColorU16],
+    ) {
+        if blur_radius == 0 {
+            frontbuf.copy_from_slice(backbuf);
+            return;
+        }
+
+        let iarr = 1.0 / (blur_radius + blur_radius + 1) as f32;
+        let blur_radius_prev = blur_radius as i64 - width as i64;
+        let blur_radius_next = blur_radius as i64 + 1;
+
+        for i in 0..height {
+            let row_start = i * width;
+            let row_end = (i + 1) * width - 1;
+            let mut ti = i * width;
+            let mut li = ti;
+            let mut ri = ti + blur_radius;
+
+            let fv = tiny_skia::PremultipliedColorU16::TRANSPARENT;
+            let lv = tiny_skia::PremultipliedColorU16::TRANSPARENT;
+
+            let mut val_r = blur_radius_next * (fv.red() as i64);
+            let mut val_g = blur_radius_next * (fv.green() as i64);
+            let mut val_b = blur_radius_next * (fv.blue() as i64);
+            let mut val_a = blur_radius_next * (fv.alpha() as i64);
+
+            let get_left = |i| {
+                if i < row_start { fv } else { backbuf[i] }
+            };
+
+            let get_right = |i| {
+                if i > row_end { lv } else { backbuf[i] }
+            };
+
+            for j in 0..cmp::min(blur_radius, width) {
+                let bb = backbuf[ti + j];
+                val_r += bb.red() as i64;
+                val_g += bb.green() as i64;
+                val_b += bb.blue() as i64;
+                val_a += bb.alpha() as i64;
+            }
+            if blur_radius > width {
+                val_r += blur_radius_prev * (lv.red() as i64);
+                val_g += blur_radius_prev * (lv.green() as i64);
+                val_b += blur_radius_prev * (lv.blue() as i64);
+                val_a += blur_radius_prev * (lv.alpha() as i64);
+            }
+
+            for _ in 0..cmp::min(width, blur_radius + 1) {
+                let bb = get_right(ri);
+                ri += 1;
+                val_r += sub_u16(bb.red(), fv.red());
+                val_g += sub_u16(bb.green(), fv.green());
+                val_b += sub_u16(bb.blue(), fv.blue());
+                val_a += sub_u16(bb.alpha(), fv.alpha());
+
+                frontbuf[ti] = tiny_skia::PremultipliedColorU16::from_rgba_unchecked(
+                    round(val_r as f32 * iarr) as u16,
+                    round(val_g as f32 * iarr) as u16,
+                    round(val_b as f32 * iarr) as u16,
+                    round(val_a as f32 * iarr) as u16,
+                );
+                ti += 1;
+            }
+
+            if width <= blur_radius {
+                continue;
+            }
+
+            for _ in (blur_radius + 1)..(width - blur_radius) {
+                let bb1 = backbuf[ri];
+                ri += 1;
+                let bb2 = backbuf[li];
+                li += 1;
+
+                val_r += sub_u16(bb1.red(), bb2.red());
+                val_g += sub_u16(bb1.green(), bb2.green());
+                val_b += sub_u16(bb1.blue(), bb2.blue());
+                val_a += sub_u16(bb1.alpha(), bb2.alpha());
+
+                frontbuf[ti] = tiny_skia::PremultipliedColorU16::from_rgba_unchecked(
+                    round(val_r as f32 * iarr) as u16,
+                    round(val_g as f32 * iarr) as u16,
+                    round(val_b as f32 * iarr) as u16,
+                    round(val_a as f32 * iarr) as u16,
+                );
+                ti += 1;
+            }
+
+            for _ in 0..cmp::min(width - blur_radius - 1, blur_radius) {
+                let bb = get_left(li);
+                li += 1;
+
+                val_r += sub_u16(lv.red(), bb.red());
+                val_g += sub_u16(lv.green(), bb.green());
+                val_b += sub_u16(lv.blue(), bb.blue());
+                val_a += sub_u16(lv.alpha(), bb.alpha());
+
+                frontbuf[ti] = tiny_skia::PremultipliedColorU16::from_rgba_unchecked(
+                    round(val_r as f32 * iarr) as u16,
+                    round(val_g as f32 * iarr) as u16,
+                    round(val_b as f32 * iarr) as u16,
+                    round(val_a as f32 * iarr) as u16,
+                );
+                ti += 1;
+            }
+        }
+    }
+
+    #[inline]
+    fn sub_u16(c1: u16, c2: u16) -> i64 {
+        c1 as i64 - c2 as i64
+    }
+}

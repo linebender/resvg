@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 use crate::render::Context;
+use tiny_skia::HighPixel;
 
-pub fn render(
+pub fn render<P: HighPixel>(
     path: &usvg::Path,
     blend_mode: tiny_skia::BlendMode,
     ctx: &Context,
     transform: tiny_skia::Transform,
-    pixmap: &mut tiny_skia::PixmapMut,
+    pixmap: &mut tiny_skia::PixmapMutGeneric<'_, P>,
 ) {
     if !path.is_visible() {
         return;
@@ -23,12 +24,12 @@ pub fn render(
     }
 }
 
-pub fn fill_path(
+pub fn fill_path<P: HighPixel>(
     path: &usvg::Path,
     blend_mode: tiny_skia::BlendMode,
     ctx: &Context,
     transform: tiny_skia::Transform,
-    pixmap: &mut tiny_skia::PixmapMut,
+    pixmap: &mut tiny_skia::PixmapMutGeneric<'_, P>,
 ) -> Option<()> {
     let fill = path.fill()?;
 
@@ -46,7 +47,14 @@ pub fn fill_path(
     let mut paint = tiny_skia::Paint::default();
     match fill.paint() {
         usvg::Paint::Color(c) => {
-            paint.set_color_rgba8(c.red, c.green, c.blue, fill.opacity().to_u8());
+            if let Some(color) = tiny_skia::Color::from_rgba(
+                c.red as f32 / 255.0,
+                c.green as f32 / 255.0,
+                c.blue as f32 / 255.0,
+                fill.opacity().get(),
+            ) {
+                paint.set_color(color);
+            }
         }
         usvg::Paint::LinearGradient(lg) => {
             paint.shader = convert_linear_gradient(lg, fill.opacity())?;
@@ -74,19 +82,26 @@ pub fn fill_path(
     Some(())
 }
 
-fn stroke_path(
+fn stroke_path<P: HighPixel>(
     path: &usvg::Path,
     blend_mode: tiny_skia::BlendMode,
     ctx: &Context,
     transform: tiny_skia::Transform,
-    pixmap: &mut tiny_skia::PixmapMut,
+    pixmap: &mut tiny_skia::PixmapMutGeneric<'_, P>,
 ) -> Option<()> {
     let stroke = path.stroke()?;
     let pattern_pixmap;
     let mut paint = tiny_skia::Paint::default();
     match stroke.paint() {
         usvg::Paint::Color(c) => {
-            paint.set_color_rgba8(c.red, c.green, c.blue, stroke.opacity().to_u8());
+            if let Some(color) = tiny_skia::Color::from_rgba(
+                c.red as f32 / 255.0,
+                c.green as f32 / 255.0,
+                c.blue as f32 / 255.0,
+                stroke.opacity().get(),
+            ) {
+                paint.set_color(color);
+            }
         }
         usvg::Paint::LinearGradient(lg) => {
             paint.shader = convert_linear_gradient(lg, stroke.opacity())?;

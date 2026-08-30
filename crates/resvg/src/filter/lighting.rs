@@ -113,10 +113,10 @@ struct Normal {
 
 impl Normal {
     #[inline]
-    fn new(factor_x: f32, factor_y: f32, nx: i16, ny: i16) -> Self {
+    fn new(factor_x: f32, factor_y: f32, nx: f32, ny: f32) -> Self {
         Normal {
             factor: Vector2::new(factor_x, factor_y),
-            normal: Vector2::new(-nx as f32, -ny as f32),
+            normal: Vector2::new(-nx, -ny),
         }
     }
 }
@@ -346,8 +346,8 @@ fn top_left_normal(img: ImageRef) -> Normal {
     Normal::new(
         FACTOR_2_3,
         FACTOR_2_3,
-        -2 * center + 2 * right - bottom + bottom_right,
-        -2 * center - right + 2 * bottom + bottom_right,
+        (-2 * center + 2 * right - bottom + bottom_right) as f32,
+        (-2 * center - right + 2 * bottom + bottom_right) as f32,
     )
 }
 
@@ -360,8 +360,8 @@ fn top_right_normal(img: ImageRef) -> Normal {
     Normal::new(
         FACTOR_2_3,
         FACTOR_2_3,
-        -2 * left + 2 * center - bottom_left + bottom,
-        -left - 2 * center + bottom_left + 2 * bottom,
+        (-2 * left + 2 * center - bottom_left + bottom) as f32,
+        (-left - 2 * center + bottom_left + 2 * bottom) as f32,
     )
 }
 
@@ -374,8 +374,8 @@ fn bottom_left_normal(img: ImageRef) -> Normal {
     Normal::new(
         FACTOR_2_3,
         FACTOR_2_3,
-        -top + top_right - 2 * center + 2 * right,
-        -2 * top - top_right + 2 * center + right,
+        (-top + top_right - 2 * center + 2 * right) as f32,
+        (-2 * top - top_right + 2 * center + right) as f32,
     )
 }
 
@@ -388,8 +388,8 @@ fn bottom_right_normal(img: ImageRef) -> Normal {
     Normal::new(
         FACTOR_2_3,
         FACTOR_2_3,
-        -top_left + top - 2 * left + 2 * center,
-        -top_left - 2 * top + left + 2 * center,
+        (-top_left + top - 2 * left + 2 * center) as f32,
+        (-top_left - 2 * top + left + 2 * center) as f32,
     )
 }
 
@@ -404,8 +404,8 @@ fn top_row_normal(img: ImageRef, x: u32) -> Normal {
     Normal::new(
         FACTOR_1_3,
         FACTOR_1_2,
-        -2 * left + 2 * right - bottom_left + bottom_right,
-        -left - 2 * center - right + bottom_left + 2 * bottom + bottom_right,
+        (-2 * left + 2 * right - bottom_left + bottom_right) as f32,
+        (-left - 2 * center - right + bottom_left + 2 * bottom + bottom_right) as f32,
     )
 }
 
@@ -420,8 +420,8 @@ fn bottom_row_normal(img: ImageRef, x: u32) -> Normal {
     Normal::new(
         FACTOR_1_3,
         FACTOR_1_2,
-        -top_left + top_right - 2 * left + 2 * right,
-        -top_left - 2 * top - top_right + left + 2 * center + right,
+        (-top_left + top_right - 2 * left + 2 * right) as f32,
+        (-top_left - 2 * top - top_right + left + 2 * center + right) as f32,
     )
 }
 
@@ -436,8 +436,8 @@ fn left_column_normal(img: ImageRef, y: u32) -> Normal {
     Normal::new(
         FACTOR_1_2,
         FACTOR_1_3,
-        -top + top_right - 2 * center + 2 * right - bottom + bottom_right,
-        -2 * top - top_right + 2 * bottom + bottom_right,
+        (-top + top_right - 2 * center + 2 * right - bottom + bottom_right) as f32,
+        (-2 * top - top_right + 2 * bottom + bottom_right) as f32,
     )
 }
 
@@ -452,8 +452,8 @@ fn right_column_normal(img: ImageRef, y: u32) -> Normal {
     Normal::new(
         FACTOR_1_2,
         FACTOR_1_3,
-        -top_left + top - 2 * left + 2 * center - bottom_left + bottom,
-        -top_left - 2 * top + bottom_left + 2 * bottom,
+        (-top_left + top - 2 * left + 2 * center - bottom_left + bottom) as f32,
+        (-top_left - 2 * top + bottom_left + 2 * bottom) as f32,
     )
 }
 
@@ -470,8 +470,8 @@ fn interior_normal(img: ImageRef, x: u32, y: u32) -> Normal {
     Normal::new(
         FACTOR_1_4,
         FACTOR_1_4,
-        -top_left + top_right - 2 * left + 2 * right - bottom_left + bottom_right,
-        -top_left - 2 * top - top_right + bottom_left + 2 * bottom + bottom_right,
+        (-top_left + top_right - 2 * left + 2 * right - bottom_left + bottom_right) as f32,
+        (-top_left - 2 * top - top_right + bottom_left + 2 * bottom + bottom_right) as f32,
     )
 }
 
@@ -482,4 +482,377 @@ fn calc_diffuse_alpha(_: u8, _: u8, _: u8) -> u8 {
 fn calc_specular_alpha(r: u8, g: u8, b: u8) -> u8 {
     use core::cmp::max;
     max(max(r, g), b)
+}
+
+#[cfg(feature = "16bpc")]
+pub use u16_impl::{diffuse_lighting_u16, specular_lighting_u16};
+
+#[cfg(feature = "16bpc")]
+mod u16_impl {
+    use super::*;
+
+    /// Renders a diffuse lighting for 16-bit buffers.
+    pub fn diffuse_lighting_u16(
+        fe: &DiffuseLighting,
+        light_source: LightSource,
+        width: u32,
+        height: u32,
+        src: &[tiny_skia::PremultipliedColorU16],
+        dest: &mut [tiny_skia::PremultipliedColorU16],
+    ) {
+        debug_assert!(src.len() == dest.len());
+
+        let light_factor = |normal: Normal, light_vector: Vector3| {
+            let k = if normal.normal.approx_zero() {
+                light_vector.z
+            } else {
+                let mut n = normal.normal * (fe.surface_scale() / 65535.0);
+                n.x *= normal.factor.x;
+                n.y *= normal.factor.y;
+
+                let normal = Vector3::new(n.x, n.y, 1.0);
+
+                normal.dot(&light_vector) / normal.length()
+            };
+
+            fe.diffuse_constant() * k
+        };
+
+        apply_u16_inner(
+            light_source,
+            fe.surface_scale(),
+            fe.lighting_color(),
+            &light_factor,
+            calc_diffuse_alpha_u16,
+            width,
+            height,
+            src,
+            dest,
+        );
+    }
+
+    /// Renders a specular lighting for 16-bit buffers.
+    pub fn specular_lighting_u16(
+        fe: &SpecularLighting,
+        light_source: LightSource,
+        width: u32,
+        height: u32,
+        src: &[tiny_skia::PremultipliedColorU16],
+        dest: &mut [tiny_skia::PremultipliedColorU16],
+    ) {
+        debug_assert!(src.len() == dest.len());
+
+        let light_factor = |normal: Normal, light_vector: Vector3| {
+            let h = light_vector + Vector3::new(0.0, 0.0, 1.0);
+            let h_length = h.length();
+
+            if h_length.approx_zero_ulps(4) {
+                return 0.0;
+            }
+
+            let k = if normal.normal.approx_zero() {
+                let n_dot_h = h.z / h_length;
+                if fe.specular_exponent().approx_eq_ulps(&1.0, 4) {
+                    n_dot_h
+                } else {
+                    n_dot_h.powf(fe.specular_exponent())
+                }
+            } else {
+                let mut n = normal.normal * (fe.surface_scale() / 65535.0);
+                n.x *= normal.factor.x;
+                n.y *= normal.factor.y;
+
+                let normal = Vector3::new(n.x, n.y, 1.0);
+
+                let n_dot_h = normal.dot(&h) / normal.length() / h_length;
+                if fe.specular_exponent().approx_eq_ulps(&1.0, 4) {
+                    n_dot_h
+                } else {
+                    n_dot_h.powf(fe.specular_exponent())
+                }
+            };
+
+            fe.specular_constant() * k
+        };
+
+        apply_u16_inner(
+            light_source,
+            fe.surface_scale(),
+            fe.lighting_color(),
+            &light_factor,
+            calc_specular_alpha_u16,
+            width,
+            height,
+            src,
+            dest,
+        );
+    }
+
+    fn calc_diffuse_alpha_u16(_: u16, _: u16, _: u16) -> u16 {
+        65535
+    }
+
+    fn calc_specular_alpha_u16(r: u16, g: u16, b: u16) -> u16 {
+        use core::cmp::max;
+        max(max(r, g), b)
+    }
+
+    fn alpha_at_u16(src: &[tiny_skia::PremultipliedColorU16], width: u32, x: u32, y: u32) -> f32 {
+        src[(width * y + x) as usize].alpha() as f32
+    }
+
+    fn top_left_normal_u16(src: &[tiny_skia::PremultipliedColorU16], width: u32) -> Normal {
+        let center = alpha_at_u16(src, width, 0, 0);
+        let right = alpha_at_u16(src, width, 1, 0);
+        let bottom = alpha_at_u16(src, width, 0, 1);
+        let bottom_right = alpha_at_u16(src, width, 1, 1);
+
+        Normal::new(
+            FACTOR_2_3,
+            FACTOR_2_3,
+            -2.0 * center + 2.0 * right - bottom + bottom_right,
+            -2.0 * center - right + 2.0 * bottom + bottom_right,
+        )
+    }
+
+    fn top_right_normal_u16(src: &[tiny_skia::PremultipliedColorU16], width: u32) -> Normal {
+        let left = alpha_at_u16(src, width, width - 2, 0);
+        let center = alpha_at_u16(src, width, width - 1, 0);
+        let bottom_left = alpha_at_u16(src, width, width - 2, 1);
+        let bottom = alpha_at_u16(src, width, width - 1, 1);
+
+        Normal::new(
+            FACTOR_2_3,
+            FACTOR_2_3,
+            -2.0 * left + 2.0 * center - bottom_left + bottom,
+            -left - 2.0 * center + bottom_left + 2.0 * bottom,
+        )
+    }
+
+    fn bottom_left_normal_u16(
+        src: &[tiny_skia::PremultipliedColorU16],
+        width: u32,
+        height: u32,
+    ) -> Normal {
+        let top = alpha_at_u16(src, width, 0, height - 2);
+        let top_right = alpha_at_u16(src, width, 1, height - 2);
+        let center = alpha_at_u16(src, width, 0, height - 1);
+        let right = alpha_at_u16(src, width, 1, height - 1);
+
+        Normal::new(
+            FACTOR_2_3,
+            FACTOR_2_3,
+            -top + top_right - 2.0 * center + 2.0 * right,
+            -2.0 * top - top_right + 2.0 * center + right,
+        )
+    }
+
+    fn bottom_right_normal_u16(
+        src: &[tiny_skia::PremultipliedColorU16],
+        width: u32,
+        height: u32,
+    ) -> Normal {
+        let top_left = alpha_at_u16(src, width, width - 2, height - 2);
+        let top = alpha_at_u16(src, width, width - 1, height - 2);
+        let left = alpha_at_u16(src, width, width - 2, height - 1);
+        let center = alpha_at_u16(src, width, width - 1, height - 1);
+
+        Normal::new(
+            FACTOR_2_3,
+            FACTOR_2_3,
+            -top_left + top - 2.0 * left + 2.0 * center,
+            -top_left - 2.0 * top + left + 2.0 * center,
+        )
+    }
+
+    fn top_row_normal_u16(src: &[tiny_skia::PremultipliedColorU16], width: u32, x: u32) -> Normal {
+        let left = alpha_at_u16(src, width, x - 1, 0);
+        let center = alpha_at_u16(src, width, x, 0);
+        let right = alpha_at_u16(src, width, x + 1, 0);
+        let bottom_left = alpha_at_u16(src, width, x - 1, 1);
+        let bottom = alpha_at_u16(src, width, x, 1);
+        let bottom_right = alpha_at_u16(src, width, x + 1, 1);
+
+        Normal::new(
+            FACTOR_1_3,
+            FACTOR_1_2,
+            -2.0 * left + 2.0 * right - bottom_left + bottom_right,
+            -left - 2.0 * center - right + bottom_left + 2.0 * bottom + bottom_right,
+        )
+    }
+
+    fn bottom_row_normal_u16(
+        src: &[tiny_skia::PremultipliedColorU16],
+        width: u32,
+        height: u32,
+        x: u32,
+    ) -> Normal {
+        let top_left = alpha_at_u16(src, width, x - 1, height - 2);
+        let top = alpha_at_u16(src, width, x, height - 2);
+        let top_right = alpha_at_u16(src, width, x + 1, height - 2);
+        let left = alpha_at_u16(src, width, x - 1, height - 1);
+        let center = alpha_at_u16(src, width, x, height - 1);
+        let right = alpha_at_u16(src, width, x + 1, height - 1);
+
+        Normal::new(
+            FACTOR_1_3,
+            FACTOR_1_2,
+            -top_left + top_right - 2.0 * left + 2.0 * right,
+            -top_left - 2.0 * top - top_right + left + 2.0 * center + right,
+        )
+    }
+
+    fn left_column_normal_u16(
+        src: &[tiny_skia::PremultipliedColorU16],
+        width: u32,
+        y: u32,
+    ) -> Normal {
+        let top = alpha_at_u16(src, width, 0, y - 1);
+        let top_right = alpha_at_u16(src, width, 1, y - 1);
+        let center = alpha_at_u16(src, width, 0, y);
+        let right = alpha_at_u16(src, width, 1, y);
+        let bottom = alpha_at_u16(src, width, 0, y + 1);
+        let bottom_right = alpha_at_u16(src, width, 1, y + 1);
+
+        Normal::new(
+            FACTOR_1_2,
+            FACTOR_1_3,
+            -top + top_right - 2.0 * center + 2.0 * right - bottom + bottom_right,
+            -2.0 * top - top_right + 2.0 * bottom + bottom_right,
+        )
+    }
+
+    fn right_column_normal_u16(
+        src: &[tiny_skia::PremultipliedColorU16],
+        width: u32,
+        y: u32,
+    ) -> Normal {
+        let top_left = alpha_at_u16(src, width, width - 2, y - 1);
+        let top = alpha_at_u16(src, width, width - 1, y - 1);
+        let left = alpha_at_u16(src, width, width - 2, y);
+        let center = alpha_at_u16(src, width, width - 1, y);
+        let bottom_left = alpha_at_u16(src, width, width - 2, y + 1);
+        let bottom = alpha_at_u16(src, width, width - 1, y + 1);
+
+        Normal::new(
+            FACTOR_1_2,
+            FACTOR_1_3,
+            -top_left + top - 2.0 * left + 2.0 * center - bottom_left + bottom,
+            -top_left - 2.0 * top + bottom_left + 2.0 * bottom,
+        )
+    }
+
+    fn interior_normal_u16(
+        src: &[tiny_skia::PremultipliedColorU16],
+        width: u32,
+        x: u32,
+        y: u32,
+    ) -> Normal {
+        let top_left = alpha_at_u16(src, width, x - 1, y - 1);
+        let top = alpha_at_u16(src, width, x, y - 1);
+        let top_right = alpha_at_u16(src, width, x + 1, y - 1);
+        let left = alpha_at_u16(src, width, x - 1, y);
+        let right = alpha_at_u16(src, width, x + 1, y);
+        let bottom_left = alpha_at_u16(src, width, x - 1, y + 1);
+        let bottom = alpha_at_u16(src, width, x, y + 1);
+        let bottom_right = alpha_at_u16(src, width, x + 1, y + 1);
+
+        Normal::new(
+            FACTOR_1_4,
+            FACTOR_1_4,
+            -top_left + top_right - 2.0 * left + 2.0 * right - bottom_left + bottom_right,
+            -top_left - 2.0 * top - top_right + bottom_left + 2.0 * bottom + bottom_right,
+        )
+    }
+
+    fn apply_u16_inner<LF, CA>(
+        light_source: LightSource,
+        surface_scale: f32,
+        lighting_color: Color,
+        light_factor: &LF,
+        calc_alpha: CA,
+        width: u32,
+        height: u32,
+        src: &[tiny_skia::PremultipliedColorU16],
+        dest: &mut [tiny_skia::PremultipliedColorU16],
+    ) where
+        LF: Fn(Normal, Vector3) -> f32,
+        CA: Fn(u16, u16, u16) -> u16,
+    {
+        if width < 3 || height < 3 {
+            return;
+        }
+
+        let mut light_vector = match light_source {
+            LightSource::DistantLight(ref light) => {
+                let azimuth = light.azimuth.to_radians();
+                let elevation = light.elevation.to_radians();
+                Vector3::new(
+                    azimuth.cos() * elevation.cos(),
+                    azimuth.sin() * elevation.cos(),
+                    elevation.sin(),
+                )
+            }
+            _ => Vector3::new(1.0, 1.0, 1.0),
+        };
+
+        let mut calc = |nx: u32, ny: u32, normal: Normal| {
+            match light_source {
+                LightSource::DistantLight(_) => {}
+                LightSource::PointLight(ref light) => {
+                    let nz = alpha_at_u16(src, width, nx, ny) / 65535.0 * surface_scale;
+                    let origin = Vector3::new(light.x, light.y, light.z);
+                    let v = origin - Vector3::new(nx as f32, ny as f32, nz);
+                    light_vector = v.normalized().unwrap_or(v);
+                }
+                LightSource::SpotLight(ref light) => {
+                    let nz = alpha_at_u16(src, width, nx, ny) / 65535.0 * surface_scale;
+                    let origin = Vector3::new(light.x, light.y, light.z);
+                    let v = origin - Vector3::new(nx as f32, ny as f32, nz);
+                    light_vector = v.normalized().unwrap_or(v);
+                }
+            }
+
+            let light_color = light_color(&light_source, lighting_color, light_vector);
+            let factor = light_factor(normal, light_vector);
+
+            let compute = |x: u8| {
+                let x16 = ((x as u16) << 8) | (x as u16);
+                (f32_bound(0.0, x16 as f32 * factor, 65535.0) + 0.5) as u16
+            };
+
+            let r = compute(light_color.red);
+            let g = compute(light_color.green);
+            let b = compute(light_color.blue);
+            let a = calc_alpha(r, g, b);
+
+            dest[(width * ny + nx) as usize] =
+                tiny_skia::PremultipliedColorU16::from_rgba_unchecked(r, g, b, a);
+        };
+
+        calc(0, 0, top_left_normal_u16(src, width));
+        calc(width - 1, 0, top_right_normal_u16(src, width));
+        calc(0, height - 1, bottom_left_normal_u16(src, width, height));
+        calc(
+            width - 1,
+            height - 1,
+            bottom_right_normal_u16(src, width, height),
+        );
+
+        for x in 1..width - 1 {
+            calc(x, 0, top_row_normal_u16(src, width, x));
+            calc(x, height - 1, bottom_row_normal_u16(src, width, height, x));
+        }
+
+        for y in 1..height - 1 {
+            calc(0, y, left_column_normal_u16(src, width, y));
+            calc(width - 1, y, right_column_normal_u16(src, width, y));
+        }
+
+        for y in 1..height - 1 {
+            for x in 1..width - 1 {
+                calc(x, y, interior_normal_u16(src, width, x, y));
+            }
+        }
+    }
 }
