@@ -15,7 +15,7 @@ jobs:
     steps:
       - name: Create Release
         id: create_release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -32,12 +32,12 @@ jobs:
       upload_url: ${{ steps.create_release.outputs.upload_url }}
 
   release-linux:
-    name: Release Linux
+    name: Release Linux (x86_64)
     runs-on: ubuntu-latest
     needs: ["create-release"]
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v7
 
       - name: Build resvg
         run: cargo build --release
@@ -57,13 +57,9 @@ jobs:
           cp resvg-linux-x86_64.tar.gz ../../bin/
           cp usvg-linux-x86_64.tar.gz ../../bin/
 
-      - name: Get version
-        id: get_version
-        uses: battila7/get-version-action@v2
-
       - name: Make vendored archive
         run: |
-          VERSION=${{ steps.get_version.outputs.version-without-v }}
+          VERSION=${GITHUB_REF_NAME#v}
           echo $VERSION
           git clone https://github.com/linebender/resvg resvg-$VERSION
           cd resvg-"$VERSION"
@@ -79,7 +75,40 @@ jobs:
           cp resvg-"$VERSION".tar.xz bin/
 
       - name: Upload binaries
-        uses: alexellis/upload-assets@0.2.2
+        uses: alexellis/upload-assets@0.5.0
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          asset_paths: '["bin/*"]'
+
+  release-linux-aarch64:
+    name: Release Linux (aarch64)
+    runs-on: ubuntu-24.04-arm
+    needs: ["create-release"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Build resvg
+        run: cargo build --release
+
+      - name: Build usvg
+        working-directory: crates/usvg
+        run: cargo build --release
+
+      - name: Collect
+        working-directory: target/release
+        run: |
+          strip -s resvg
+          strip -s usvg
+          tar czf resvg-linux-aarch64.tar.gz resvg
+          tar czf usvg-linux-aarch64.tar.gz usvg
+          mkdir ../../bin
+          cp resvg-linux-aarch64.tar.gz ../../bin/
+          cp usvg-linux-aarch64.tar.gz ../../bin/
+
+      - name: Upload binaries
+        uses: alexellis/upload-assets@0.5.0
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
@@ -91,7 +120,7 @@ jobs:
     needs: ["create-release"]
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v7
 
       # Toolchain is stable-x86_64-pc-windows-msvc by default. No need to change it.
 
@@ -141,7 +170,7 @@ jobs:
           cp tools/explorer-thumbnailer/install/resvg-explorer-extension.exe bin/
 
       - name: Upload binaries
-        uses: alexellis/upload-assets@0.2.2
+        uses: alexellis/upload-assets@0.5.0
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
@@ -153,7 +182,7 @@ jobs:
     needs: ["create-release"]
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v7
 
       # Some weird CI glitch. Make sure we have the latest Rust.
       - name: Install latest stable toolchain
@@ -183,7 +212,7 @@ jobs:
           cp target/release/usvg-macos-aarch64.zip bin/
 
       - name: Upload binaries
-        uses: alexellis/upload-assets@0.2.2
+        uses: alexellis/upload-assets@0.5.0
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
@@ -195,7 +224,7 @@ jobs:
     needs: ["create-release"]
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v7
 
       # Some weird CI glitch. Make sure we have the latest Rust.
       - name: Install latest stable toolchain
@@ -225,7 +254,7 @@ jobs:
           cp target/release/usvg-macos-x86_64.zip bin/
 
       - name: Upload binaries
-        uses: alexellis/upload-assets@0.2.2
+        uses: alexellis/upload-assets@0.5.0
         env:
           GITHUB_TOKEN: ${{ github.token }}
         with:
