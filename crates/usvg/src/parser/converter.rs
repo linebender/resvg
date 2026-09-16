@@ -7,7 +7,17 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 #[cfg(feature = "text")]
-use crate::{FontVariation, GlyphId};
+use crate::{FontHintingOptions, FontVariation, GlyphId};
+
+/// Identifies a cached glyph outline. Hinting is keyed by the raw bits of the
+/// pixel grid, since `f32` is not hashable.
+#[cfg(feature = "text")]
+type OutlineCacheKey = (
+    ID,
+    GlyphId,
+    Vec<FontVariation>,
+    Option<(FontHintingOptions, u32)>,
+);
 #[cfg(feature = "text")]
 use fontdb::Database;
 #[cfg(feature = "text")]
@@ -19,7 +29,7 @@ use super::svgtree::{self, AId, EId, FromValue, SvgNode};
 use super::units::{self, convert_length};
 use super::{Error, Options, marker};
 #[cfg(feature = "text")]
-use crate::flatten::BitmapImage;
+use crate::flatten::{BitmapImage, GlyphHinting};
 use crate::parser::paint_server::process_paint;
 #[cfg(feature = "text")]
 use crate::text::flatten::DatabaseExt;
@@ -50,7 +60,7 @@ pub struct Cache {
     pub fontdb: Arc<Database>,
 
     #[cfg(feature = "text")]
-    cache_outline: HashMap<(ID, GlyphId, Vec<FontVariation>), Option<tiny_skia_path::Path>>,
+    cache_outline: HashMap<OutlineCacheKey, Option<tiny_skia_path::Path>>,
     #[cfg(feature = "text")]
     cache_colr: HashMap<(ID, GlyphId, Vec<FontVariation>), Option<Tree>>,
     #[cfg(feature = "text")]
@@ -213,12 +223,18 @@ impl Cache {
         font: ID,
         glyph: GlyphId,
         variations: &[FontVariation],
+        hinting: Option<GlyphHinting>,
     ) -> Option<tiny_skia_path::Path> {
-        let key = (font, glyph, variations.to_vec());
+        let key = (
+            font,
+            glyph,
+            variations.to_vec(),
+            hinting.map(|h| h.cache_key()),
+        );
         match self.cache_outline.get(&key) {
             Some(cache_hit) => cache_hit.clone(),
             None => {
-                let lookup = self.fontdb.outline(font, glyph, variations);
+                let lookup = self.fontdb.outline(font, glyph, variations, hinting);
                 self.cache_outline.insert(key, lookup.clone());
                 lookup
             }

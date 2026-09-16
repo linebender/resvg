@@ -13,8 +13,13 @@ pub(crate) mod flatten;
 mod transform;
 
 mod colr;
+mod hinting;
 /// Provides access to the layout of a text node.
 pub mod layout;
+
+pub use hinting::{
+    FontHintingEngine, FontHintingOptions, FontHintingSmoothMode, FontHintingTarget,
+};
 
 /// The optical sizing variation axis tag.
 pub(crate) const OPSZ: skrifa::Tag = skrifa::Tag::from_be_bytes(*b"opsz");
@@ -215,13 +220,18 @@ impl std::fmt::Debug for FontResolver<'_> {
 ///    is not based on the outlines of a glyph, but instead the glyph metrics as well
 ///    as decoration spans).
 /// 2. We convert all of the positioned glyphs into outlines.
-pub(crate) fn convert(text: &mut Text, resolver: &FontResolver, cache: &mut Cache) -> Option<()> {
+pub(crate) fn convert(
+    text: &mut Text,
+    resolver: &FontResolver,
+    hinting: Option<FontHintingOptions>,
+    cache: &mut Cache,
+) -> Option<()> {
     let (text_fragments, bbox) = layout::layout_text(text, resolver, &mut cache.fontdb)?;
     text.layouted = text_fragments;
     text.bounding_box = bbox.to_rect();
     text.abs_bounding_box = bbox.transform(text.abs_transform)?.to_rect();
 
-    let (group, stroke_bbox) = flatten::flatten(text, cache)?;
+    let (group, stroke_bbox) = flatten::flatten(text, cache, hinting)?;
     text.flattened = Box::new(group);
     text.stroke_bounding_box = stroke_bbox.to_rect();
     text.abs_stroke_bounding_box = stroke_bbox.transform(text.abs_transform)?.to_rect();

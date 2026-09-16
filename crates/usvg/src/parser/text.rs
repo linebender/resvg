@@ -140,7 +140,14 @@ pub(crate) fn convert(
         layouted: vec![],
     };
 
-    if text::convert(&mut text, &state.opt.font_resolver, cache).is_none() {
+    if text::convert(
+        &mut text,
+        &state.opt.font_resolver,
+        state.opt.font_hinting,
+        cache,
+    )
+    .is_none()
+    {
         return;
     }
 
