@@ -24,7 +24,24 @@ static GLOBAL_FONTDB: Lazy<Arc<fontdb::Database>> = Lazy::new(|| {
     }
 
     let mut fontdb = fontdb::Database::new();
-    fontdb.load_fonts_dir("tests/fonts");
+    // Load fonts in a deterministic order.
+    let mut font_paths: Vec<_> = std::fs::read_dir("tests/fonts")
+        .unwrap()
+        .flatten()
+        .map(|entry| entry.path())
+        .filter(|path| {
+            matches!(
+                path.extension().and_then(|e| e.to_str()),
+                Some("ttf" | "ttc" | "otf" | "otc" | "TTF" | "TTC" | "OTF" | "OTC")
+            )
+        })
+        .collect();
+    font_paths.sort();
+    for path in font_paths {
+        if let Err(e) = fontdb.load_font_file(&path) {
+            log::warn!("Failed to load '{}' cause {}.", path.display(), e);
+        }
+    }
     fontdb.set_serif_family("Noto Serif");
     fontdb.set_sans_serif_family("Noto Sans");
     fontdb.set_cursive_family("Yellowtail");
