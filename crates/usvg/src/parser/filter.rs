@@ -7,7 +7,7 @@ use std::collections::HashSet;
 use std::str::FromStr;
 use std::sync::Arc;
 
-use strict_num::PositiveF32;
+use strict_num::{NonZeroPositiveF32, PositiveF32};
 use svgtypes::{AspectRatio, Length, LengthUnit as Unit};
 
 use crate::{
@@ -333,33 +333,32 @@ fn collect_children(
             None => break,
         };
 
-        let kind =
-            match tag_name {
-                EId::FeDropShadow => convert_drop_shadow(child, scale, &primitives),
-                EId::FeGaussianBlur => convert_gaussian_blur(child, scale, &primitives),
-                EId::FeOffset => convert_offset(child, scale, &primitives),
-                EId::FeBlend => convert_blend(child, &primitives),
-                EId::FeFlood => convert_flood(child),
-                EId::FeComposite => convert_composite(child, &primitives),
-                EId::FeMerge => convert_merge(child, &primitives),
-                EId::FeTile => convert_tile(child, &primitives),
-                EId::FeImage => convert_image(child, filter_subregion, state, cache),
-                EId::FeComponentTransfer => convert_component_transfer(child, &primitives),
-                EId::FeColorMatrix => convert_color_matrix(child, &primitives),
-                EId::FeConvolveMatrix => convert_convolve_matrix(child, &primitives)
-                    .unwrap_or_else(create_dummy_primitive),
-                EId::FeMorphology => convert_morphology(child, scale, &primitives),
-                EId::FeDisplacementMap => convert_displacement_map(child, scale, &primitives),
-                EId::FeTurbulence => convert_turbulence(child),
-                EId::FeDiffuseLighting => convert_diffuse_lighting(child, &primitives)
-                    .unwrap_or_else(create_dummy_primitive),
-                EId::FeSpecularLighting => convert_specular_lighting(child, &primitives)
-                    .unwrap_or_else(create_dummy_primitive),
-                tag_name => {
-                    log::warn!("'{}' is not a valid filter primitive. Skipped.", tag_name);
-                    continue;
-                }
-            };
+        let kind = match tag_name {
+            EId::FeDropShadow => convert_drop_shadow(child, scale, &primitives),
+            EId::FeGaussianBlur => convert_gaussian_blur(child, scale, &primitives),
+            EId::FeOffset => convert_offset(child, scale, &primitives),
+            EId::FeBlend => convert_blend(child, &primitives),
+            EId::FeFlood => convert_flood(child),
+            EId::FeComposite => convert_composite(child, &primitives),
+            EId::FeMerge => convert_merge(child, &primitives),
+            EId::FeTile => convert_tile(child, &primitives),
+            EId::FeImage => convert_image(child, filter_subregion, state, cache),
+            EId::FeComponentTransfer => convert_component_transfer(child, &primitives),
+            EId::FeColorMatrix => convert_color_matrix(child, &primitives),
+            EId::FeConvolveMatrix => convert_convolve_matrix(child, scale, &primitives)
+                .unwrap_or_else(create_dummy_primitive),
+            EId::FeMorphology => convert_morphology(child, scale, &primitives),
+            EId::FeDisplacementMap => convert_displacement_map(child, scale, &primitives),
+            EId::FeTurbulence => convert_turbulence(child),
+            EId::FeDiffuseLighting => convert_diffuse_lighting(child, scale, &primitives)
+                .unwrap_or_else(create_dummy_primitive),
+            EId::FeSpecularLighting => convert_specular_lighting(child, scale, &primitives)
+                .unwrap_or_else(create_dummy_primitive),
+            tag_name => {
+                log::warn!("'{}' is not a valid filter primitive. Skipped.", tag_name);
+                continue;
+            }
+        };
 
         let color_interpolation = child
             .find_attribute(AId::ColorInterpolationFilters)
@@ -645,7 +644,7 @@ fn convert_composite(fe: SvgNode, primitives: &[Primitive]) -> Kind {
     })
 }
 
-fn convert_convolve_matrix(fe: SvgNode, primitives: &[Primitive]) -> Option<Kind> {
+fn convert_convolve_matrix(fe: SvgNode, scale: Size, primitives: &[Primitive]) -> Option<Kind> {
     fn parse_target(target: Option<f32>, order: u32) -> Option<u32> {
         let default_target = (order as f32 / 2.0).floor() as u32;
         let target = target.unwrap_or(default_target as f32) as i32;
@@ -701,6 +700,7 @@ fn convert_convolve_matrix(fe: SvgNode, primitives: &[Primitive]) -> Option<Kind
     };
 
     let preserve_alpha = fe.attribute(AId::PreserveAlpha).unwrap_or("false") == "true";
+    let kernel_unit_length = parse_kernel_unit_length(fe, scale).ok()?;
 
     Some(Kind::ConvolveMatrix(ConvolveMatrix {
         input: resolve_input(fe, AId::In, primitives),
@@ -709,7 +709,36 @@ fn convert_convolve_matrix(fe: SvgNode, primitives: &[Primitive]) -> Option<Kind
         bias,
         edge_mode,
         preserve_alpha,
+        kernel_unit_length,
     }))
+}
+
+fn parse_kernel_unit_length(
+    fe: SvgNode,
+    scale: Size,
+) -> Result<Option<(NonZeroPositiveF32, NonZeroPositiveF32)>, ()> {
+    if let Some(value) = fe.attribute::<&str>(AId::KernelUnitLength) {
+        let mut s = svgtypes::NumberListParser::from(value);
+        let x = match s.next() {
+            Some(Ok(n)) => n as f32,
+            _ => return Err(()),
+        };
+        let y = match s.next() {
+            Some(Ok(n)) => n as f32,
+            _ => x,
+        };
+
+        if let (Some(x), Some(y)) = (
+            NonZeroPositiveF32::new(x * scale.width()),
+            NonZeroPositiveF32::new(y * scale.height()),
+        ) {
+            Ok(Some((x, y)))
+        } else {
+            Err(())
+        }
+    } else {
+        Ok(None)
+    }
 }
 
 fn convert_displacement_map(fe: SvgNode, scale: Size, primitives: &[Primitive]) -> Kind {
@@ -879,18 +908,20 @@ fn convert_image_inner(
     Some(Kind::Image(Image { root }))
 }
 
-fn convert_diffuse_lighting(fe: SvgNode, primitives: &[Primitive]) -> Option<Kind> {
+fn convert_diffuse_lighting(fe: SvgNode, scale: Size, primitives: &[Primitive]) -> Option<Kind> {
     let light_source = convert_light_source(fe)?;
+    let kernel_unit_length = parse_kernel_unit_length(fe, scale).ok()?;
     Some(Kind::DiffuseLighting(DiffuseLighting {
         input: resolve_input(fe, AId::In, primitives),
         surface_scale: fe.attribute(AId::SurfaceScale).unwrap_or(1.0),
         diffuse_constant: fe.attribute(AId::DiffuseConstant).unwrap_or(1.0),
         lighting_color: convert_lighting_color(fe),
         light_source,
+        kernel_unit_length,
     }))
 }
 
-fn convert_specular_lighting(fe: SvgNode, primitives: &[Primitive]) -> Option<Kind> {
+fn convert_specular_lighting(fe: SvgNode, scale: Size, primitives: &[Primitive]) -> Option<Kind> {
     let light_source = convert_light_source(fe)?;
 
     let specular_exponent = fe.attribute(AId::SpecularExponent).unwrap_or(1.0);
@@ -900,6 +931,7 @@ fn convert_specular_lighting(fe: SvgNode, primitives: &[Primitive]) -> Option<Ki
     }
 
     let specular_exponent = crate::f32_bound(1.0, specular_exponent, 128.0);
+    let kernel_unit_length = parse_kernel_unit_length(fe, scale).ok()?;
 
     Some(Kind::SpecularLighting(SpecularLighting {
         input: resolve_input(fe, AId::In, primitives),
@@ -908,6 +940,7 @@ fn convert_specular_lighting(fe: SvgNode, primitives: &[Primitive]) -> Option<Ki
         specular_exponent,
         lighting_color: convert_lighting_color(fe),
         light_source,
+        kernel_unit_length,
     }))
 }
 

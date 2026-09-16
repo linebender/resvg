@@ -432,7 +432,7 @@ fn apply_inner(
             }
             usvg::filter::Kind::ConvolveMatrix(fe) => {
                 let input = get_input(fe.input(), region, source, &results)?;
-                apply_convolve_matrix(fe, cs, input)
+                apply_convolve_matrix(fe, cs, ts, input)
             }
             usvg::filter::Kind::Morphology(fe) => {
                 let input = get_input(fe.input(), region, source, &results)?;
@@ -919,6 +919,7 @@ fn apply_color_matrix(
 fn apply_convolve_matrix(
     fe: &usvg::filter::ConvolveMatrix,
     cs: usvg::filter::ColorInterpolation,
+    ts: usvg::Transform,
     input: Image,
 ) -> Result<Image, Error> {
     let mut pixmap = input.into_color_space(cs)?.take()?;
@@ -927,7 +928,7 @@ fn apply_convolve_matrix(
         demultiply_alpha(pixmap.data_mut().as_rgba_mut());
     }
 
-    convolve_matrix::apply(fe, pixmap.as_image_ref_mut());
+    convolve_matrix::apply(fe, ts, pixmap.as_image_ref_mut());
 
     Ok(Image::from_image(pixmap, cs))
 }
@@ -1031,6 +1032,7 @@ fn apply_diffuse_lighting(
     lighting::diffuse_lighting(
         fe,
         light_source,
+        ts,
         input.as_ref().as_image_ref(),
         pixmap.as_image_ref_mut(),
     );
@@ -1052,6 +1054,7 @@ fn apply_specular_lighting(
     lighting::specular_lighting(
         fe,
         light_source,
+        ts,
         input.as_ref().as_image_ref(),
         pixmap.as_image_ref_mut(),
     );
