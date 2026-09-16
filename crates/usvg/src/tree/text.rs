@@ -6,8 +6,6 @@ use std::sync::Arc;
 use strict_num::NonZeroPositiveF32;
 pub use svgtypes::FontFamily;
 
-#[cfg(feature = "text")]
-use crate::layout::Span;
 use crate::{Fill, Group, NonEmptyString, PaintOrder, Rect, Stroke, TextRendering, Transform};
 
 /// A font stretch property.
@@ -588,7 +586,7 @@ pub struct Text {
     pub(crate) abs_stroke_bounding_box: Rect,
     pub(crate) flattened: Box<Group>,
     #[cfg(feature = "text")]
-    pub(crate) layouted: Vec<Span>,
+    pub(crate) layouted: Vec<crate::layout::Span>,
 }
 
 impl Text {
@@ -711,7 +709,7 @@ impl Text {
     /// to the glyphs that make up the text. If you just need the
     /// outlines of the text, you should use `flattened` instead.
     #[cfg(feature = "text")]
-    pub fn layouted(&self) -> &[Span] {
+    pub fn layouted(&self) -> &[crate::layout::Span] {
         &self.layouted
     }
 

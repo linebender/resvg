@@ -9,9 +9,7 @@ use std::sync::Arc;
 #[cfg(feature = "text")]
 use crate::{FontVariation, GlyphId};
 #[cfg(feature = "text")]
-use fontdb::Database;
-#[cfg(feature = "text")]
-use fontdb::ID;
+use fontdb::{Database, ID};
 use svgtypes::{Length, LengthUnit as Unit, PaintOrderKind, TransformOrigin};
 use tiny_skia_path::PathBuilder;
 
@@ -19,10 +17,8 @@ use super::svgtree::{self, AId, EId, FromValue, SvgNode};
 use super::units::{self, convert_length};
 use super::{Error, Options, marker};
 #[cfg(feature = "text")]
-use crate::flatten::BitmapImage;
+use crate::flatten::{BitmapImage, DatabaseExt as _};
 use crate::parser::paint_server::process_paint;
-#[cfg(feature = "text")]
-use crate::text::flatten::DatabaseExt;
 use crate::*;
 
 #[derive(Clone)]
@@ -684,10 +680,7 @@ fn convert_element_impl(
             super::image::convert(node, state, cache, parent);
         }
         EId::Text => {
-            #[cfg(feature = "text")]
-            {
-                super::text::convert(node, state, cache, parent);
-            }
+            super::text::convert(node, state, cache, parent);
         }
         EId::Svg => {
             // Only the outermost `svg` reaches this point; nested `svg` elements are
