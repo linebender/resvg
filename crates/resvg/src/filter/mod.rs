@@ -584,10 +584,10 @@ fn apply_drop_shadow(
     ts: usvg::Transform,
     input: Image,
 ) -> Result<Image, Error> {
-    let (dx, dy) = match scale_coordinates(fe.dx(), fe.dy(), ts) {
-        Some(v) => v,
-        None => return Ok(input),
-    };
+    // The offset is a vector in user space, so it must be mapped through the
+    // full linear part of the transform (including rotation and skew), not just
+    // scaled by the transform's scale factors.
+    let (dx, dy) = transform_coordinates(fe.dx(), fe.dy(), ts);
 
     let mut pixmap = tiny_skia::Pixmap::try_create(input.width(), input.height())?;
     let input_pixmap = input.into_color_space(cs)?.take()?;
@@ -670,10 +670,10 @@ fn apply_offset(
     ts: usvg::Transform,
     input: Image,
 ) -> Result<Image, Error> {
-    let (dx, dy) = match scale_coordinates(fe.dx(), fe.dy(), ts) {
-        Some(v) => v,
-        None => return Ok(input),
-    };
+    // The offset is a vector in user space, so it must be mapped through the
+    // full linear part of the transform (including rotation and skew), not just
+    // scaled by the transform's scale factors. See issue #949.
+    let (dx, dy) = transform_coordinates(fe.dx(), fe.dy(), ts);
 
     if dx.approx_zero_ulps(4) && dy.approx_zero_ulps(4) {
         return Ok(input);
@@ -940,10 +940,7 @@ fn apply_morphology(
 ) -> Result<Image, Error> {
     let mut pixmap = input.into_color_space(cs)?.take()?;
 
-    let (rx, ry) = match scale_coordinates(fe.radius_x().get(), fe.radius_y().get(), ts) {
-        Some(v) => v,
-        None => return Ok(Image::from_image(pixmap, cs)),
-    };
+    let (rx, ry) = scale_coordinates(fe.radius_x().get(), fe.radius_y().get(), ts);
 
     if !(rx > 0.0 && ry > 0.0) {
         pixmap.clear();
@@ -968,10 +965,7 @@ fn apply_displacement_map(
 
     let mut pixmap = tiny_skia::Pixmap::try_create(region.width(), region.height())?;
 
-    let (sx, sy) = match scale_coordinates(fe.scale(), fe.scale(), ts) {
-        Some(v) => v,
-        None => return Ok(Image::from_image(pixmap1, cs)),
-    };
+    let (sx, sy) = scale_coordinates(fe.scale(), fe.scale(), ts);
 
     displacement_map::apply(
         fe,
@@ -1117,7 +1111,7 @@ fn apply_to_canvas(input: Image, pixmap: &mut tiny_skia::Pixmap) -> Result<(), E
 ///
 /// If the last flag is set, then a box blur should be used. Or IIR otherwise.
 fn resolve_std_dev(std_dx: f32, std_dy: f32, ts: usvg::Transform) -> Option<(f64, f64, bool)> {
-    let (mut std_dx, mut std_dy) = scale_coordinates(std_dx, std_dy, ts)?;
+    let (mut std_dx, mut std_dy) = scale_coordinates(std_dx, std_dy, ts);
 
     // 'A negative value or a value of zero disables the effect of the given filter primitive
     // (i.e., the result is the filter input image).'
@@ -1141,7 +1135,67 @@ fn resolve_std_dev(std_dx: f32, std_dy: f32, ts: usvg::Transform) -> Option<(f64
     Some((std_dx as f64, std_dy as f64, box_blur))
 }
 
-fn scale_coordinates(x: f32, y: f32, ts: usvg::Transform) -> Option<(f32, f32)> {
+/// Scales a magnitude *pair* (e.g. a blur or morphology radius) by the per-axis
+/// scale factors of the current transform, i.e. the lengths of its matrix rows.
+///
+/// Rotation and skew still contribute their magnitude here; what is lost is the
+/// direction. That is right for a radius and wrong for a vector, which is what
+/// [`transform_coordinates`] is for.
+fn scale_coordinates(x: f32, y: f32, ts: usvg::Transform) -> (f32, f32) {
     let (sx, sy) = ts.get_scale();
-    Some((x * sx, y * sy))
+    (x * sx, y * sy)
+}
+
+/// Maps a coordinate *vector* (e.g. `feOffset`'s `dx`/`dy`) through the linear
+/// part of the current transform.
+///
+/// Unlike [`scale_coordinates`], this preserves the direction of the vector
+/// under rotation and skew. This is required for offsets, which represent a
+/// displacement in user space and must be rotated together with the content
+/// they are applied to.
+fn transform_coordinates(x: f32, y: f32, ts: usvg::Transform) -> (f32, f32) {
+    // Drop the translation part: we are mapping a vector, not a position.
+    let linear = tiny_skia::Transform::from_row(ts.sx, ts.ky, ts.kx, ts.sy, 0.0, 0.0);
+    let mut point = tiny_skia::Point::from_xy(x, y);
+    linear.map_point(&mut point);
+    (point.x, point.y)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn approx_eq(a: f32, b: f32) -> bool {
+        (a - b).abs() < 1e-3
+    }
+
+    // Regression test for https://github.com/linebender/resvg/issues/949
+    //
+    // An `feOffset` placed inside a rotated group must have its `dx`/`dy`
+    // rotated together with the content. The previous implementation only
+    // scaled the offset by the transform's scale factors, which dropped the
+    // rotation and produced an axis-aligned offset instead of a rotated one.
+    #[test]
+    fn offset_coordinates_follow_rotation() {
+        // A pure 90° rotation. An offset of (10, 0) must become (0, 10).
+        let ts = usvg::Transform::from_rotate(90.0);
+        let (dx, dy) = transform_coordinates(10.0, 0.0, ts);
+        assert!(approx_eq(dx, 0.0), "dx = {dx}");
+        assert!(approx_eq(dy, 10.0), "dy = {dy}");
+
+        // The old, scale-only behaviour would have returned (10, 0), since the
+        // scale factors of a pure rotation are both 1.
+        let (sx, sy) = scale_coordinates(10.0, 0.0, ts);
+        assert!(approx_eq(sx, 10.0) && approx_eq(sy, 0.0));
+    }
+
+    #[test]
+    fn offset_coordinates_combine_rotation_and_scale() {
+        // 45° rotation combined with a 2x uniform scale.
+        let ts = usvg::Transform::from_rotate(45.0).post_scale(2.0, 2.0);
+        let (dx, dy) = transform_coordinates(10.0, 0.0, ts);
+        let expected = 10.0 * 2.0 * std::f32::consts::FRAC_1_SQRT_2;
+        assert!(approx_eq(dx, expected), "dx = {dx}");
+        assert!(approx_eq(dy, expected), "dy = {dy}");
+    }
 }
