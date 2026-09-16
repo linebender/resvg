@@ -3,6 +3,7 @@
 
 use std::fmt::Display;
 use std::io::Write;
+use std::sync::Arc;
 
 use svgtypes::{FontFamily, parse_font_families};
 use xmlwriter::XmlWriter;
@@ -139,6 +140,19 @@ impl Default for WriteOptions {
 }
 
 pub(crate) fn convert(tree: &Tree, opt: &WriteOptions) -> String {
+    // Text nodes are written as paths (unless `preserve_text` is set),
+    // so all text nodes have to be flattened first.
+    #[cfg(feature = "text")]
+    if !opt.preserve_text && tree.has_text_nodes() {
+        tree.compute_flattened_text();
+    }
+
+    // Since text is flattened lazily, the flattened subtrees can reference
+    // paint servers, clip paths, masks and filters that are not present in
+    // the lists stored in the tree (which are collected during parsing).
+    // Therefore we re-collect them here.
+    let defs = Defs::collect(tree);
+
     let mut xml = XmlWriter::new(xmlwriter::Options {
         use_single_quote: opt.use_single_quote,
         indent: opt.indent,
@@ -154,8 +168,8 @@ pub(crate) fn convert(tree: &Tree, opt: &WriteOptions) -> String {
     }
 
     let has_text_paths = has_text_paths(&tree.root);
-    if tree.has_defs_nodes() || has_text_paths {
-        write_defs(tree, opt, &mut xml, has_text_paths);
+    if !defs.is_empty() || has_text_paths {
+        write_defs(tree, &defs, opt, &mut xml, has_text_paths);
     }
 
     write_elements(&tree.root, false, opt, &mut xml);
@@ -163,9 +177,75 @@ pub(crate) fn convert(tree: &Tree, opt: &WriteOptions) -> String {
     xml.end_document()
 }
 
-fn write_filters(tree: &Tree, opt: &WriteOptions, xml: &mut XmlWriter) {
+struct Defs {
+    linear_gradients: Vec<Arc<LinearGradient>>,
+    radial_gradients: Vec<Arc<RadialGradient>>,
+    patterns: Vec<Arc<Pattern>>,
+    clip_paths: Vec<Arc<ClipPath>>,
+    masks: Vec<Arc<Mask>>,
+    filters: Vec<Arc<filter::Filter>>,
+}
+
+impl Defs {
+    fn collect(tree: &Tree) -> Self {
+        // Start from the lists stored in the tree to preserve their order,
+        // then append anything that only exists in flattened text subtrees.
+        let mut defs = Defs {
+            linear_gradients: tree.linear_gradients().to_vec(),
+            radial_gradients: tree.radial_gradients().to_vec(),
+            patterns: tree.patterns().to_vec(),
+            clip_paths: tree.clip_paths().to_vec(),
+            masks: tree.masks().to_vec(),
+            filters: tree.filters().to_vec(),
+        };
+
+        crate::tree::loop_over_paint_servers(tree.root(), &mut |paint| match paint {
+            Paint::Color(_) => {}
+            Paint::LinearGradient(lg) => {
+                if !defs
+                    .linear_gradients
+                    .iter()
+                    .any(|other| Arc::ptr_eq(lg, other))
+                {
+                    defs.linear_gradients.push(lg.clone());
+                }
+            }
+            Paint::RadialGradient(rg) => {
+                if !defs
+                    .radial_gradients
+                    .iter()
+                    .any(|other| Arc::ptr_eq(rg, other))
+                {
+                    defs.radial_gradients.push(rg.clone());
+                }
+            }
+            Paint::Pattern(patt) => {
+                if !defs.patterns.iter().any(|other| Arc::ptr_eq(patt, other)) {
+                    defs.patterns.push(patt.clone());
+                }
+            }
+        });
+
+        tree.root().collect_clip_paths(&mut defs.clip_paths);
+        tree.root().collect_masks(&mut defs.masks);
+        tree.root().collect_filters(&mut defs.filters);
+
+        defs
+    }
+
+    fn is_empty(&self) -> bool {
+        self.linear_gradients.is_empty()
+            && self.radial_gradients.is_empty()
+            && self.patterns.is_empty()
+            && self.clip_paths.is_empty()
+            && self.masks.is_empty()
+            && self.filters.is_empty()
+    }
+}
+
+fn write_filters(defs: &Defs, opt: &WriteOptions, xml: &mut XmlWriter) {
     let mut written_fe_image_nodes: Vec<String> = Vec::new();
-    for filter in tree.filters() {
+    for filter in &defs.filters {
         for fe in &filter.primitives {
             if let filter::Kind::Image(ref img) = fe.kind {
                 if let Some(child) = img.root().children.first() {
@@ -488,9 +568,15 @@ fn write_filters(tree: &Tree, opt: &WriteOptions, xml: &mut XmlWriter) {
     }
 }
 
-fn write_defs(tree: &Tree, opt: &WriteOptions, xml: &mut XmlWriter, write_text_paths: bool) {
+fn write_defs(
+    tree: &Tree,
+    defs: &Defs,
+    opt: &WriteOptions,
+    xml: &mut XmlWriter,
+    write_text_paths: bool,
+) {
     xml.start_svg_element(EId::Defs);
-    for lg in tree.linear_gradients() {
+    for lg in &defs.linear_gradients {
         xml.start_svg_element(EId::LinearGradient);
         xml.write_id_attribute(lg.id(), opt);
         xml.write_svg_attribute(AId::X1, &lg.x1);
@@ -501,7 +587,7 @@ fn write_defs(tree: &Tree, opt: &WriteOptions, xml: &mut XmlWriter, write_text_p
         xml.end_element();
     }
 
-    for rg in tree.radial_gradients() {
+    for rg in &defs.radial_gradients {
         xml.start_svg_element(EId::RadialGradient);
         xml.write_id_attribute(rg.id(), opt);
         xml.write_svg_attribute(AId::Cx, &rg.cx);
@@ -513,7 +599,7 @@ fn write_defs(tree: &Tree, opt: &WriteOptions, xml: &mut XmlWriter, write_text_p
         xml.end_element();
     }
 
-    for pattern in tree.patterns() {
+    for pattern in &defs.patterns {
         xml.start_svg_element(EId::Pattern);
         xml.write_id_attribute(pattern.id(), opt);
         xml.write_rect_attrs(pattern.rect);
@@ -534,9 +620,9 @@ fn write_defs(tree: &Tree, opt: &WriteOptions, xml: &mut XmlWriter, write_text_p
         write_text_path_paths(&tree.root, opt, xml);
     }
 
-    write_filters(tree, opt, xml);
+    write_filters(defs, opt, xml);
 
-    for clip in tree.clip_paths() {
+    for clip in &defs.clip_paths {
         xml.start_svg_element(EId::ClipPath);
         xml.write_id_attribute(clip.id(), opt);
         xml.write_transform(AId::Transform, clip.transform, opt);
@@ -550,7 +636,7 @@ fn write_defs(tree: &Tree, opt: &WriteOptions, xml: &mut XmlWriter, write_text_p
         xml.end_element();
     }
 
-    for mask in tree.masks() {
+    for mask in &defs.masks {
         xml.start_svg_element(EId::Mask);
         xml.write_id_attribute(mask.id(), opt);
         if mask.kind == MaskType::Alpha {
