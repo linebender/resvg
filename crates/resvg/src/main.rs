@@ -199,7 +199,7 @@ OPTIONS:
                                 Useful for debugging
 
 
-  --query-all                   Queries all valid SVG ids with bounding boxes
+  --query-all                   Queries element bounding boxes with optional IDs
   --export-id ID                Renders an object only with a specified ID
   --export-area-page            Use an image size instead of an object size during ID exporting
 
@@ -622,7 +622,7 @@ fn query_all(tree: &usvg::Tree) -> Result<(), String> {
     let count = query_all_impl(tree.root());
 
     if count == 0 {
-        return Err("the file has no valid ID's".to_string());
+        return Err("the file has no valid elements".to_string());
     }
 
     Ok(())
@@ -631,13 +631,6 @@ fn query_all(tree: &usvg::Tree) -> Result<(), String> {
 fn query_all_impl(parent: &usvg::Group) -> usize {
     let mut count = 0;
     for node in parent.children() {
-        if node.id().is_empty() {
-            if let usvg::Node::Group(group) = node {
-                count += query_all_impl(group);
-            }
-            continue;
-        }
-
         count += 1;
 
         fn round_len(v: f32) -> f32 {
