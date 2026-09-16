@@ -71,3 +71,75 @@ pub fn apply(operator: MorphologyOperator, rx: f32, ry: f32, src: ImageRefMut) {
     // Do not use `mem::swap` because `data` referenced via FFI.
     src.data.copy_from_slice(buf.data);
 }
+
+#[cfg(feature = "16bpc")]
+pub use u16_impl::apply_u16;
+
+#[cfg(feature = "16bpc")]
+mod u16_impl {
+    use super::*;
+
+    /// Applies a morphology filter to a 16-bit premultiplied pixel buffer.
+    pub fn apply_u16(
+        operator: MorphologyOperator,
+        rx: f32,
+        ry: f32,
+        width: u32,
+        height: u32,
+        src: &mut [tiny_skia::PremultipliedColorU16],
+    ) {
+        let columns = std::cmp::min(rx.ceil() as u32 * 2, width);
+        let rows = std::cmp::min(ry.ceil() as u32 * 2, height);
+        let target_x = (columns as f32 / 2.0).floor() as u32;
+        let target_y = (rows as f32 / 2.0).floor() as u32;
+
+        let width_max = width as i32 - 1;
+        let height_max = height as i32 - 1;
+
+        let mut buf = vec![tiny_skia::PremultipliedColorU16::TRANSPARENT; src.len()];
+        let mut x = 0;
+        let mut y = 0;
+        for _ in src.iter() {
+            let (mut nr, mut ng, mut nb, mut na) = if operator == MorphologyOperator::Erode {
+                (65535, 65535, 65535, 65535)
+            } else {
+                (0, 0, 0, 0)
+            };
+
+            for oy in 0..rows {
+                for ox in 0..columns {
+                    let tx = x as i32 - target_x as i32 + ox as i32;
+                    let ty = y as i32 - target_y as i32 + oy as i32;
+
+                    if tx < 0 || tx > width_max || ty < 0 || ty > height_max {
+                        continue;
+                    }
+
+                    let p = src[(width * (ty as u32) + (tx as u32)) as usize];
+                    if operator == MorphologyOperator::Erode {
+                        nr = std::cmp::min(p.red(), nr);
+                        ng = std::cmp::min(p.green(), ng);
+                        nb = std::cmp::min(p.blue(), nb);
+                        na = std::cmp::min(p.alpha(), na);
+                    } else {
+                        nr = std::cmp::max(p.red(), nr);
+                        ng = std::cmp::max(p.green(), ng);
+                        nb = std::cmp::max(p.blue(), nb);
+                        na = std::cmp::max(p.alpha(), na);
+                    }
+                }
+            }
+
+            buf[(width * y + x) as usize] =
+                tiny_skia::PremultipliedColorU16::from_rgba_unchecked(nr, ng, nb, na);
+
+            x += 1;
+            if x == width {
+                x = 0;
+                y += 1;
+            }
+        }
+
+        src.copy_from_slice(&buf);
+    }
+}

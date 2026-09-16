@@ -14,6 +14,10 @@ workspace = "../.."
 name = "resvg"
 required-features = ["svgz", "text", "system-fonts", "memmap-fonts"]
 
+[[bench]]
+name = "render_benchmarks"
+harness = false
+
 [dependencies]
 bytemuck = "1.16"
 gif = { version = "0.14.1", optional = true }
@@ -45,3 +49,5 @@ memmap-fonts = ["usvg/memmap-fonts"]
 # When disabled, `image` elements with SVG data will still be rendered.
 # Adds around 200KiB to your binary.
 raster-images = ["gif", "image-webp", "dep:zune-jpeg"]
+# Enables 16-bit per channel color pipeline support.
+16bpc = ["tiny-skia/16bpc"]

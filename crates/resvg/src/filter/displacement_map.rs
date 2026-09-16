@@ -60,3 +60,60 @@ pub fn apply(
         }
     }
 }
+
+#[cfg(feature = "16bpc")]
+pub use u16_impl::apply_u16;
+
+#[cfg(feature = "16bpc")]
+mod u16_impl {
+    use super::*;
+
+    /// Applies a displacement map to 16-bit pixel buffers.
+    pub fn apply_u16(
+        fe: &DisplacementMap,
+        sx: f32,
+        sy: f32,
+        width: u32,
+        height: u32,
+        src: &[tiny_skia::PremultipliedColorU16],
+        map: &[tiny_skia::PremultipliedColorU16],
+        dest: &mut [tiny_skia::PremultipliedColorU16],
+    ) {
+        debug_assert!(src.len() == map.len() && src.len() == dest.len());
+
+        let w = width as i32;
+        let h = height as i32;
+
+        let mut x: u32 = 0;
+        let mut y: u32 = 0;
+        for pixel in map.iter() {
+            let calc_offset = |channel| {
+                let val = match channel {
+                    ColorChannel::B => pixel.blue(),
+                    ColorChannel::G => pixel.green(),
+                    ColorChannel::R => pixel.red(),
+                    ColorChannel::A => pixel.alpha(),
+                };
+
+                val as f32 / 65535.0 - 0.5
+            };
+
+            let dx = calc_offset(fe.x_channel_selector());
+            let dy = calc_offset(fe.y_channel_selector());
+            let ox = (x as f32 + dx * sx * fe.scale()).round() as i32;
+            let oy = (y as f32 + dy * sy * fe.scale()).round() as i32;
+
+            if x < w as u32 && y < h as u32 && ox >= 0 && ox < w && oy >= 0 && oy < h {
+                let idx = (oy * w + ox) as usize;
+                let idx1 = (y * w as u32 + x) as usize;
+                dest[idx1] = src[idx];
+            }
+
+            x += 1;
+            if x == width {
+                x = 0;
+                y += 1;
+            }
+        }
+    }
+}

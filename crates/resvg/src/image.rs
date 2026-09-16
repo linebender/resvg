@@ -1,10 +1,9 @@
-// Copyright 2018 the Resvg Authors
-// SPDX-License-Identifier: Apache-2.0 OR MIT
+use tiny_skia::HighPixel;
 
-pub fn render(
+pub fn render<P: HighPixel>(
     image: &usvg::Image,
     transform: tiny_skia::Transform,
-    pixmap: &mut tiny_skia::PixmapMut,
+    pixmap: &mut tiny_skia::PixmapMutGeneric<'_, P>,
 ) {
     if !image.is_visible() {
         return;
@@ -13,11 +12,11 @@ pub fn render(
     render_inner(image.kind(), transform, image.rendering_mode(), pixmap);
 }
 
-pub fn render_inner(
+pub fn render_inner<P: HighPixel>(
     image_kind: &usvg::ImageKind,
     transform: tiny_skia::Transform,
     #[allow(unused_variables)] rendering_mode: usvg::ImageRendering,
-    pixmap: &mut tiny_skia::PixmapMut,
+    pixmap: &mut tiny_skia::PixmapMutGeneric<'_, P>,
 ) {
     match image_kind {
         usvg::ImageKind::SVG(tree) => {
@@ -34,13 +33,14 @@ pub fn render_inner(
     }
 }
 
-fn render_vector(
+fn render_vector<P: HighPixel>(
     tree: &usvg::Tree,
     transform: tiny_skia::Transform,
-    pixmap: &mut tiny_skia::PixmapMut,
+    pixmap: &mut tiny_skia::PixmapMutGeneric<'_, P>,
 ) -> Option<()> {
-    let mut sub_pixmap = tiny_skia::Pixmap::new(pixmap.width(), pixmap.height()).unwrap();
-    crate::render(tree, transform, &mut sub_pixmap.as_mut());
+    let mut sub_pixmap =
+        tiny_skia::PixmapGeneric::<P>::new(pixmap.width(), pixmap.height()).unwrap();
+    crate::render_to_pixmap(tree, transform, &mut sub_pixmap.as_mut());
     pixmap.draw_pixmap(
         0,
         0,
@@ -170,11 +170,11 @@ mod raster_images {
         }
     }
 
-    pub(crate) fn render_raster(
+    pub(crate) fn render_raster<P: tiny_skia::HighPixel>(
         image: &usvg::ImageKind,
         transform: tiny_skia::Transform,
         rendering_mode: usvg::ImageRendering,
-        pixmap: &mut tiny_skia::PixmapMut,
+        pixmap: &mut tiny_skia::PixmapMutGeneric<'_, P>,
     ) -> Option<()> {
         let raster = decode_raster(image)?;
 

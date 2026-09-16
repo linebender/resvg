@@ -144,3 +144,50 @@ fn gen_coefficients(sigma: f64, steps: usize) -> (f64, f64) {
     let dnu = (1.0 + 2.0 * lambda - (1.0 + 4.0 * lambda).sqrt()) / (2.0 * lambda);
     (lambda, dnu)
 }
+
+#[cfg(feature = "16bpc")]
+pub use u16_impl::apply_u16;
+
+#[cfg(feature = "16bpc")]
+mod u16_impl {
+    use super::*;
+
+    /// Applies an IIR blur to a 16-bit premultiplied pixel buffer.
+    pub fn apply_u16(
+        sigma_x: f64,
+        sigma_y: f64,
+        width: u32,
+        height: u32,
+        src: &mut [tiny_skia::PremultipliedColorU16],
+    ) {
+        let buf_size = (width * height) as usize;
+        let mut buf = vec![0.0; buf_size];
+
+        let d = BlurData {
+            width: width as usize,
+            height: height as usize,
+            sigma_x,
+            sigma_y,
+            steps: 4,
+        };
+
+        let data: &mut [u16] = bytemuck::cast_slice_mut(src);
+        gaussian_channel_u16(data, &d, 0, &mut buf);
+        gaussian_channel_u16(data, &d, 1, &mut buf);
+        gaussian_channel_u16(data, &d, 2, &mut buf);
+        gaussian_channel_u16(data, &d, 3, &mut buf);
+    }
+
+    fn gaussian_channel_u16(data: &mut [u16], d: &BlurData, channel: usize, buf: &mut [f64]) {
+        for i in 0..data.len() / 4 {
+            buf[i] = data[i * 4 + channel] as f64 / 65535.0;
+        }
+
+        gaussianiir2d(d, buf);
+
+        for i in 0..data.len() / 4 {
+            let val = (buf[i] * 65535.0 + 0.5).clamp(0.0, 65535.0);
+            data[i * 4 + channel] = val as u16;
+        }
+    }
+}

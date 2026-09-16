@@ -1,0 +1,189 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 3840 2160" width="3840" height="2160">
+  <defs>
+    <!-- Card Inner Clip Path for 4K layout (1108 x 720) -->
+    <clipPath id="cardClip">
+      <rect x="36" y="120" width="1108" height="720" rx="12" />
+    </clipPath>
+
+    <!-- 1. Radial Vignette: Deep Indigo Glow (exposes concentric ring banding in 8bpc) -->
+    <radialGradient id="radialIndigo" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+      <stop offset="0%" stop-color="#22324e" />
+      <stop offset="25%" stop-color="#18243a" />
+      <stop offset="55%" stop-color="#101828" />
+      <stop offset="80%" stop-color="#0a101b" />
+      <stop offset="100%" stop-color="#04070d" />
+    </radialGradient>
+
+    <!-- 2. Specular Lighting Backdrop Ramp -->
+    <linearGradient id="specularBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#162032" />
+      <stop offset="50%" stop-color="#0d1522" />
+      <stop offset="100%" stop-color="#060a12" />
+    </linearGradient>
+
+    <!-- 3D Specular & Diffuse Lighting Filter (4K scaled) -->
+    <filter id="specularLightingDemo" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="30" result="blur" />
+      <feSpecularLighting in="blur" surfaceScale="8" specularConstant="1.5" specularExponent="28" lighting-color="#a0c8ff" result="spec">
+        <fePointLight x="590" y="240" z="220" />
+      </feSpecularLighting>
+      <feDiffuseLighting in="blur" surfaceScale="5" diffuseConstant="1.1" lighting-color="#406898" result="diff">
+        <fePointLight x="590" y="240" z="220" />
+      </feDiffuseLighting>
+      <feMerge>
+        <feMergeNode in="diff" />
+        <feMergeNode in="SourceGraphic" />
+        <feMergeNode in="spec" />
+      </feMerge>
+    </filter>
+
+    <!-- 3. LinearRGB Wide Gamut Twilight Ramp (exposes linearRGB to sRGB gamma transfer banding) -->
+    <linearGradient id="linearRgbTwilight" x1="0%" y1="0%" x2="100%" y2="0%" color-interpolation="linearRGB">
+      <stop offset="0%" stop-color="#081e2b" />
+      <stop offset="35%" stop-color="#141c38" />
+      <stop offset="70%" stop-color="#241836" />
+      <stop offset="100%" stop-color="#32162a" />
+    </linearGradient>
+
+    <!-- Subtle Diagonal Linear Gradient -->
+    <linearGradient id="linearSubtleDiag" x1="0%" y1="0%" x2="100%" y2="100%" color-interpolation="linearRGB">
+      <stop offset="0%" stop-color="#0a1828" />
+      <stop offset="50%" stop-color="#142436" />
+      <stop offset="100%" stop-color="#1e1828" />
+    </linearGradient>
+
+    <!-- 4. Deep Gaussian Blur Halos with Gamma Curve (4K scaled stdDeviation) -->
+    <filter id="deepHalos" x="-100%" y="-200%" width="300%" height="500%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="80" result="blur" />
+      <feComponentTransfer in="blur">
+        <feFuncR type="gamma" amplitude="1.2" exponent="1.8" offset="0" />
+        <feFuncG type="gamma" amplitude="1.2" exponent="1.8" offset="0" />
+        <feFuncB type="gamma" amplitude="1.2" exponent="1.8" offset="0" />
+      </feComponentTransfer>
+    </filter>
+
+    <!-- 5. Glass Ripple Displacement Map Filter (4K scaled frequency and scale) -->
+    <filter id="glassRefraction" x="0%" y="0%" width="100%" height="100%">
+      <feTurbulence type="turbulence" baseFrequency="0.01" numOctaves="2" result="turb" />
+      <feDisplacementMap in="SourceGraphic" in2="turb" scale="40" xChannelSelector="R" yChannelSelector="G" />
+    </filter>
+
+    <!-- Grid pattern for displacement refraction demo -->
+    <pattern id="gridPattern" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#253a58" stroke-width="2.5" />
+      <circle cx="20" cy="20" r="4" fill="#3a5880" />
+    </pattern>
+
+    <!-- Displacement backdrop -->
+    <linearGradient id="displaceBg" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#101826" />
+      <stop offset="50%" stop-color="#162234" />
+      <stop offset="100%" stop-color="#0e1420" />
+    </linearGradient>
+
+    <!-- 6. Subtle turbulence noise blended into gradient: highlights truncation noise vs smooth diffusion -->
+    <filter id="subtleTurbulenceBlend" x="0%" y="0%" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.008" numOctaves="3" result="noise" />
+      <feColorMatrix type="matrix" values="
+        0.08 0 0 0 0
+        0 0.08 0 0 0
+        0 0 0.12 0 0
+        0 0 0 1 0" in="noise" result="tintedNoise" />
+      <feComposite in="tintedNoise" in2="SourceAlpha" operator="in" result="clippedNoise" />
+      <feComposite in="SourceGraphic" in2="clippedNoise" operator="arithmetic" k1="0" k2="1" k3="1" k4="0" />
+    </filter>
+
+    <!-- Ultra-wide low-contrast linear ramp -->
+    <linearGradient id="linearDarkRamp" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#020408" />
+      <stop offset="50%" stop-color="#0e1420" />
+      <stop offset="100%" stop-color="#1a2538" />
+    </linearGradient>
+  </defs>
+
+  <!-- Canvas Background -->
+  <rect width="3840" height="2160" fill="#04060a" />
+
+  <!-- Title Header -->
+  <text x="1920" y="90" fill="#e2ecfc" font-family="sans-serif" font-size="44" font-weight="bold" text-anchor="middle" letter-spacing="4">8-BIT vs 16-BIT COLOR PRECISION TORTURE TEST</text>
+  <text x="1920" y="140" fill="#687c98" font-family="sans-serif" font-size="22" text-anchor="middle">Demonstrating low-contrast gradient banding, lighting contours, displacement accuracy, and filter precision</text>
+
+  <!-- ================= ROW 1, COL 1: RADIAL VIGNETTE (CONCENTRIC BANDING) ================= -->
+  <g transform="translate(80, 210)">
+    <rect width="1180" height="880" rx="16" fill="#070a12" stroke="#162034" stroke-width="2" />
+    <text x="36" y="55" fill="#90a8cc" font-family="sans-serif" font-size="22" font-weight="bold">1. LOW-CONTRAST RADIAL GRADIENT</text>
+    <text x="36" y="88" fill="#506480" font-family="sans-serif" font-size="16">8bpc produces severe stepped rings ("onion-skinning"); 16bpc produces continuous spherical falloff.</text>
+    <rect x="36" y="120" width="1108" height="720" rx="12" fill="url(#radialIndigo)" />
+  </g>
+
+  <!-- ================= ROW 1, COL 2: 3D SPECULAR & DIFFUSE LIGHTING ================= -->
+  <g transform="translate(1330, 210)">
+    <rect width="1180" height="880" rx="16" fill="#070a12" stroke="#162034" stroke-width="2" />
+    <text x="36" y="55" fill="#90a8cc" font-family="sans-serif" font-size="22" font-weight="bold">2. 3D SPECULAR &amp; DIFFUSE LIGHTING</text>
+    <text x="36" y="88" fill="#506480" font-family="sans-serif" font-size="16">Non-linear specular exponent creates steep contour quantization steps around highlights in 8bpc.</text>
+    <g clip-path="url(#cardClip)">
+      <rect x="36" y="120" width="1108" height="720" fill="url(#specularBg)" />
+      <g filter="url(#specularLightingDemo)">
+        <circle cx="590" cy="480" r="220" fill="#142236" />
+        <rect x="120" y="300" width="220" height="360" rx="40" fill="#142236" />
+        <rect x="840" y="300" width="220" height="360" rx="40" fill="#142236" />
+      </g>
+    </g>
+  </g>
+
+  <!-- ================= ROW 1, COL 3: LINEARRGB COLOR INTERPOLATION ================= -->
+  <g transform="translate(2580, 210)">
+    <rect width="1180" height="880" rx="16" fill="#070a12" stroke="#162034" stroke-width="2" />
+    <text x="36" y="55" fill="#90a8cc" font-family="sans-serif" font-size="22" font-weight="bold">3. linearRGB COLOR INTERPOLATION</text>
+    <text x="36" y="88" fill="#506480" font-family="sans-serif" font-size="16">linearRGB rendering mapped through sRGB transfer curves stretches 8bpc steps into wide visible bars.</text>
+    
+    <rect x="36" y="120" width="1108" height="340" rx="12" fill="url(#linearRgbTwilight)" />
+    <text x="56" y="160" fill="#6884a8" font-family="sans-serif" font-size="16">Full Twilight linearRGB Spectrum (#081e2b → #141c38 → #241836 → #32162a)</text>
+
+    <rect x="36" y="500" width="1108" height="340" rx="12" fill="url(#linearSubtleDiag)" />
+    <text x="56" y="540" fill="#6884a8" font-family="sans-serif" font-size="16">Diagonal Dark Gamut Transition with 2-axis quantization</text>
+  </g>
+
+  <!-- ================= ROW 2, COL 1: GAUSSIAN BLUR EXPONENTIAL HALOS ================= -->
+  <g transform="translate(80, 1160)">
+    <rect width="1180" height="880" rx="16" fill="#070a12" stroke="#162034" stroke-width="2" />
+    <text x="36" y="55" fill="#90a8cc" font-family="sans-serif" font-size="22" font-weight="bold">4. DEEP GAUSSIAN BLUR EXPONENTIAL HALOS</text>
+    <text x="36" y="88" fill="#506480" font-family="sans-serif" font-size="16">feGaussianBlur (stdDev=80) decay tails with gamma expansion quantize into stepped concentric halos.</text>
+    
+    <g clip-path="url(#cardClip)">
+      <rect x="36" y="120" width="1108" height="720" fill="#050810" />
+      <g filter="url(#deepHalos)">
+        <circle cx="260" cy="480" r="80" fill="#3088d8" />
+        <circle cx="590" cy="480" r="100" fill="#8844aa" />
+        <circle cx="920" cy="480" r="80" fill="#c86438" />
+      </g>
+    </g>
+  </g>
+
+  <!-- ================= ROW 2, COL 2: DISPLACEMENT MAP REFRACTION ================= -->
+  <g transform="translate(1330, 1160)">
+    <rect width="1180" height="880" rx="16" fill="#070a12" stroke="#162034" stroke-width="2" />
+    <text x="36" y="55" fill="#90a8cc" font-family="sans-serif" font-size="22" font-weight="bold">5. feDisplacementMap GLASS REFRACTION</text>
+    <text x="36" y="88" fill="#506480" font-family="sans-serif" font-size="16">8bpc displacement quantization creates staircase edges; 16bpc provides smooth continuous warping.</text>
+    
+    <g filter="url(#glassRefraction)">
+      <rect x="36" y="120" width="1108" height="720" rx="12" fill="url(#displaceBg)" />
+      <rect x="56" y="140" width="1068" height="680" fill="url(#gridPattern)" />
+      <circle cx="320" cy="480" r="140" fill="#205080" fill-opacity="0.7" />
+      <circle cx="590" cy="480" r="160" fill="#603070" fill-opacity="0.7" />
+      <circle cx="860" cy="480" r="140" fill="#804030" fill-opacity="0.7" />
+      <text x="590" y="500" fill="#e0e8f8" font-family="sans-serif" font-size="52" font-weight="bold" text-anchor="middle" letter-spacing="8">REFRACTION</text>
+    </g>
+  </g>
+
+  <!-- ================= ROW 2, COL 3: PERLIN NOISE DIFFUSION & TONE COMPRESSION ================= -->
+  <g transform="translate(2580, 1160)">
+    <rect width="1180" height="880" rx="16" fill="#070a12" stroke="#162034" stroke-width="2" />
+    <text x="36" y="55" fill="#90a8cc" font-family="sans-serif" font-size="22" font-weight="bold">6. PERLIN NOISE DIFFUSION &amp; TONE COMPRESSION</text>
+    <text x="36" y="88" fill="#506480" font-family="sans-serif" font-size="16">feTurbulence combined with dark linear ramp. In 8bpc, low-amplitude noise quantizes into stark blotches.</text>
+    
+    <g filter="url(#subtleTurbulenceBlend)">
+      <rect x="36" y="120" width="1108" height="720" rx="12" fill="url(#linearDarkRamp)" />
+    </g>
+  </g>
+</svg>
