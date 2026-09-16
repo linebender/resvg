@@ -9,6 +9,7 @@ use svgtypes::FontFamily;
 use self::layout::DatabaseExt;
 use crate::{Cache, Font, FontStretch, FontStyle, Text};
 
+pub(crate) mod bitmap;
 pub(crate) mod flatten;
 mod transform;
 
