@@ -634,6 +634,46 @@ impl Stroke {
         self.linejoin
     }
 
+    /// Sets the stroke paint.
+    pub fn set_paint(&mut self, paint: Paint) {
+        self.paint = paint;
+    }
+
+    /// Sets the stroke opacity.
+    pub fn set_opacity(&mut self, opacity: Opacity) {
+        self.opacity = opacity;
+    }
+
+    /// Sets the stroke width.
+    pub fn set_width(&mut self, width: StrokeWidth) {
+        self.width = width;
+    }
+
+    /// Sets the stroke linecap.
+    pub fn set_linecap(&mut self, linecap: LineCap) {
+        self.linecap = linecap;
+    }
+
+    /// Sets the stroke linejoin.
+    pub fn set_linejoin(&mut self, linejoin: LineJoin) {
+        self.linejoin = linejoin;
+    }
+
+    /// Sets the stroke miterlimit.
+    pub fn set_miterlimit(&mut self, miterlimit: StrokeMiterlimit) {
+        self.miterlimit = miterlimit;
+    }
+
+    /// Sets the stroke dash array.
+    pub fn set_dasharray(&mut self, dasharray: Option<Vec<f32>>) {
+        self.dasharray = dasharray;
+    }
+
+    /// Sets the stroke dash offset.
+    pub fn set_dashoffset(&mut self, dashoffset: f32) {
+        self.dashoffset = dashoffset;
+    }
+
     /// Converts into a `tiny_skia_path::Stroke` type.
     pub fn to_tiny_skia(&self) -> tiny_skia_path::Stroke {
         let mut stroke = tiny_skia_path::Stroke {
@@ -660,6 +700,22 @@ impl Stroke {
         }
 
         stroke
+    }
+}
+
+impl Default for Stroke {
+    fn default() -> Self {
+        Stroke {
+            paint: Paint::Color(Color::black()),
+            dasharray: None,
+            dashoffset: 0.0,
+            miterlimit: StrokeMiterlimit::default(),
+            opacity: Opacity::ONE,
+            width: StrokeWidth::new(1.0).unwrap(),
+            linecap: LineCap::default(),
+            linejoin: LineJoin::default(),
+            context_element: None,
+        }
     }
 }
 
@@ -718,6 +774,21 @@ impl Fill {
     /// Fill rule.
     pub fn rule(&self) -> FillRule {
         self.rule
+    }
+
+    /// Sets the fill paint.
+    pub fn set_paint(&mut self, paint: Paint) {
+        self.paint = paint;
+    }
+
+    /// Sets the fill opacity.
+    pub fn set_opacity(&mut self, opacity: Opacity) {
+        self.opacity = opacity;
+    }
+
+    /// Sets the fill rule.
+    pub fn set_rule(&mut self, rule: FillRule) {
+        self.rule = rule;
     }
 }
 
@@ -1054,7 +1125,7 @@ pub struct Group {
 }
 
 impl Group {
-    pub(crate) fn empty() -> Self {
+    pub fn empty() -> Self {
         let dummy = Rect::from_xywh(0.0, 0.0, 0.0, 0.0).unwrap();
         Group {
             id: String::new(),
@@ -1109,6 +1180,16 @@ impl Group {
     /// it with a parent group using the specified opacity.
     pub fn opacity(&self) -> Opacity {
         self.opacity
+    }
+
+    /// Sets the group id.
+    pub fn set_id(&mut self, id: String) {
+        self.id = id;
+    }
+
+    /// Sets the group opacity.
+    pub fn set_opacity(&mut self, opacity: Opacity) {
+        self.opacity = opacity;
     }
 
     /// Group blend mode.
@@ -1195,6 +1276,10 @@ impl Group {
     /// Group's children.
     pub fn children(&self) -> &[Node] {
         &self.children
+    }
+
+    pub fn push_child(&mut self, child: Node) {
+        self.children.push(child);
     }
 
     /// Checks if this group should be isolated during rendering.
@@ -1308,7 +1393,7 @@ impl Path {
         )
     }
 
-    pub(crate) fn new(
+    pub fn new(
         id: String,
         visible: bool,
         fill: Option<Fill>,
@@ -1604,6 +1689,21 @@ pub struct Tree {
 }
 
 impl Tree {
+    pub fn new(size: Size, root: Group) -> Self {
+        Tree {
+            size,
+            root,
+            linear_gradients: Vec::new(),
+            radial_gradients: Vec::new(),
+            patterns: Vec::new(),
+            clip_paths: Vec::new(),
+            masks: Vec::new(),
+            filters: Vec::new(),
+            #[cfg(feature = "text")]
+            fontdb: Arc::new(fontdb::Database::new()),
+        }
+    }
+
     /// Image size.
     ///
     /// Size of an image that should be created to fit the SVG.
