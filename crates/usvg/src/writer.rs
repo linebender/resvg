@@ -253,6 +253,7 @@ fn write_filters(tree: &Tree, opt: &WriteOptions, xml: &mut XmlWriter) {
                             filter::CompositeOperator::Out => "out",
                             filter::CompositeOperator::Atop => "atop",
                             filter::CompositeOperator::Xor => "xor",
+                            filter::CompositeOperator::Lighter => "lighter",
                             filter::CompositeOperator::Arithmetic { .. } => "arithmetic",
                         },
                     );

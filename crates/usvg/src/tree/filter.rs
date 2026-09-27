@@ -335,7 +335,14 @@ pub enum CompositeOperator {
     Out,
     Atop,
     Xor,
-    Arithmetic { k1: f32, k2: f32, k3: f32, k4: f32 },
+    /// `lighter`, SVG 2: the two inputs are added.
+    Lighter,
+    Arithmetic {
+        k1: f32,
+        k2: f32,
+        k3: f32,
+        k4: f32,
+    },
 }
 
 /// A matrix convolution filter primitive.

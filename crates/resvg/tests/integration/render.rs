@@ -90,6 +90,7 @@ use crate::render;
 #[test] fn filters_feComposite_operator_eq_arithmetic() { assert_eq!(render("tests/filters/feComposite/operator=arithmetic"), 0); }
 #[test] fn filters_feComposite_operator_eq_atop() { assert_eq!(render("tests/filters/feComposite/operator=atop"), 0); }
 #[test] fn filters_feComposite_operator_eq_in() { assert_eq!(render("tests/filters/feComposite/operator=in"), 0); }
+#[test] fn filters_feComposite_operator_eq_lighter() { assert_eq!(render("tests/filters/feComposite/operator=lighter"), 0); }
 #[test] fn filters_feComposite_operator_eq_out() { assert_eq!(render("tests/filters/feComposite/operator=out"), 0); }
 #[test] fn filters_feComposite_operator_eq_over() { assert_eq!(render("tests/filters/feComposite/operator=over"), 0); }
 #[test] fn filters_feComposite_operator_eq_xor() { assert_eq!(render("tests/filters/feComposite/operator=xor"), 0); }
@@ -836,6 +837,7 @@ use crate::render;
 #[test] fn painting_mix_blend_mode_opacity_on_element() { assert_eq!(render("tests/painting/mix-blend-mode/opacity-on-element"), 0); }
 #[test] fn painting_mix_blend_mode_opacity_on_group() { assert_eq!(render("tests/painting/mix-blend-mode/opacity-on-group"), 0); }
 #[test] fn painting_mix_blend_mode_overlay() { assert_eq!(render("tests/painting/mix-blend-mode/overlay"), 0); }
+#[test] fn painting_mix_blend_mode_plus_lighter() { assert_eq!(render("tests/painting/mix-blend-mode/plus-lighter"), 0); }
 #[test] fn painting_mix_blend_mode_saturation() { assert_eq!(render("tests/painting/mix-blend-mode/saturation"), 0); }
 #[test] fn painting_mix_blend_mode_screen() { assert_eq!(render("tests/painting/mix-blend-mode/screen"), 0); }
 #[test] fn painting_mix_blend_mode_soft_light() { assert_eq!(render("tests/painting/mix-blend-mode/soft-light"), 0); }

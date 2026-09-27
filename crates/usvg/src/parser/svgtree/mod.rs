@@ -1064,6 +1064,7 @@ impl<'a, 'input: 'a> FromValue<'a, 'input> for BlendMode {
             "saturation" => Some(BlendMode::Saturation),
             "color" => Some(BlendMode::Color),
             "luminosity" => Some(BlendMode::Luminosity),
+            "plus-lighter" => Some(BlendMode::PlusLighter),
             _ => None,
         }
     }

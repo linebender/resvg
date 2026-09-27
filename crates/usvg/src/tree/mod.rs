@@ -230,6 +230,9 @@ pub enum BlendMode {
     Saturation,
     Color,
     Luminosity,
+    /// `plus-lighter`, Compositing and Blending Level 2: the two colors are added, the
+    /// `lighter` composite operator rather than a separable blend function.
+    PlusLighter,
 }
 
 impl Default for BlendMode {
@@ -257,6 +260,7 @@ impl Display for BlendMode {
             BlendMode::Saturation => "saturation",
             BlendMode::Color => "color",
             BlendMode::Luminosity => "luminosity",
+            BlendMode::PlusLighter => "plus-lighter",
         };
         write!(f, "{blend_mode}")
     }
