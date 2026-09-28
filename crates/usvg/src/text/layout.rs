@@ -552,23 +552,35 @@ fn resolve_clusters_positions_horizontal(
     writing_mode: WritingMode,
     clusters: &mut [GlyphCluster],
 ) -> (f32, f32) {
-    let mut x = process_anchor(chunk.anchor, clusters_length(clusters));
-    let mut y = 0.0;
-
-    for cluster in clusters {
-        let cp = offset + cluster.byte_idx.code_point_at(&chunk.text);
+    // `dx` and `dy` shift a character and all the characters after it in logical order,
+    // while the clusters are in visual order, which differs in right-to-left text.
+    let mut logical_order: Vec<usize> = (0..clusters.len()).collect();
+    logical_order.sort_by_key(|&i| clusters[i].byte_idx.value());
+    let mut shifts = vec![(0.0, 0.0); clusters.len()];
+    let (mut shift_x, mut shift_y) = (0.0, 0.0);
+    for i in logical_order {
+        let cp = offset + clusters[i].byte_idx.code_point_at(&chunk.text);
         if let (Some(dx), Some(dy)) = (text.dx.get(cp), text.dy.get(cp)) {
             if writing_mode == WritingMode::LeftToRight {
-                x += dx;
-                y += dy;
+                shift_x += dx;
+                shift_y += dy;
             } else {
-                y -= dx;
-                x += dy;
+                shift_y -= dx;
+                shift_x += dy;
             }
-            cluster.has_relative_shift = !dx.approx_zero_ulps(4) || !dy.approx_zero_ulps(4);
+            clusters[i].has_relative_shift = !dx.approx_zero_ulps(4) || !dy.approx_zero_ulps(4);
         }
+        shifts[i] = (shift_x, shift_y);
+    }
 
-        cluster.transform = cluster.transform.pre_translate(x, y);
+    let mut x = process_anchor(chunk.anchor, clusters_length(clusters));
+
+    for (cluster, (cluster_shift_x, cluster_shift_y)) in clusters.iter_mut().zip(shifts) {
+        let cp = offset + cluster.byte_idx.code_point_at(&chunk.text);
+
+        cluster.transform = cluster
+            .transform
+            .pre_translate(x + cluster_shift_x, cluster_shift_y);
 
         if let Some(angle) = text.rotate.get(cp).cloned() {
             if !angle.approx_zero_ulps(4) {
@@ -580,7 +592,7 @@ fn resolve_clusters_positions_horizontal(
         x += cluster.advance;
     }
 
-    (x, y)
+    (x + shift_x, shift_y)
 }
 
 // Baseline resolving in SVG is a mess.

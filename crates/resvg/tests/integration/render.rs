@@ -1675,6 +1675,7 @@ use crate::render;
 #[test] fn text_tref_with_a_title_child() { assert_eq!(render("tests/text/tref/with-a-title-child"), 0); }
 #[test] fn text_tref_with_text() { assert_eq!(render("tests/text/tref/with-text"), 0); }
 #[test] fn text_tref_xml_space() { assert_eq!(render("tests/text/tref/xml-space"), 0); }
+#[test] fn text_tspan_arabic_with_dy() { assert_eq!(render("tests/text/tspan/arabic-with-dy"), 0); }
 #[test] fn text_tspan_bidi_reordering() { assert_eq!(render("tests/text/tspan/bidi-reordering"), 0); }
 #[test] fn text_tspan_mixed_font_size() { assert_eq!(render("tests/text/tspan/mixed-font-size"), 0); }
 #[test] fn text_tspan_mixed_xml_space_1() { assert_eq!(render("tests/text/tspan/mixed-xml-space-1"), 0); }

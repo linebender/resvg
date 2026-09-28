@@ -1,0 +1,13 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"
+     font-family="Amiri" font-size="32">
+    <title>Arabic with `dy`</title>
+
+    <text id="text1" x="40" y="60">
+        <tspan id="tspan1" x="40" dy="0">مفتاح</tspan>
+        <tspan id="tspan2" x="40" dy="50">معايير</tspan>
+        <tspan id="tspan3" x="40" dy="50">الويب</tspan>
+    </text>
+
+    <!-- image frame -->
+    <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>
