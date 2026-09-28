@@ -1,0 +1,16 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <title>Two urls with different filter regions</title>
+
+    <filter id="small" filterUnits="userSpaceOnUse" x="40" y="40" width="120" height="120">
+        <feOffset/>
+    </filter>
+    <filter id="large" filterUnits="userSpaceOnUse" x="0" y="0" width="200" height="200">
+        <feOffset/>
+    </filter>
+    <g filter="url(#small) url(#large)">
+        <rect width="200" height="200" fill="red"/>
+        <rect x="70" y="70" width="60" height="60" fill="blue"/>
+    </g>
+
+    <rect x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>
