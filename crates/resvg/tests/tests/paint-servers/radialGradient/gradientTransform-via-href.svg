@@ -1,0 +1,30 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"
+     xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>Radial gradient transform via href</title>
+
+    <radialGradient id="template" gradientTransform="translate(0.25 0)">
+        <stop id="stop1" offset="0" stop-color="gold"/>
+        <stop id="stop2" offset="1" stop-color="navy"/>
+    </radialGradient>
+    <radialGradient id="inherited" xlink:href="#template"/>
+    <radialGradient id="chained" href="#inherited"/>
+    <radialGradient id="overridden" href="#chained" gradientTransform="scale(1)"/>
+
+    <!-- Direct, inherited, and chained transforms must render identically. -->
+    <g id="direct-group" transform="translate(20 20)">
+        <rect id="direct-rect" width="70" height="70" fill="url(#template)"/>
+    </g>
+    <g id="inherited-group" transform="translate(110 20)">
+        <rect id="inherited-rect" width="70" height="70" fill="url(#inherited)"/>
+    </g>
+    <g id="chained-group" transform="translate(20 110)">
+        <rect id="chained-rect" width="70" height="70" fill="url(#chained)"/>
+    </g>
+    <!-- An explicit identity transform overrides the inherited transform. -->
+    <g id="overridden-group" transform="translate(110 110)">
+        <rect id="overridden-rect" width="70" height="70" fill="url(#overridden)"/>
+    </g>
+
+    <!-- image frame -->
+    <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>

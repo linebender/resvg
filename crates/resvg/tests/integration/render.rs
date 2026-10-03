@@ -504,6 +504,7 @@ use crate::render;
 #[test] fn paint_servers_linearGradient_attributes_via_xlink_href() { assert_eq!(render("tests/paint-servers/linearGradient/attributes-via-xlink-href"), 0); }
 #[test] fn paint_servers_linearGradient_default_attributes() { assert_eq!(render("tests/paint-servers/linearGradient/default-attributes"), 0); }
 #[test] fn paint_servers_linearGradient_gradientTransform_and_transform() { assert_eq!(render("tests/paint-servers/linearGradient/gradientTransform-and-transform"), 0); }
+#[test] fn paint_servers_linearGradient_gradientTransform_via_href() { assert_eq!(render("tests/paint-servers/linearGradient/gradientTransform-via-href"), 0); }
 #[test] fn paint_servers_linearGradient_gradientTransform() { assert_eq!(render("tests/paint-servers/linearGradient/gradientTransform"), 0); }
 #[test] fn paint_servers_linearGradient_gradientUnits_eq_objectBoundingBox_with_percent() { assert_eq!(render("tests/paint-servers/linearGradient/gradientUnits=objectBoundingBox-with-percent"), 0); }
 #[test] fn paint_servers_linearGradient_gradientUnits_eq_userSpaceOnUse_with_percent() { assert_eq!(render("tests/paint-servers/linearGradient/gradientUnits=userSpaceOnUse-with-percent"), 0); }
@@ -553,6 +554,7 @@ use crate::render;
 #[test] fn paint_servers_pattern_pattern_on_child() { assert_eq!(render("tests/paint-servers/pattern/pattern-on-child"), 0); }
 #[test] fn paint_servers_pattern_patternContentUnits_with_viewBox() { assert_eq!(render("tests/paint-servers/pattern/patternContentUnits-with-viewBox"), 0); }
 #[test] fn paint_servers_pattern_patternContentUnits_eq_objectBoundingBox() { assert_eq!(render("tests/paint-servers/pattern/patternContentUnits=objectBoundingBox"), 0); }
+#[test] fn paint_servers_pattern_patternTransform_via_href() { assert_eq!(render("tests/paint-servers/pattern/patternTransform-via-href"), 0); }
 #[test] fn paint_servers_pattern_patternUnits_eq_objectBoundingBox_with_percent() { assert_eq!(render("tests/paint-servers/pattern/patternUnits=objectBoundingBox-with-percent"), 0); }
 #[test] fn paint_servers_pattern_patternUnits_eq_objectBoundingBox() { assert_eq!(render("tests/paint-servers/pattern/patternUnits=objectBoundingBox"), 0); }
 #[test] fn paint_servers_pattern_patternUnits_eq_userSpaceOnUse_with_percent() { assert_eq!(render("tests/paint-servers/pattern/patternUnits=userSpaceOnUse-with-percent"), 0); }
@@ -585,6 +587,7 @@ use crate::render;
 #[test] fn paint_servers_radialGradient_fy_resolving_2() { assert_eq!(render("tests/paint-servers/radialGradient/fy-resolving-2"), 0); }
 #[test] fn paint_servers_radialGradient_fy_resolving_3() { assert_eq!(render("tests/paint-servers/radialGradient/fy-resolving-3"), 0); }
 #[test] fn paint_servers_radialGradient_gradientTransform_and_transform() { assert_eq!(render("tests/paint-servers/radialGradient/gradientTransform-and-transform"), 0); }
+#[test] fn paint_servers_radialGradient_gradientTransform_via_href() { assert_eq!(render("tests/paint-servers/radialGradient/gradientTransform-via-href"), 0); }
 #[test] fn paint_servers_radialGradient_gradientTransform() { assert_eq!(render("tests/paint-servers/radialGradient/gradientTransform"), 0); }
 #[test] fn paint_servers_radialGradient_gradientUnits_eq_objectBoundingBox_with_percent() { assert_eq!(render("tests/paint-servers/radialGradient/gradientUnits=objectBoundingBox-with-percent"), 0); }
 #[test] fn paint_servers_radialGradient_gradientUnits_eq_userSpaceOnUse_with_percent() { assert_eq!(render("tests/paint-servers/radialGradient/gradientUnits=userSpaceOnUse-with-percent"), 0); }

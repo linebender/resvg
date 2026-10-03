@@ -54,7 +54,8 @@ fn convert_linear(node: SvgNode, state: &converter::State) -> Option<ServerOrCol
     }
 
     let units = convert_units(node, AId::GradientUnits, Units::ObjectBoundingBox);
-    let transform = node.resolve_transform(AId::GradientTransform, state);
+    let transform =
+        resolve_attr(node, AId::GradientTransform).resolve_transform(AId::GradientTransform, state);
 
     let gradient = LinearGradient {
         x1: resolve_number(node, AId::X1, units, state, Length::zero()),
@@ -123,7 +124,8 @@ fn convert_radial(node: SvgNode, state: &converter::State) -> Option<ServerOrCol
     );
     let fx = resolve_number(node, AId::Fx, units, state, Length::new_number(cx as f64));
     let fy = resolve_number(node, AId::Fy, units, state, Length::new_number(cy as f64));
-    let transform = node.resolve_transform(AId::GradientTransform, state);
+    let transform =
+        resolve_attr(node, AId::GradientTransform).resolve_transform(AId::GradientTransform, state);
 
     let gradient = RadialGradient {
         cx,
@@ -168,7 +170,8 @@ fn convert_pattern(
     let units = convert_units(node, AId::PatternUnits, Units::ObjectBoundingBox);
     let content_units = convert_units(node, AId::PatternContentUnits, Units::UserSpaceOnUse);
 
-    let transform = node.resolve_transform(AId::PatternTransform, state);
+    let transform =
+        resolve_attr(node, AId::PatternTransform).resolve_transform(AId::PatternTransform, state);
 
     let rect = NonZeroRect::from_xywh(
         resolve_number(node, AId::X, units, state, Length::zero()),
