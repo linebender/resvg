@@ -8,6 +8,12 @@ This changelog also contains important changes in dependencies.
 
 ## [Unreleased]
 
+### Fixed
+
+- `feOffset` and `feDropShadow` now rotate and skew their `dx`/`dy` together with
+  the filtered content instead of only scaling it, fixing incorrect filter output
+  inside rotated or skewed groups. (#949)
+
 ## [0.48.1] 2026-08-02
 
 This release has an MSRV of 1.85.0 for `usvg` and `resvg` and the C API.
