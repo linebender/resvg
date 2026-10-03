@@ -7,7 +7,8 @@ use fontdb::{Database, ID};
 use svgtypes::FontFamily;
 
 use self::layout::DatabaseExt;
-use crate::{Cache, Font, FontStretch, FontStyle, Text};
+use crate::tree::BBox;
+use crate::{Cache, Font, FontStretch, FontStyle, Group, LineJoin, Node, Text};
 
 pub(crate) mod flatten;
 mod transform;
@@ -209,22 +210,113 @@ impl std::fmt::Debug for FontResolver<'_> {
     }
 }
 
-/// Convert a text into its paths. This is done in two steps:
-/// 1. We convert the text into glyphs and position them according to the rules specified
-///    in the SVG specification. While doing so, we also calculate the text bbox (which
-///    is not based on the outlines of a glyph, but instead the glyph metrics as well
-///    as decoration spans).
-/// 2. We convert all of the positioned glyphs into outlines.
+/// Converts a text node into glyphs and positions them according to the rules
+/// specified in the SVG specification. While doing so, we also calculate the
+/// text bbox (which is not based on the outlines of a glyph, but instead the
+/// glyph metrics as well as decoration spans).
+///
+/// Note that this only performs the text *layout*. The conversion of the
+/// positioned glyphs into outlines ("flattening") is performed lazily,
+/// either on demand via [`Text::flattened`](crate::Text::flattened) or
+/// upfront for the whole tree via
+/// [`Tree::compute_flattened_text`](crate::Tree::compute_flattened_text).
 pub(crate) fn convert(text: &mut Text, resolver: &FontResolver, cache: &mut Cache) -> Option<()> {
     let (text_fragments, bbox) = layout::layout_text(text, resolver, &mut cache.fontdb)?;
     text.layouted = text_fragments;
     text.bounding_box = bbox.to_rect();
     text.abs_bounding_box = bbox.transform(text.abs_transform)?.to_rect();
 
-    let (group, stroke_bbox) = flatten::flatten(text, cache)?;
-    text.flattened = Box::new(group);
+    // Take a snapshot of the font database so that lazy flattening has access
+    // to the same fonts (including ones loaded on demand during layout).
+    text.fontdb = cache.fontdb.clone();
+
+    // The stroke bounding box has to be known before flattening, because
+    // ancestor group bounding boxes are calculated during parsing.
+    // We approximate it from the per-glyph ink bounding boxes stored in the
+    // font (no outline extraction required), the layout bounding box and
+    // the decoration paths.
+    let stroke_bbox = calculate_stroke_bbox(text).unwrap_or(bbox);
     text.stroke_bounding_box = stroke_bbox.to_rect();
     text.abs_stroke_bounding_box = stroke_bbox.transform(text.abs_transform)?.to_rect();
 
     Some(())
+}
+
+/// Calculates an approximate ink bounding box of a text node, including stroke.
+///
+/// The returned bbox is the union of the per-glyph ink bounding boxes stored
+/// in the font (expanded by the stroke width when the span is stroked) and
+/// the decoration paths' stroke bounding boxes. When the ink bounds of a
+/// glyph are not available, the layout (metrics) bounding box is used as a
+/// fallback. The result is guaranteed to be at least as large as the ink of
+/// the glyph outlines, which is what layer allocation during rendering
+/// requires.
+fn calculate_stroke_bbox(text: &Text) -> Option<tiny_skia_path::NonZeroRect> {
+    use self::flatten::DatabaseExt as _;
+
+    type BoundsKey = (ID, GlyphId, Vec<crate::FontVariation>);
+
+    let mut bbox = BBox::default();
+    let mut bounds_cache: std::collections::HashMap<BoundsKey, Option<tiny_skia_path::Rect>> =
+        std::collections::HashMap::new();
+
+    for span in &text.layouted {
+        // The maximum distance the stroke can extend beyond the path.
+        // Miter joins can extend up to `stroke-miterlimit * stroke-width / 2`
+        // beyond the joint point; other joins at most `stroke-width / 2`.
+        let stroke_expansion = span.stroke.as_ref().map(|stroke| {
+            let half_width = stroke.width.get() / 2.0;
+            match stroke.linejoin {
+                LineJoin::Miter | LineJoin::MiterClip => {
+                    half_width * stroke.miterlimit.get().max(1.0)
+                }
+                LineJoin::Round | LineJoin::Bevel => half_width,
+            }
+        });
+
+        for glyph in &span.positioned_glyphs {
+            let bounds = *bounds_cache
+                .entry((glyph.font, glyph.id, span.variations.clone()))
+                .or_insert_with(|| text.fontdb.bounds(glyph.font, glyph.id, &span.variations));
+
+            // Glyph ink bounds are in font units with a Y-up orientation,
+            // just like glyph outlines, so the outline transform applies.
+            // When the ink bounds are not available (e.g. for glyphs
+            // without a `glyf`/`CFF` outline), fall back to the layout
+            // (metrics) bounding box of the whole text.
+            let rect = bounds
+                .and_then(|bounds| bounds.transform(glyph.outline_transform()))
+                .unwrap_or(text.bounding_box);
+
+            let rect = match stroke_expansion {
+                Some(delta) => rect.outset(delta, delta).unwrap_or(rect),
+                None => rect,
+            };
+            bbox = bbox.expand(rect);
+        }
+
+        for path in [&span.overline, &span.underline, &span.line_through]
+            .into_iter()
+            .flatten()
+        {
+            bbox = bbox.expand(path.stroke_bounding_box());
+        }
+    }
+
+    bbox.to_non_zero_rect()
+}
+
+/// Flattens all text nodes in a group, recursively, sharing a single glyph cache.
+pub(crate) fn flatten_group(parent: &Group, cache: &mut flatten::FlattenCache) {
+    for node in &parent.children {
+        match node {
+            Node::Text(text) => {
+                text.flatten_with_cache(cache);
+            }
+            Node::Group(group) => flatten_group(group, cache),
+            _ => {}
+        }
+
+        node.subroots(|subroot| flatten_group(subroot, cache));
+    }
 }

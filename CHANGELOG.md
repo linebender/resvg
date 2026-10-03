@@ -8,6 +8,20 @@ This changelog also contains important changes in dependencies.
 
 ## [Unreleased]
 
+### Added
+
+- `usvg::Tree::compute_flattened_text`, which flattens all text nodes in the tree
+  upfront while sharing a glyph cache between them.
+
+### Changed
+
+- Text flattening (converting positioned glyphs into paths) is now performed lazily.
+  Parsing an SVG only performs text layout; outlines are computed on the first access
+  to `usvg::Text::flattened` or via `usvg::Tree::compute_flattened_text`.
+- `usvg::Text::stroke_bounding_box` is now calculated from the per-glyph ink bounding
+  boxes stored in the font instead of the flattened outlines, which may result in
+  slightly different (approximate) bounds for non-outline (e.g. color) glyphs.
+
 ## [0.48.1] 2026-08-02
 
 This release has an MSRV of 1.85.0 for `usvg` and `resvg` and the C API.

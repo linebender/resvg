@@ -1,7 +1,7 @@
 // Copyright 2018 the Resvg Authors
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 use strict_num::NonZeroPositiveF32;
 pub use svgtypes::FontFamily;
@@ -586,9 +586,11 @@ pub struct Text {
     pub(crate) abs_bounding_box: Rect,
     pub(crate) stroke_bounding_box: Rect,
     pub(crate) abs_stroke_bounding_box: Rect,
-    pub(crate) flattened: Box<Group>,
+    pub(crate) flattened: OnceLock<Box<Group>>,
     #[cfg(feature = "text")]
     pub(crate) layouted: Vec<Span>,
+    #[cfg(feature = "text")]
+    pub(crate) fontdb: Arc<fontdb::Database>,
 }
 
 impl Text {
@@ -687,6 +689,12 @@ impl Text {
 
     /// Text converted into paths, ready to render.
     ///
+    /// The conversion is performed lazily: the first call to this method
+    /// converts the positioned glyphs into paths and caches the result.
+    /// To flatten all text nodes in a tree at once, while sharing a glyph
+    /// cache between them, use
+    /// [`Tree::compute_flattened_text`](crate::Tree::compute_flattened_text).
+    ///
     /// Note that this is only a
     /// "best-effort" attempt: The text will be converted into group/paths/image
     /// primitives, so that they can be rendered with the existing infrastructure.
@@ -702,7 +710,27 @@ impl Text {
     ///    If the two above are not acceptable, then you will need to implement your own
     ///    glyph rendering logic based on the layouted glyphs (see the `layouted` method).
     pub fn flattened(&self) -> &Group {
-        &self.flattened
+        #[cfg(feature = "text")]
+        {
+            self.flatten_with_cache(&mut crate::text::flatten::FlattenCache::default())
+        }
+        #[cfg(not(feature = "text"))]
+        {
+            self.flattened.get_or_init(|| Box::new(Group::empty()))
+        }
+    }
+
+    #[cfg(feature = "text")]
+    pub(crate) fn flatten_with_cache(
+        &self,
+        cache: &mut crate::text::flatten::FlattenCache,
+    ) -> &Group {
+        self.flattened.get_or_init(|| {
+            Box::new(
+                crate::text::flatten::flatten(self, &self.fontdb, cache)
+                    .unwrap_or_else(Group::empty),
+            )
+        })
     }
 
     /// The positioned glyphs and decoration spans of the text.
@@ -716,6 +744,8 @@ impl Text {
     }
 
     pub(crate) fn subroots(&self, f: &mut dyn FnMut(&Group)) {
-        f(&self.flattened);
+        if let Some(flattened) = self.flattened.get() {
+            f(flattened);
+        }
     }
 }

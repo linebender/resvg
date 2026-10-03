@@ -36,6 +36,13 @@ pub fn render(
     transform: tiny_skia::Transform,
     pixmap: &mut tiny_skia::PixmapMut,
 ) {
+    // Flatten all text nodes upfront so that a glyph cache
+    // can be shared between them.
+    #[cfg(feature = "text")]
+    if tree.has_text_nodes() {
+        tree.compute_flattened_text();
+    }
+
     let max_bbox = max_filter_bbox(pixmap.width(), pixmap.height());
 
     let ctx = render::Context { max_bbox };
