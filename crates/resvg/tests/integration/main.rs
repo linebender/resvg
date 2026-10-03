@@ -14,11 +14,12 @@ use usvg::fontdb;
 #[rustfmt::skip]
 mod render;
 
+mod bitmap;
 mod extra;
 
 const IMAGE_SIZE: u32 = 300;
 
-static GLOBAL_FONTDB: Lazy<Arc<fontdb::Database>> = Lazy::new(|| {
+pub(crate) static GLOBAL_FONTDB: Lazy<Arc<fontdb::Database>> = Lazy::new(|| {
     if let Ok(()) = log::set_logger(&LOGGER) {
         log::set_max_level(log::LevelFilter::Warn);
     }

@@ -18,9 +18,9 @@ use tiny_skia_path::PathBuilder;
 use super::svgtree::{self, AId, EId, FromValue, SvgNode};
 use super::units::{self, convert_length};
 use super::{Error, Options, marker};
-#[cfg(feature = "text")]
-use crate::flatten::BitmapImage;
 use crate::parser::paint_server::process_paint;
+#[cfg(feature = "text")]
+use crate::text::bitmap::{BitmapGlyphKey, BitmapImage};
 #[cfg(feature = "text")]
 use crate::text::flatten::DatabaseExt;
 use crate::*;
@@ -56,7 +56,7 @@ pub struct Cache {
     #[cfg(feature = "text")]
     cache_svg: HashMap<(ID, GlyphId), Option<Node>>,
     #[cfg(feature = "text")]
-    cache_raster: HashMap<(ID, GlyphId), Option<BitmapImage>>,
+    cache_raster: HashMap<BitmapGlyphKey, Option<BitmapImage>>,
     #[cfg(feature = "text")]
     cache_has_opsz: HashMap<ID, bool>,
 
@@ -205,7 +205,18 @@ impl Cache {
     }
 
     font_lookup!(fontdb_svg, cache_svg, svg, Node);
-    font_lookup!(fontdb_raster, cache_raster, raster, BitmapImage);
+
+    #[cfg(feature = "text")]
+    pub(crate) fn fontdb_raster(&mut self, key: BitmapGlyphKey) -> Option<BitmapImage> {
+        match self.cache_raster.get(&key) {
+            Some(cache_hit) => cache_hit.clone(),
+            None => {
+                let lookup = crate::text::bitmap::glyph(&self.fontdb, key);
+                self.cache_raster.insert(key, lookup.clone());
+                lookup
+            }
+        }
+    }
 
     #[cfg(feature = "text")]
     pub(crate) fn fontdb_outline(

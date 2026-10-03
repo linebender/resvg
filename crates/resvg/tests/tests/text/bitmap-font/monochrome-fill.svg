@@ -1,0 +1,16 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"
+     font-family="Bitmap Mono" font-size="16">
+    <title>A monochrome bitmap strike is painted with the text fill</title>
+
+    <text id="text1" x="20" y="60" fill="green">Bitmap</text>
+    <text id="text2" x="20" y="100" fill="green" fill-opacity="0.4">Bitmap</text>
+    <text id="text3" x="20" y="140" fill="url(#grad)">Bitmap</text>
+
+    <linearGradient id="grad">
+        <stop offset="0" stop-color="red"/>
+        <stop offset="1" stop-color="blue"/>
+    </linearGradient>
+
+    <!-- image frame -->
+    <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>
