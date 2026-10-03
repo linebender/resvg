@@ -8,6 +8,14 @@ This changelog also contains important changes in dependencies.
 
 ## [Unreleased]
 
+### Added
+
+- `Tree::intrinsic_dimensions`, exposing the root `width`/`height`/`viewBox` attributes
+  as declared, with absent attributes as `None` and percentages unresolved. This allows
+  embedders to implement their own sizing rules, such as the CSS default sizing algorithm
+  for replaced elements.
+- `svgtypes` is now re-exported from `usvg`.
+
 ## [0.48.1] 2026-08-02
 
 This release has an MSRV of 1.85.0 for `usvg` and `resvg` and the C API.

@@ -64,6 +64,7 @@ pub use text::*;
 pub use tree::*;
 
 pub use roxmltree;
+pub use svgtypes;
 
 #[cfg(feature = "text")]
 pub use fontdb;

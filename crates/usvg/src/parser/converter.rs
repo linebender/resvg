@@ -398,8 +398,15 @@ pub(crate) fn convert_doc(svg_doc: &svgtree::Document, opt: &Options) -> Result<
             _ => None,
         });
 
+    let intrinsic_dimensions = IntrinsicDimensions {
+        width: svg.attribute::<Length>(AId::Width),
+        height: svg.attribute::<Length>(AId::Height),
+        view_box: svg.parse_viewbox(),
+    };
+
     let mut tree = Tree {
         size,
+        intrinsic_dimensions,
         root: Group::empty(),
         linear_gradients: Vec::new(),
         radial_gradients: Vec::new(),
