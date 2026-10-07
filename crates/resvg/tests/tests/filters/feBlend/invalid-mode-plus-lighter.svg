@@ -1,0 +1,11 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <title>Invalid feBlend mode=plus-lighter falls back to normal</title>
+
+    <filter id="filter1" x="0" y="0" width="100%" height="100%">
+        <feFlood flood-color="blue"/>
+        <feBlend mode="plus-lighter" in2="SourceGraphic"/>
+    </filter>
+    <rect x="20" y="20" width="160" height="160" fill="red" filter="url(#filter1)"/>
+
+    <rect x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>

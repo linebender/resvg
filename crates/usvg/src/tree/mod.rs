@@ -230,8 +230,6 @@ pub enum BlendMode {
     Saturation,
     Color,
     Luminosity,
-    /// `plus-lighter`, Compositing and Blending Level 2: the two colors are added, the
-    /// `lighter` composite operator rather than a separable blend function.
     PlusLighter,
 }
 

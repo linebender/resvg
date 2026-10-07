@@ -29,6 +29,7 @@ use crate::render;
 #[test] fn filters_enable_background_with_opacity_4() { assert_eq!(render("tests/filters/enable-background/with-opacity-4"), 0); }
 #[test] fn filters_enable_background_with_transform() { assert_eq!(render("tests/filters/enable-background/with-transform"), 0); }
 #[test] fn filters_feBlend_empty() { assert_eq!(render("tests/filters/feBlend/empty"), 0); }
+#[test] fn filters_feBlend_invalid_mode_plus_lighter() { assert_eq!(render("tests/filters/feBlend/invalid-mode-plus-lighter"), 0); }
 #[test] fn filters_feBlend_mode_eq_color_burn() { assert_eq!(render("tests/filters/feBlend/mode=color-burn"), 0); }
 #[test] fn filters_feBlend_mode_eq_darken() { assert_eq!(render("tests/filters/feBlend/mode=darken"), 0); }
 #[test] fn filters_feBlend_mode_eq_hue() { assert_eq!(render("tests/filters/feBlend/mode=hue"), 0); }

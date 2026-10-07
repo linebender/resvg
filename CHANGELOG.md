@@ -9,6 +9,7 @@ This changelog also contains important changes in dependencies.
 ## [Unreleased]
 
 ### Added
+
 - `mix-blend-mode: plus-lighter` (Compositing and Blending Level 2).
 - `feComposite` `operator="lighter"` (SVG 2).
 

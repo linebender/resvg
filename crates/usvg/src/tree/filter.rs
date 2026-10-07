@@ -335,7 +335,6 @@ pub enum CompositeOperator {
     Out,
     Atop,
     Xor,
-    /// `lighter`, SVG 2: the two inputs are added.
     Lighter,
     Arithmetic {
         k1: f32,

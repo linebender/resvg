@@ -193,7 +193,7 @@ Basically everything from [CSS Text Module Level 3](https://www.w3.org/TR/css-te
 - [x] (partial support) A [`paint-order`](https://www.w3.org/TR/SVG2/painting.html#PaintOrder) property.
 - [x] `context-fill` and `context-stroke` variants to the [`<paint>`](https://www.w3.org/TR/SVG2/painting.html#SpecifyingPaint) type.
 - [x] A [`mix-blend-mode`](https://www.w3.org/TR/compositing-1/#mix-blend-mode) property.
-- [x] A `plus-lighter` variant to the [`mix-blend-mode`](https://www.w3.org/TR/compositing-2/#mix-blend-mode) property.
+- [x] A `plus-lighter` variant to the [`mix-blend-mode`](https://drafts.csswg.org/compositing-2/#mix-blend-mode) property.
 - [x] An [`isolation`](https://www.w3.org/TR/compositing-1/#isolation) property.
 - [ ] `left`, `center` and `right` variants to `refX` and `refY` properties of the [`marker`](https://www.w3.org/TR/SVG2/painting.html#MarkerElement) element.
 - [x] An `auto-start-reverse` variant to [`orient`](https://www.w3.org/TR/SVG2/painting.html#OrientAttribute) property of the [`marker`](https://www.w3.org/TR/SVG2/painting.html#MarkerElement) element
