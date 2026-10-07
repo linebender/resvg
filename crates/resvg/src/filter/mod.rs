@@ -338,7 +338,7 @@ pub fn apply(
     source: &mut tiny_skia::Pixmap,
 ) {
     let result = apply_inner(filter, ts, source);
-    let result = result.and_then(|image| apply_to_canvas(image, source));
+    let result = result.and_then(|(image, region)| apply_to_canvas(image, region, source));
 
     // Clear on error.
     if result.is_err() {
@@ -357,8 +357,8 @@ pub fn apply(
 fn apply_inner(
     filter: &usvg::filter::Filter,
     ts: usvg::Transform,
-    source: &mut tiny_skia::Pixmap,
-) -> Result<Image, Error> {
+    source: &tiny_skia::Pixmap,
+) -> Result<(Image, IntRect), Error> {
     let region = filter
         .rect()
         .transform(ts)
@@ -371,6 +371,17 @@ fn apply_inner(
     let source_rect =
         IntRect::from_xywh(0, 0, source.width(), source.height()).ok_or(Error::InvalidRegion)?;
     let region = crate::geom::fit_to_rect(region, source_rect).ok_or(Error::InvalidRegion)?;
+
+    let cropped_source = if region != source_rect {
+        // TODO: Avoid copying?
+        Some(source.copy_region(region)?)
+    } else {
+        None
+    };
+    let source = cropped_source.as_ref().unwrap_or(source);
+    let output_region = region;
+    let ts = ts.post_translate(-region.x() as f32, -region.y() as f32);
+    let region = region.translate_to(0, 0).ok_or(Error::InvalidRegion)?;
 
     let mut results: Vec<FilterResult> = Vec::new();
 
@@ -514,7 +525,7 @@ fn apply_inner(
     }
 
     if let Some(res) = results.pop() {
-        Ok(res.image)
+        Ok((res.image, output_region))
     } else {
         Err(Error::NoResults)
     }
@@ -1097,13 +1108,17 @@ fn transform_light_source(
     source
 }
 
-fn apply_to_canvas(input: Image, pixmap: &mut tiny_skia::Pixmap) -> Result<(), Error> {
+fn apply_to_canvas(
+    input: Image,
+    region: IntRect,
+    pixmap: &mut tiny_skia::Pixmap,
+) -> Result<(), Error> {
     let input = input.into_color_space(usvg::filter::ColorInterpolation::SRGB)?;
 
     pixmap.fill(tiny_skia::Color::TRANSPARENT);
     pixmap.draw_pixmap(
-        0,
-        0,
+        region.x(),
+        region.y(),
         input.as_ref().as_ref(),
         &tiny_skia::PixmapPaint::default(),
         tiny_skia::Transform::identity(),

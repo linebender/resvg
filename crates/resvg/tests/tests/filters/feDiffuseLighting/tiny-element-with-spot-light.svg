@@ -1,0 +1,14 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <title>Tiny element with a spot light</title>
+
+    <filter id="filter1">
+        <feDiffuseLighting id="feDiffuseLighting1">
+            <feSpotLight id="feSpotLight1"/>
+        </feDiffuseLighting>
+    </filter>
+    <path id="path1" d="M 0 0.9 h 9 v 9" filter="url(#filter1)"
+          transform="translate(100 100) scale(0.3)"/>
+
+    <!-- image frame -->
+    <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>

@@ -142,6 +142,7 @@ use crate::render;
 #[test] fn filters_feDiffuseLighting_surfaceScale_eq_0() { assert_eq!(render("tests/filters/feDiffuseLighting/surfaceScale=0"), 0); }
 #[test] fn filters_feDiffuseLighting_surfaceScale_eq_1_33() { assert_eq!(render("tests/filters/feDiffuseLighting/surfaceScale=1.33"), 0); }
 #[test] fn filters_feDiffuseLighting_surfaceScale_eq_5() { assert_eq!(render("tests/filters/feDiffuseLighting/surfaceScale=5"), 0); }
+#[test] fn filters_feDiffuseLighting_tiny_element_with_spot_light() { assert_eq!(render("tests/filters/feDiffuseLighting/tiny-element-with-spot-light"), 0); }
 #[test] fn filters_feDisplacementMap_simple_case() { assert_eq!(render("tests/filters/feDisplacementMap/simple-case"), 0); }
 #[test] fn filters_feDistantLight_default_attributes() { assert_eq!(render("tests/filters/feDistantLight/default-attributes"), 0); }
 #[test] fn filters_feDistantLight_negative_azimuth_and_elevation() { assert_eq!(render("tests/filters/feDistantLight/negative-azimuth-and-elevation"), 0); }
@@ -393,6 +394,7 @@ use crate::render;
 #[test] fn filters_filter_functions_one_invalid_url_in_list() { assert_eq!(render("tests/filters/filter-functions/one-invalid-url-in-list"), 0); }
 #[test] fn filters_filter_functions_two_drop_shadow_function() { assert_eq!(render("tests/filters/filter-functions/two-drop-shadow-function"), 0); }
 #[test] fn filters_filter_functions_two_exact_urls() { assert_eq!(render("tests/filters/filter-functions/two-exact-urls"), 0); }
+#[test] fn filters_filter_functions_two_urls_with_different_regions() { assert_eq!(render("tests/filters/filter-functions/two-urls-with-different-regions"), 0); }
 #[test] fn filters_filter_functions_two_urls() { assert_eq!(render("tests/filters/filter-functions/two-urls"), 0); }
 #[test] fn filters_filter_functions_url_and_grayscale() { assert_eq!(render("tests/filters/filter-functions/url-and-grayscale"), 0); }
 #[test] fn filters_flood_color_hsla_color() { assert_eq!(render("tests/filters/flood-color/hsla-color"), 0); }
