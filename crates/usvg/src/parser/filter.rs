@@ -626,6 +626,7 @@ fn convert_composite(fe: SvgNode, primitives: &[Primitive]) -> Kind {
         "out" => CompositeOperator::Out,
         "atop" => CompositeOperator::Atop,
         "xor" => CompositeOperator::Xor,
+        "lighter" => CompositeOperator::Lighter,
         "arithmetic" => CompositeOperator::Arithmetic {
             k1: fe.attribute(AId::K1).unwrap_or(0.0),
             k2: fe.attribute(AId::K2).unwrap_or(0.0),

@@ -160,6 +160,7 @@ pub fn convert_blend_mode(mode: usvg::BlendMode) -> tiny_skia::BlendMode {
         usvg::BlendMode::Saturation => tiny_skia::BlendMode::Saturation,
         usvg::BlendMode::Color => tiny_skia::BlendMode::Color,
         usvg::BlendMode::Luminosity => tiny_skia::BlendMode::Luminosity,
+        usvg::BlendMode::PlusLighter => tiny_skia::BlendMode::Plus,
     }
 }
 

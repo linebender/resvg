@@ -230,6 +230,7 @@ pub enum BlendMode {
     Saturation,
     Color,
     Luminosity,
+    PlusLighter,
 }
 
 impl Default for BlendMode {
@@ -257,6 +258,7 @@ impl Display for BlendMode {
             BlendMode::Saturation => "saturation",
             BlendMode::Color => "color",
             BlendMode::Luminosity => "luminosity",
+            BlendMode::PlusLighter => "plus-lighter",
         };
         write!(f, "{blend_mode}")
     }

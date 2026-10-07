@@ -335,6 +335,7 @@ pub enum CompositeOperator {
     Out,
     Atop,
     Xor,
+    Lighter,
     Arithmetic { k1: f32, k2: f32, k3: f32, k4: f32 },
 }
 

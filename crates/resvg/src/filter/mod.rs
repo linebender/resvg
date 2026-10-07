@@ -785,6 +785,7 @@ fn apply_composite(
         Operator::Out => tiny_skia::BlendMode::SourceOut,
         Operator::Atop => tiny_skia::BlendMode::SourceAtop,
         Operator::Xor => tiny_skia::BlendMode::Xor,
+        Operator::Lighter => tiny_skia::BlendMode::Plus,
         Operator::Arithmetic { .. } => tiny_skia::BlendMode::SourceOver,
     };
 
