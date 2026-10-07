@@ -827,7 +827,6 @@ fn is_non_inheritable(id: AId) -> bool {
             | AId::BaselineShift
             | AId::ClipPath
             | AId::Display
-            | AId::DominantBaseline
             | AId::Filter
             | AId::FloodColor
             | AId::FloodOpacity
