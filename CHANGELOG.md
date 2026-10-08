@@ -10,6 +10,7 @@ This changelog also contains important changes in dependencies.
 
 ### Added
 
+- `--query-bbox` CLI option to query the drawing bounding box without rasterizing it.
 - `mix-blend-mode: plus-lighter` (Compositing and Blending Level 2).
 - `feComposite` `operator="lighter"` (SVG 2).
 
