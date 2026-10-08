@@ -1,0 +1,12 @@
+<svg width="300" height="300" xmlns="http://www.w3.org/2000/svg">
+    <title>Dilation with a centered kernel. No red should be visible.</title>
+
+    <filter id="dilate" filterUnits="userSpaceOnUse" x="0" y="0" width="300" height="300">
+        <feMorphology operator="dilate" radius="10"/>
+    </filter>
+    <rect x="70" y="70" width="160" height="160" fill="red"/>
+    <rect x="80" y="80" width="140" height="140" fill="green" filter="url(#dilate)"/>
+
+    <!-- image frame -->
+    <rect x="1" y="1" width="298" height="298" fill="none" stroke="black"/>
+</svg>

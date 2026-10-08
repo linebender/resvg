@@ -209,7 +209,9 @@ use crate::render;
 #[test] fn filters_feMerge_color_interpolation_filters_eq_linearRGB() { assert_eq!(render("tests/filters/feMerge/color-interpolation-filters=linearRGB"), 0); }
 #[test] fn filters_feMerge_color_interpolation_filters_eq_sRGB() { assert_eq!(render("tests/filters/feMerge/color-interpolation-filters=sRGB"), 0); }
 #[test] fn filters_feMerge_complex_transform() { assert_eq!(render("tests/filters/feMerge/complex-transform"), 0); }
+#[test] fn filters_feMorphology_centered_kernel() { assert_eq!(render("tests/filters/feMorphology/centered-kernel"), 0); }
 #[test] fn filters_feMorphology_empty_radius() { assert_eq!(render("tests/filters/feMorphology/empty-radius"), 0); }
+#[test] fn filters_feMorphology_fractional_radius() { assert_eq!(render("tests/filters/feMorphology/fractional-radius"), 0); }
 #[test] fn filters_feMorphology_negative_radius() { assert_eq!(render("tests/filters/feMorphology/negative-radius"), 0); }
 #[test] fn filters_feMorphology_no_radius() { assert_eq!(render("tests/filters/feMorphology/no-radius"), 0); }
 #[test] fn filters_feMorphology_operator_eq_dilate() { assert_eq!(render("tests/filters/feMorphology/operator=dilate"), 0); }
