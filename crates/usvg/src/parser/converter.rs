@@ -449,7 +449,14 @@ pub(crate) fn convert_doc(svg_doc: &svgtree::Document, opt: &Options) -> Result<
         }
     }
 
-    let root_ts = view_box.to_transform(tree.size());
+    // The root transform wraps the viewBox mapping, so its origin is resolved
+    // against the viewport rather than the viewBox.
+    let root_state = State {
+        view_box: size.to_non_zero_rect(0.0, 0.0),
+        ..state.clone()
+    };
+    let svg_ts = svg.resolve_transform(AId::Transform, &root_state);
+    let root_ts = svg_ts.pre_concat(view_box.to_transform(tree.size()));
     if root_ts.is_identity() && background_color.is_none() {
         convert_children(svg_doc.root(), &state, &mut cache, &mut tree.root);
     } else {
@@ -805,7 +812,13 @@ pub(crate) fn convert_group(
         Opacity::ONE
     };
 
-    let transform = node.resolve_transform(AId::Transform, state);
+    let is_root_svg = node.tag_name() == Some(EId::Svg) && node.parent_element().is_none();
+    let transform = if is_root_svg {
+        // Already applied outside the viewBox mapping in `convert_doc`.
+        Transform::default()
+    } else {
+        node.resolve_transform(AId::Transform, state)
+    };
     let blend_mode: BlendMode = node.attribute(AId::MixBlendMode).unwrap_or_default();
     let isolation: Isolation = node.attribute(AId::Isolation).unwrap_or_default();
     let isolate = isolation == Isolation::Isolate;
@@ -1099,7 +1112,20 @@ pub fn svg_paint_order_to_usvg(order: svgtypes::PaintOrder) -> PaintOrder {
 impl SvgNode<'_, '_> {
     pub(crate) fn resolve_transform(&self, transform_aid: AId, state: &State) -> Transform {
         let mut transform: Transform = self.attribute(transform_aid).unwrap_or_default();
-        let transform_origin: Option<TransformOrigin> = self.attribute(AId::TransformOrigin);
+        let transform_origin = self
+            .attribute::<TransformOrigin>(AId::TransformOrigin)
+            .or_else(|| {
+                // The root SVG uses the CSS initial origin; other SVG elements use (0, 0).
+                if self.tag_name() == Some(EId::Svg) && self.parent_element().is_none() {
+                    Some(TransformOrigin::new(
+                        Length::new(50.0, Unit::Percent),
+                        Length::new(50.0, Unit::Percent),
+                        Length::zero(),
+                    ))
+                } else {
+                    None
+                }
+            });
 
         if let Some(transform_origin) = transform_origin {
             let dx = convert_length(

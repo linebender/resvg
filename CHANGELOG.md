@@ -18,6 +18,7 @@ This changelog also contains important changes in dependencies.
 - `dominant-baseline` is now correctly inherited by nested `<tspan>` elements,
   so a nested span stays on the same baseline as its siblings. (#864)
 - Panics and incorrect clipping when a filter region is smaller than its input. (#1141)
+- Incorrect transform order on the outermost `svg` element with a `viewBox`. (#899)
 
 ## [0.48.1] 2026-08-02
 
