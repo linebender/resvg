@@ -18,6 +18,7 @@ This changelog also contains important changes in dependencies.
 - `dominant-baseline` is now correctly inherited by nested `<tspan>` elements,
   so a nested span stays on the same baseline as its siblings. (#864)
 - Panics and incorrect clipping when a filter region is smaller than its input. (#1141)
+- Incorrect transform order on the outermost `svg` element with a `viewBox`. (#899)
 
 ## [0.48.1] 2026-08-02
 
@@ -75,11 +76,6 @@ The big change in this release is that text support is now backed by
 - The unprefixed `href` attribute now takes precedence over the deprecated `xlink:href` when both are present, as required by SVG 2. (#1015)
 - Incorrect y-axis offsets when transforming `feSpotLight` sources. (#1052)
 - Panics caused by bounding boxes that exceed the supported integer range. (#989)
-
-### Fixed
-- A `transform` on the outermost `svg` element is now applied in the SVG viewport
-  coordinate system (i.e. after the viewBox-to-viewport mapping), matching Chromium,
-  Firefox and Inkscape. (#899)
 
 ## [0.47.0] 2026-02-05
 

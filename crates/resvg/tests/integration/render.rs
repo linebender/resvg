@@ -1226,6 +1226,8 @@ use crate::render;
 #[test] fn structure_svg_preserveAspectRatio_eq_xMinYMin() { assert_eq!(render("tests/structure/svg/preserveAspectRatio=xMinYMin"), 0); }
 #[test] fn structure_svg_proportional_viewBox() { assert_eq!(render("tests/structure/svg/proportional-viewBox"), 0); }
 #[test] fn structure_svg_rect_inside_a_non_SVG_element() { assert_eq!(render("tests/structure/svg/rect-inside-a-non-SVG-element"), 0); }
+#[test] fn structure_svg_root_transform_origin_with_viewbox() { assert_eq!(render("tests/structure/svg/root-transform-origin-with-viewbox"), 0); }
+#[test] fn structure_svg_root_transform_with_viewbox() { assert_eq!(render("tests/structure/svg/root-transform-with-viewbox"), 0); }
 #[test] fn structure_svg_viewBox_not_at_zero_pos() { assert_eq!(render("tests/structure/svg/viewBox-not-at-zero-pos"), 0); }
 #[test] fn structure_svg_xmlns_validation() { assert_eq!(render("tests/structure/svg/xmlns-validation"), 0); }
 #[test] fn structure_switch_comment_as_first_child() { assert_eq!(render("tests/structure/switch/comment-as-first-child"), 0); }
