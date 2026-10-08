@@ -417,14 +417,14 @@ impl FitTo {
         }
     }
 
-    fn fit_to_transform(&self, size1: tiny_skia::Size) -> tiny_skia::Transform {
-        let size2 = match self.fit_to_size(size1) {
+    fn fit_to_transform(&self, original_size: tiny_skia::Size) -> tiny_skia::Transform {
+        let target_size = match self.fit_to_size(original_size) {
             Some(v) => v,
             None => return tiny_skia::Transform::default(),
         };
         tiny_skia::Transform::from_scale(
-            size2.width() / size1.width(),
-            size2.height() / size1.height(),
+            target_size.width() / original_size.width(),
+            target_size.height() / original_size.height(),
         )
     }
 }
