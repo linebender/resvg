@@ -1,0 +1,12 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"
+     xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>Presentation attributes (SVG 2)</title>
+    <desc>width/height styling ignored on USE element</desc>
+    <symbol id="symbol1">
+        <rect id="rect1" x="20" y="20" width="160" height="160" fill="green"/>
+    </symbol>
+    <use id="use1" xlink:href="#symbol1" style="width:50px;height:50px;"/>
+
+    <!-- image frame -->
+    <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>

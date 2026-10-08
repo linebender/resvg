@@ -752,6 +752,14 @@ impl AId {
                 | AId::WhiteSpace
                 | AId::WordSpacing
                 | AId::WritingMode
+                | AId::X
+                | AId::Y
+                | AId::Cx
+                | AId::Cy
+                | AId::R
+                | AId::D
+                | AId::Width
+                | AId::Height
         )
     }
 
