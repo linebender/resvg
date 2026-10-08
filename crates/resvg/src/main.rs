@@ -38,7 +38,7 @@ fn process() -> Result<(), String> {
         }
     };
 
-    // Do not print warning during the ID querying.
+    // Do not print warnings during bounding box queries.
     //
     // Some crates still can print to stdout/stderr, but we can't do anything about it.
     if !(args.query_all || args.query_bbox || args.quiet) {
@@ -133,6 +133,7 @@ USAGE:
   resvg in.svg out.png
   resvg -z 4 in.svg out.png
   resvg --query-all in.svg
+  resvg --query-bbox in.svg
 
 OPTIONS:
       --help                    Prints this help
@@ -203,7 +204,8 @@ OPTIONS:
 
 
   --query-all                   Queries all valid SVG ids with bounding boxes
-  --query-bbox                  Queries document bounding box
+  --query-bbox                  Queries the drawing bounding box as x,y,width,height
+                                Includes strokes and filter regions
   --export-id ID                Renders an object only with a specified ID
   --export-area-page            Use an image size instead of an object size during ID exporting
 
@@ -651,16 +653,11 @@ fn query_all_impl(parent: &usvg::Group) -> usize {
 
         count += 1;
 
-        let bbox = get_node_bbox(node);
-
-        println!(
-            "{},{},{},{},{}",
-            node.id(),
-            bbox.x(),
-            bbox.y(),
-            bbox.width(),
-            bbox.height()
-        );
+        let bbox = node
+            .abs_layer_bounding_box()
+            .map(|r| r.to_rect())
+            .unwrap_or(node.abs_bounding_box());
+        println!("{},{}", node.id(), format_bbox(bbox));
 
         if let usvg::Node::Group(group) = node {
             count += query_all_impl(group);
@@ -670,33 +667,24 @@ fn query_all_impl(parent: &usvg::Group) -> usize {
     count
 }
 
-fn get_node_bbox(node: &usvg::Node) -> usvg::Rect {
-    let bbox = node
-        .abs_layer_bounding_box()
-        .map(|r| r.to_rect())
-        .unwrap_or(node.abs_bounding_box());
-
-    fn round_len(v: f32) -> f32 {
-        (v * 1000.0).round() / 1000.0
+fn format_bbox(bbox: usvg::Rect) -> String {
+    fn round_len(v: f32) -> f64 {
+        (f64::from(v) * 1000.0).round() / 1000.0
     }
 
-    usvg::Rect::from_xywh(
+    format!(
+        "{},{},{},{}",
         round_len(bbox.x()),
         round_len(bbox.y()),
         round_len(bbox.width()),
         round_len(bbox.height()),
     )
-    .expect("rounding should not yield invalid rect")
 }
 
 fn query_bbox(tree: &usvg::Tree) -> Result<(), String> {
-    let bbox = get_node_bbox(&usvg::Node::Group(Box::new(tree.root().clone())));
     println!(
-        "{},{},{},{}",
-        bbox.x(),
-        bbox.y(),
-        bbox.width(),
-        bbox.height()
+        "{}",
+        format_bbox(tree.root().abs_layer_bounding_box().to_rect())
     );
     Ok(())
 }
