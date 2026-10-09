@@ -1,0 +1,12 @@
+<svg width="300" height="300" xmlns="http://www.w3.org/2000/svg">
+    <title>Erosion with a fractional radius. No red should be visible.</title>
+
+    <filter id="erode" filterUnits="userSpaceOnUse" x="0" y="0" width="300" height="300">
+        <feMorphology operator="erode" radius="10.25"/>
+    </filter>
+    <rect x="70" y="70" width="160" height="160" fill="red"/>
+    <rect x="60" y="60" width="180" height="180" fill="green" filter="url(#erode)"/>
+
+    <!-- image frame -->
+    <rect x="1" y="1" width="298" height="298" fill="none" stroke="black"/>
+</svg>
