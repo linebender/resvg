@@ -22,6 +22,9 @@ This changelog also contains important changes in dependencies.
 - Incorrect transform order on the outermost `svg` element with a `viewBox`. (#899)
 - Relative positioning of right-to-left text with `dx` and `dy`, including text on a path and text decorations. (#1093)
 - `text-anchor` now uses the actual extent of a text chunk, which `dx` and `textLength` can change. (#1145)
+- Filters inside rotated or skewed groups are now applied in the user space of the group.
+  This fixes the clipping to filter regions and subregions, as well as the direction of
+  offsets, blurs, turbulence and tiles, and the rendering of `feImage`. (#949)
 
 ## [0.48.1] 2026-08-02
 

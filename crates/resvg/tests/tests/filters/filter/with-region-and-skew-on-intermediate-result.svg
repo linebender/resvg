@@ -1,0 +1,20 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <title>With region and skew on an intermediate result. No red should be visible.</title>
+
+    <filter id="filter1" filterUnits="userSpaceOnUse" x="40" y="40" width="60" height="60">
+        <feFlood flood-color="green" x="60" y="50" width="30" height="30" result="green"/>
+        <feFlood flood-color="red" x="40" y="90" width="10" height="10"/>
+        <feOffset dx="-40"/>
+        <feOffset dx="40" result="red"/>
+        <feMerge>
+            <feMergeNode in="green"/>
+            <feMergeNode in="red"/>
+        </feMerge>
+    </filter>
+    <g transform="skewX(45)">
+        <rect x="40" y="40" width="60" height="60" fill="none" filter="url(#filter1)"/>
+    </g>
+
+    <!-- image frame -->
+    <rect x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>

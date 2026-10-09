@@ -348,6 +348,7 @@ use crate::render;
 #[test] fn filters_filter_with_multiple_transforms_1() { assert_eq!(render("tests/filters/filter/with-multiple-transforms-1"), 0); }
 #[test] fn filters_filter_with_multiple_transforms_2() { assert_eq!(render("tests/filters/filter/with-multiple-transforms-2"), 0); }
 #[test] fn filters_filter_with_region_and_filterUnits_eq_userSpaceOnUse() { assert_eq!(render("tests/filters/filter/with-region-and-filterUnits=userSpaceOnUse"), 0); }
+#[test] fn filters_filter_with_region_and_skew_on_intermediate_result() { assert_eq!(render("tests/filters/filter/with-region-and-skew-on-intermediate-result"), 0); }
 #[test] fn filters_filter_with_region_and_subregion() { assert_eq!(render("tests/filters/filter/with-region-and-subregion"), 0); }
 #[test] fn filters_filter_with_region_outside_the_canvas() { assert_eq!(render("tests/filters/filter/with-region-outside-the-canvas"), 0); }
 #[test] fn filters_filter_with_region_outside_the_viewbox() { assert_eq!(render("tests/filters/filter/with-region-outside-the-viewbox"), 0); }
@@ -355,6 +356,7 @@ use crate::render;
 #[test] fn filters_filter_with_subregion_1() { assert_eq!(render("tests/filters/filter/with-subregion-1"), 0); }
 #[test] fn filters_filter_with_subregion_2() { assert_eq!(render("tests/filters/filter/with-subregion-2"), 0); }
 #[test] fn filters_filter_with_subregion_3() { assert_eq!(render("tests/filters/filter/with-subregion-3"), 0); }
+#[test] fn filters_filter_with_subregion_and_rotation() { assert_eq!(render("tests/filters/filter/with-subregion-and-rotation"), 0); }
 #[test] fn filters_filter_with_transform_outside_of_canvas() { assert_eq!(render("tests/filters/filter/with-transform-outside-of-canvas"), 0); }
 #[test] fn filters_filter_without_region_and_filterUnits_eq_userSpaceOnUse() { assert_eq!(render("tests/filters/filter/without-region-and-filterUnits=userSpaceOnUse"), 0); }
 #[test] fn filters_filter_zero_sized_subregion() { assert_eq!(render("tests/filters/filter/zero-sized-subregion"), 0); }
