@@ -83,6 +83,8 @@ static QString errorToString(const int err)
             return QLatin1String("SVG doesn't have a valid size.");
         case RESVG_ERROR_PARSING_FAILED :
             return QLatin1String("Failed to parse an SVG data.");
+        case RESVG_ERROR_SVGZ_DECOMPRESSION_LIMIT_REACHED :
+            return QLatin1String("SVGZ data decompressed into too much data.");
     }
 
     Q_UNREACHABLE();
