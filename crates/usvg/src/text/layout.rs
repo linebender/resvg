@@ -1471,114 +1471,130 @@ fn shape_text_with_font(
     font_optical_sizing: crate::FontOpticalSizing,
     fontdb: &fontdb::Database,
 ) -> Option<Vec<Glyph>> {
-    fontdb.with_face_data(font.id, |font_data, face_index| -> Option<Vec<Glyph>> {
-        use harfrust::{Feature, ShaperData, ShaperInstance, Tag, UnicodeBuffer, Variation};
+    use harfrust::font::Variation;
+    use harfrust::{Buffer, Feature, ShaperFont, Tag};
 
-        use crate::text::OPSZ;
+    use crate::text::OPSZ;
 
-        let hr_font = harfrust::FontRef::from_index(font_data, face_index).ok()?;
+    // `harfrust::Font` needs owned font data: share it if the font is already in memory,
+    // otherwise copy it.
+    let hr_font =
+        if let Some((fontdb::Source::Binary(data), face_index)) = fontdb.face_source(font.id) {
+            harfrust::Font::new(data, face_index)
+        } else {
+            fontdb.with_face_data(font.id, |font_data, face_index| {
+                harfrust::Font::new(font_data.to_vec(), face_index)
+            })?
+        }?;
 
-        // Build the list of variations to apply
-        let mut variations: Vec<Variation> = variations
-            .iter()
-            .map(|v| Variation {
-                tag: Tag::from_be_bytes(v.tag),
-                value: v.value,
-            })
-            .collect();
+    // Build the list of variations to apply
+    let mut variations: Vec<Variation> = variations
+        .iter()
+        .map(|v| Variation {
+            tag: Tag::from_be_bytes(v.tag),
+            value: v.value,
+        })
+        .collect();
 
-        // Automatic optical sizing: if font-optical-sizing is auto and the font has
-        // an 'opsz' axis that isn't explicitly set, auto-set it to match font size.
-        // This matches browser behavior (CSS font-optical-sizing: auto).
-        if font_optical_sizing == crate::FontOpticalSizing::Auto {
-            let has_explicit_opsz = variations.iter().any(|v| v.tag == *b"opsz");
-            if !has_explicit_opsz && hr_font.axes().get_by_tag(OPSZ).is_some() {
-                variations.push(Variation {
-                    tag: OPSZ,
-                    value: font_size,
-                });
-            }
+    // Automatic optical sizing: if font-optical-sizing is auto and the font has
+    // an 'opsz' axis that isn't explicitly set, auto-set it to match font size.
+    // This matches browser behavior (CSS font-optical-sizing: auto).
+    if font_optical_sizing == crate::FontOpticalSizing::Auto {
+        let has_explicit_opsz = variations.iter().any(|v| v.tag == *b"opsz");
+        let has_opsz_axis = hr_font.tables().fvar().is_ok_and(|fvar| {
+            fvar.axes()
+                .is_ok_and(|axes| axes.iter().any(|axis| axis.axis_tag() == OPSZ))
+        });
+        if !has_explicit_opsz && has_opsz_axis {
+            variations.push(Variation {
+                tag: OPSZ,
+                value: font_size,
+            });
+        }
+    }
+
+    let bidi_info = unicode_bidi::BidiInfo::new(text, Some(unicode_bidi::Level::ltr()));
+    let paragraph = &bidi_info.paragraphs[0];
+    let line = paragraph.range.clone();
+
+    let mut glyphs = Vec::new();
+
+    // A shaper instance is only needed to apply variations.
+    let hr_font = if variations.is_empty() {
+        hr_font
+    } else {
+        hr_font.instance_builder().variations(&variations).build()
+    };
+    let shaper = ShaperFont::new(&hr_font);
+
+    let mut features = Vec::new();
+    if small_caps {
+        features.push(Feature::new(Tag::new(b"smcp"), 1, ..));
+    }
+    if !apply_kerning {
+        features.push(Feature::new(Tag::new(b"kern"), 0, ..));
+    }
+
+    let (levels, runs) = bidi_info.visual_runs(paragraph, line);
+    for run in runs.iter() {
+        let sub_text = &text[run.clone()];
+        if sub_text.is_empty() {
+            continue;
         }
 
-        let bidi_info = unicode_bidi::BidiInfo::new(text, Some(unicode_bidi::Level::ltr()));
-        let paragraph = &bidi_info.paragraphs[0];
-        let line = paragraph.range.clone();
+        let ltr = levels[run.start].is_ltr();
+        let direction = if ltr {
+            harfrust::Direction::LeftToRight
+        } else {
+            harfrust::Direction::RightToLeft
+        };
 
-        let mut glyphs = Vec::new();
+        let mut buffer = Buffer::new();
+        buffer.push_str(sub_text);
+        buffer.set_direction(direction);
 
-        // A shaper instance is only needed to apply variations.
-        let instance_data = (!variations.is_empty())
-            .then(|| ShaperInstance::from_variations(&hr_font, &variations));
-        let shaper_data = ShaperData::new(&hr_font);
-        let shaper = shaper_data
-            .shaper(&hr_font)
-            .instance(instance_data.as_ref())
-            .build();
+        // TODO: explicitly set language?
+        buffer.guess_segment_properties();
 
-        let mut features = Vec::new();
-        if small_caps {
-            features.push(Feature::new(Tag::new(b"smcp"), 1, ..));
-        }
-        if !apply_kerning {
-            features.push(Feature::new(Tag::new(b"kern"), 0, ..));
-        }
+        harfrust::shape(
+            &shaper,
+            &mut buffer,
+            ShapeOptions::new().features(&features),
+        )
+        .ok()?;
 
-        let (levels, runs) = bidi_info.visual_runs(paragraph, line);
-        for run in runs.iter() {
-            let sub_text = &text[run.clone()];
-            if sub_text.is_empty() {
-                continue;
-            }
+        let positions = buffer.glyph_positions();
+        let infos = buffer.glyph_infos();
 
-            let ltr = levels[run.start].is_ltr();
-            let direction = if ltr {
-                harfrust::Direction::LeftToRight
+        for i in 0..buffer.len() {
+            let pos = positions[i];
+            let info = infos[i];
+            let idx = run.start + info.cluster as usize;
+
+            let start = info.cluster as usize;
+
+            let end = if ltr {
+                i.checked_add(1)
             } else {
-                harfrust::Direction::RightToLeft
-            };
-
-            let mut buffer = UnicodeBuffer::new();
-            buffer.push_str(sub_text);
-            buffer.set_direction(direction);
-
-            // TODO: explicitly set language?
-            buffer.guess_segment_properties();
-
-            let output = shaper.shape(buffer, ShapeOptions::new().features(&features));
-
-            let positions = output.glyph_positions();
-            let infos = output.glyph_infos();
-
-            for i in 0..output.len() {
-                let pos = positions[i];
-                let info = infos[i];
-                let idx = run.start + info.cluster as usize;
-
-                let start = info.cluster as usize;
-
-                let end = if ltr {
-                    i.checked_add(1)
-                } else {
-                    i.checked_sub(1)
-                }
-                .and_then(|last| infos.get(last))
-                .map_or(sub_text.len(), |info| info.cluster as usize);
-
-                glyphs.push(Glyph {
-                    byte_idx: ByteIndex::new(idx),
-                    cluster_len: end.checked_sub(start).unwrap_or(0), // TODO: can fail?
-                    text: sub_text[start..end].to_string(),
-                    id: GlyphId(info.glyph_id),
-                    dx: pos.x_offset,
-                    dy: pos.y_offset,
-                    width: pos.x_advance,
-                    font: font.clone(),
-                });
+                i.checked_sub(1)
             }
-        }
+            .and_then(|last| infos.get(last))
+            .map_or(sub_text.len(), |info| info.cluster as usize);
 
-        Some(glyphs)
-    })?
+            glyphs.push(Glyph {
+                byte_idx: ByteIndex::new(idx),
+                cluster_len: end.checked_sub(start).unwrap_or(0), // TODO: can fail?
+                text: sub_text[start..end].to_string(),
+                id: GlyphId(info.glyph_id),
+                dx: pos.x_offset,
+                dy: pos.y_offset,
+                width: pos.x_advance,
+                font: font.clone(),
+            });
+        }
+    }
+
+    Some(glyphs)
 }
 
 /// An iterator over glyph clusters.
