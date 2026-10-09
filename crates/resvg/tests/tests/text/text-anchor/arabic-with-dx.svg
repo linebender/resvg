@@ -1,0 +1,14 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"
+     font-family="Amiri" font-size="32">
+    <title>Arabic with `dx` and text anchoring</title>
+
+    <path d="M 110 20 V 180" stroke="gray" stroke-width="0.5"/>
+
+    <g fill="green">
+        <text x="100" y="50" dx="10 20 -10" text-anchor="start">ادر</text>
+        <text x="100" y="100" dx="10 20 -10" text-anchor="middle">ادر</text>
+        <text x="100" y="150" dx="10 20 -10" text-anchor="end">ادر</text>
+    </g>
+
+    <rect x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>

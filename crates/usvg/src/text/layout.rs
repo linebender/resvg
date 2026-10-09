@@ -180,6 +180,7 @@ struct GlyphCluster {
     codepoint: char,
     width: f32,
     advance: f32,
+    text_length_spacing: f32,
     ascent: f32,
     descent: f32,
     has_relative_shift: bool,
@@ -545,6 +546,29 @@ fn clusters_length(clusters: &[GlyphCluster]) -> f32 {
     clusters.iter().fold(0.0, |w, cluster| w + cluster.advance)
 }
 
+fn resolve_relative_shifts(
+    text: &Text,
+    chunk: &TextChunk,
+    offset: usize,
+    clusters: &[GlyphCluster],
+) -> (Vec<(f32, f32)>, Vec<usize>) {
+    // `dx` and `dy` shift a character and all the characters after it in logical order,
+    // while the clusters are in visual order, which differs in right-to-left text.
+    let mut logical_order: Vec<usize> = (0..clusters.len()).collect();
+    logical_order.sort_by_key(|&i| clusters[i].byte_idx.value());
+
+    let mut shifts = vec![(0.0, 0.0); clusters.len()];
+    let (mut shift_x, mut shift_y) = (0.0, 0.0);
+    for &i in &logical_order {
+        let cp = offset + clusters[i].byte_idx.code_point_at(&chunk.text);
+        shift_x += text.dx.get(cp).cloned().unwrap_or(0.0);
+        shift_y += text.dy.get(cp).cloned().unwrap_or(0.0);
+        shifts[i] = (shift_x, shift_y);
+    }
+
+    (shifts, logical_order)
+}
+
 fn resolve_clusters_positions_horizontal(
     text: &Text,
     chunk: &TextChunk,
@@ -552,35 +576,40 @@ fn resolve_clusters_positions_horizontal(
     writing_mode: WritingMode,
     clusters: &mut [GlyphCluster],
 ) -> (f32, f32) {
-    // `dx` and `dy` shift a character and all the characters after it in logical order,
-    // while the clusters are in visual order, which differs in right-to-left text.
-    let mut logical_order: Vec<usize> = (0..clusters.len()).collect();
-    logical_order.sort_by_key(|&i| clusters[i].byte_idx.value());
-    let mut shifts = vec![(0.0, 0.0); clusters.len()];
-    let (mut shift_x, mut shift_y) = (0.0, 0.0);
-    for i in logical_order {
-        let cp = offset + clusters[i].byte_idx.code_point_at(&chunk.text);
-        if let (Some(dx), Some(dy)) = (text.dx.get(cp), text.dy.get(cp)) {
-            if writing_mode == WritingMode::LeftToRight {
-                shift_x += dx;
-                shift_y += dy;
-            } else {
-                shift_y -= dx;
-                shift_x += dy;
-            }
-            clusters[i].has_relative_shift = !dx.approx_zero_ulps(4) || !dy.approx_zero_ulps(4);
+    let (mut shifts, logical_order) = resolve_relative_shifts(text, chunk, offset, clusters);
+    let first = logical_order[0];
+    let last = logical_order[logical_order.len() - 1];
+
+    // Vertical text is laid out horizontally and rotated by 90 degrees afterwards.
+    if writing_mode == WritingMode::TopToBottom {
+        for shift in &mut shifts {
+            *shift = (shift.1, -shift.0);
         }
-        shifts[i] = (shift_x, shift_y);
     }
 
-    let mut x = process_anchor(chunk.anchor, clusters_length(clusters));
+    for i in 1..clusters.len() {
+        if shifts[i] != shifts[i - 1] {
+            clusters[i].has_relative_shift = true;
+        }
+    }
 
-    for (cluster, (cluster_shift_x, cluster_shift_y)) in clusters.iter_mut().zip(shifts) {
+    let mut left = f32::INFINITY;
+    let mut right = f32::NEG_INFINITY;
+    let mut advance = 0.0;
+    for (cluster, (shift_x, _)) in clusters.iter().zip(&shifts) {
+        let start = advance + shift_x;
+        let end = start + cluster.advance - cluster.text_length_spacing;
+        left = left.min(start).min(end);
+        right = right.max(start).max(end);
+        advance += cluster.advance;
+    }
+
+    let mut x = shifts[first].0 - left + process_anchor(chunk.anchor, right - left);
+
+    for (cluster, (shift_x, shift_y)) in clusters.iter_mut().zip(&shifts) {
         let cp = offset + cluster.byte_idx.code_point_at(&chunk.text);
 
-        cluster.transform = cluster
-            .transform
-            .pre_translate(x + cluster_shift_x, cluster_shift_y);
+        cluster.transform = cluster.transform.pre_translate(x + shift_x, *shift_y);
 
         if let Some(angle) = text.rotate.get(cp).cloned() {
             if !angle.approx_zero_ulps(4) {
@@ -592,7 +621,7 @@ fn resolve_clusters_positions_horizontal(
         x += cluster.advance;
     }
 
-    (x + shift_x, shift_y)
+    (x + shifts[last].0, shifts[last].1)
 }
 
 // Baseline resolving in SVG is a mess.
@@ -650,7 +679,7 @@ fn resolve_clusters_positions_path(
     let mut last_x = 0.0;
     let mut last_y = 0.0;
 
-    let mut dy = 0.0;
+    let (shifts, _) = resolve_relative_shifts(text, chunk, char_offset, clusters);
 
     // In the text path mode, chunk's x/y coordinates provide an additional offset along the path.
     // The X coordinate is used in a horizontal mode, and Y in vertical.
@@ -662,8 +691,8 @@ fn resolve_clusters_positions_path(
     let start_offset =
         chunk_offset + path.start_offset + process_anchor(chunk.anchor, clusters_length(clusters));
 
-    let normals = collect_normals(text, chunk, clusters, &path.path, char_offset, start_offset);
-    for (cluster, normal) in clusters.iter_mut().zip(normals) {
+    let normals = collect_normals(text, clusters, &shifts, &path.path, start_offset);
+    for ((cluster, normal), (_, dy)) in clusters.iter_mut().zip(normals).zip(shifts) {
         let (x, y, angle) = match normal {
             Some(normal) => (normal.x, normal.y, normal.angle),
             None => {
@@ -685,7 +714,6 @@ fn resolve_clusters_positions_path(
         cluster.transform = cluster.transform.pre_rotate_at(angle, half_width, 0.0);
 
         let cp = char_offset + cluster.byte_idx.code_point_at(&chunk.text);
-        dy += text.dy.get(cp).cloned().unwrap_or(0.0);
 
         let baseline_shift = chunk_span_at(chunk, cluster.byte_idx)
             .map(|span| {
@@ -738,25 +766,20 @@ pub(crate) struct PathNormal {
 
 fn collect_normals(
     text: &Text,
-    chunk: &TextChunk,
     clusters: &[GlyphCluster],
+    shifts: &[(f32, f32)],
     path: &tiny_skia_path::Path,
-    char_offset: usize,
     offset: f32,
 ) -> Vec<Option<PathNormal>> {
     let mut offsets = Vec::with_capacity(clusters.len());
     let mut normals = Vec::with_capacity(clusters.len());
     {
         let mut advance = offset;
-        for cluster in clusters {
+        for (cluster, (shift_x, _)) in clusters.iter().zip(shifts) {
             // Clusters should be rotated by the x-midpoint x baseline position.
             let half_width = cluster.width / 2.0;
 
-            // Include relative position.
-            let cp = char_offset + cluster.byte_idx.code_point_at(&chunk.text);
-            advance += text.dx.get(cp).cloned().unwrap_or(0.0);
-
-            let offset = advance + half_width;
+            let offset = advance + shift_x + half_width;
 
             // Clusters outside the path have no normals.
             if offset < 0.0 {
@@ -1032,6 +1055,7 @@ fn apply_length_adjust(chunk: &TextChunk, clusters: &mut [GlyphCluster]) {
 
             for i in cluster_indexes {
                 clusters[i].advance = clusters[i].width + factor;
+                clusters[i].text_length_spacing = factor;
             }
         } else {
             let factor = target_width / width;
@@ -1205,6 +1229,7 @@ fn form_glyph_clusters(glyphs: &[Glyph], text: &str, font_size: f32) -> GlyphClu
         codepoint: byte_idx.char_from(text),
         width,
         advance,
+        text_length_spacing: 0.0,
         ascent: font.ascent(font_size),
         descent: font.descent(font_size),
         has_relative_shift: false,

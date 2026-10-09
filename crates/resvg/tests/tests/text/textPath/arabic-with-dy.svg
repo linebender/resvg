@@ -1,0 +1,10 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"
+     font-family="Amiri" font-size="32">
+    <title>Arabic with `dy`</title>
+
+    <path id="path1" d="M 20 100 H 180" fill="none" stroke="gray" stroke-width="0.5"/>
+    <text><textPath href="#path1">مف<tspan dy="40">تاح</tspan></textPath></text>
+
+    <!-- image frame -->
+    <rect x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>

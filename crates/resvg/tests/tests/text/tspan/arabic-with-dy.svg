@@ -2,10 +2,9 @@
      font-family="Amiri" font-size="32">
     <title>Arabic with `dy`</title>
 
-    <text id="text1" x="40" y="60">
-        <tspan id="tspan1" x="40" dy="0">مفتاح</tspan>
-        <tspan id="tspan2" x="40" dy="50">معايير</tspan>
-        <tspan id="tspan3" x="40" dy="50">الويب</tspan>
+    <text x="40" y="60">
+        <tspan>مفتاح</tspan>
+        <tspan x="40" dy="50">معايير</tspan>
     </text>
 
     <!-- image frame -->

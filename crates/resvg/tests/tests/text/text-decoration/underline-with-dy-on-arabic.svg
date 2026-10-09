@@ -1,0 +1,9 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"
+     font-family="Amiri" font-size="40">
+    <title>Underline with `dy` on Arabic</title>
+
+    <text x="40" y="80" dy="0 0 50" text-decoration="underline">مفتاح</text>
+
+    <!-- image frame -->
+    <rect x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>
