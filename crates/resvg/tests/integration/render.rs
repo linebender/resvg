@@ -215,6 +215,7 @@ use crate::render;
 #[test] fn filters_feMorphology_negative_radius() { assert_eq!(render("tests/filters/feMorphology/negative-radius"), 0); }
 #[test] fn filters_feMorphology_no_radius() { assert_eq!(render("tests/filters/feMorphology/no-radius"), 0); }
 #[test] fn filters_feMorphology_operator_eq_dilate() { assert_eq!(render("tests/filters/feMorphology/operator=dilate"), 0); }
+#[test] fn filters_feMorphology_radius_larger_than_region() { assert_eq!(render("tests/filters/feMorphology/radius-larger-than-region"), 0); }
 #[test] fn filters_feMorphology_radius_with_too_many_values() { assert_eq!(render("tests/filters/feMorphology/radius-with-too-many-values"), 0); }
 #[test] fn filters_feMorphology_radius_eq_0_5_with_objectBoundingBox() { assert_eq!(render("tests/filters/feMorphology/radius=0.5-with-objectBoundingBox"), 0); }
 #[test] fn filters_feMorphology_radius_eq_0_5() { assert_eq!(render("tests/filters/feMorphology/radius=0.5"), 0); }
