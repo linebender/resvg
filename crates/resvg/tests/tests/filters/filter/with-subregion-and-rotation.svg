@@ -1,0 +1,14 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <title>With subregion and rotation. No red should be visible.</title>
+
+    <filter id="filter1" filterUnits="userSpaceOnUse" x="0" y="0" width="200" height="200">
+        <feFlood flood-color="red" x="70" y="70" width="60" height="60"/>
+    </filter>
+    <g transform="rotate(45 100 100)">
+        <rect x="70" y="70" width="60" height="60" filter="url(#filter1)"/>
+        <rect x="69" y="69" width="62" height="62" fill="green"/>
+    </g>
+
+    <!-- image frame -->
+    <rect x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>
