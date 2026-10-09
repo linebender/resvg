@@ -1,0 +1,13 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"
+     font-family="Noto Sans" font-size="32">
+    <title>Negative `dx` with text anchoring</title>
+
+    <path d="M 100 20 V 180" stroke="gray" stroke-width="0.5"/>
+
+    <text x="100" y="60" dx="0 -60" text-anchor="start">ABC</text>
+    <text x="100" y="110" dx="0 -60" text-anchor="middle">ABC</text>
+    <text x="100" y="160" dx="0 -60" text-anchor="end">ABC</text>
+
+    <!-- image frame -->
+    <rect x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>

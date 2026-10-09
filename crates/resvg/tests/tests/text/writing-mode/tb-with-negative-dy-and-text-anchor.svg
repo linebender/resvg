@@ -1,0 +1,13 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"
+     font-family="Noto Sans" font-size="32">
+    <title>`tb` with negative `dy` and text anchoring</title>
+
+    <path d="M 20 100 H 180" stroke="gray" stroke-width="0.5"/>
+
+    <text x="50" y="100" dy="0 -60" writing-mode="tb" text-anchor="start">ABC</text>
+    <text x="100" y="100" dy="0 -60" writing-mode="tb" text-anchor="middle">ABC</text>
+    <text x="150" y="100" dy="0 -60" writing-mode="tb" text-anchor="end">ABC</text>
+
+    <!-- image frame -->
+    <rect x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>

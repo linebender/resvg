@@ -20,6 +20,8 @@ This changelog also contains important changes in dependencies.
   so a nested span stays on the same baseline as its siblings. (#864)
 - Panics and incorrect clipping when a filter region is smaller than its input. (#1141)
 - Incorrect transform order on the outermost `svg` element with a `viewBox`. (#899)
+- Relative positioning of right-to-left text with `dx` and `dy`, including text on a path and text decorations. (#1093)
+- `text-anchor` now uses the actual extent of a text chunk, which `dx` and `textLength` can change. (#1145)
 
 ## [0.48.1] 2026-08-02
 

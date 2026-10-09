@@ -1569,6 +1569,7 @@ use crate::render;
 #[test] fn text_text_xml_lang_eq_ja() { assert_eq!(render("tests/text/text/xml-lang=ja"), 0); }
 #[test] fn text_text_xml_space() { assert_eq!(render("tests/text/text/xml-space"), 0); }
 #[test] fn text_text_zalgo() { assert_eq!(render("tests/text/text/zalgo"), 0); }
+#[test] fn text_text_anchor_arabic_with_dx() { assert_eq!(render("tests/text/text-anchor/arabic-with-dx"), 0); }
 #[test] fn text_text_anchor_coordinates_list() { assert_eq!(render("tests/text/text-anchor/coordinates-list"), 0); }
 #[test] fn text_text_anchor_end_on_text() { assert_eq!(render("tests/text/text-anchor/end-on-text"), 0); }
 #[test] fn text_text_anchor_end_with_letter_spacing() { assert_eq!(render("tests/text/text-anchor/end-with-letter-spacing"), 0); }
@@ -1577,6 +1578,7 @@ use crate::render;
 #[test] fn text_text_anchor_inheritance_3() { assert_eq!(render("tests/text/text-anchor/inheritance-3"), 0); }
 #[test] fn text_text_anchor_invalid_value_on_text() { assert_eq!(render("tests/text/text-anchor/invalid-value-on-text"), 0); }
 #[test] fn text_text_anchor_middle_on_text() { assert_eq!(render("tests/text/text-anchor/middle-on-text"), 0); }
+#[test] fn text_text_anchor_negative_dx() { assert_eq!(render("tests/text/text-anchor/negative-dx"), 0); }
 #[test] fn text_text_anchor_on_the_first_tspan() { assert_eq!(render("tests/text/text-anchor/on-the-first-tspan"), 0); }
 #[test] fn text_text_anchor_on_tspan_with_arabic() { assert_eq!(render("tests/text/text-anchor/on-tspan-with-arabic"), 0); }
 #[test] fn text_text_anchor_on_tspan() { assert_eq!(render("tests/text/text-anchor/on-tspan"), 0); }
@@ -1598,6 +1600,7 @@ use crate::render;
 #[test] fn text_text_decoration_tspan_decoration() { assert_eq!(render("tests/text/text-decoration/tspan-decoration"), 0); }
 #[test] fn text_text_decoration_underline_with_dy_list_1() { assert_eq!(render("tests/text/text-decoration/underline-with-dy-list-1"), 0); }
 #[test] fn text_text_decoration_underline_with_dy_list_2() { assert_eq!(render("tests/text/text-decoration/underline-with-dy-list-2"), 0); }
+#[test] fn text_text_decoration_underline_with_dy_on_arabic() { assert_eq!(render("tests/text/text-decoration/underline-with-dy-on-arabic"), 0); }
 #[test] fn text_text_decoration_underline_with_rotate_list_3() { assert_eq!(render("tests/text/text-decoration/underline-with-rotate-list-3"), 0); }
 #[test] fn text_text_decoration_underline_with_rotate_list_4() { assert_eq!(render("tests/text/text-decoration/underline-with-rotate-list-4"), 0); }
 #[test] fn text_text_decoration_underline_with_y_list() { assert_eq!(render("tests/text/text-decoration/underline-with-y-list"), 0); }
@@ -1620,6 +1623,7 @@ use crate::render;
 #[test] fn text_textLength_on_a_single_tspan() { assert_eq!(render("tests/text/textLength/on-a-single-tspan"), 0); }
 #[test] fn text_textLength_on_text_and_tspan() { assert_eq!(render("tests/text/textLength/on-text-and-tspan"), 0); }
 #[test] fn text_textLength_zero() { assert_eq!(render("tests/text/textLength/zero"), 0); }
+#[test] fn text_textPath_arabic_with_dy() { assert_eq!(render("tests/text/textPath/arabic-with-dy"), 0); }
 #[test] fn text_textPath_closed_path() { assert_eq!(render("tests/text/textPath/closed-path"), 0); }
 #[test] fn text_textPath_complex() { assert_eq!(render("tests/text/textPath/complex"), 0); }
 #[test] fn text_textPath_dy_with_tiny_coordinates() { assert_eq!(render("tests/text/textPath/dy-with-tiny-coordinates"), 0); }
@@ -1675,6 +1679,7 @@ use crate::render;
 #[test] fn text_tref_with_a_title_child() { assert_eq!(render("tests/text/tref/with-a-title-child"), 0); }
 #[test] fn text_tref_with_text() { assert_eq!(render("tests/text/tref/with-text"), 0); }
 #[test] fn text_tref_xml_space() { assert_eq!(render("tests/text/tref/xml-space"), 0); }
+#[test] fn text_tspan_arabic_with_dy() { assert_eq!(render("tests/text/tspan/arabic-with-dy"), 0); }
 #[test] fn text_tspan_bidi_reordering() { assert_eq!(render("tests/text/tspan/bidi-reordering"), 0); }
 #[test] fn text_tspan_mixed_font_size() { assert_eq!(render("tests/text/tspan/mixed-font-size"), 0); }
 #[test] fn text_tspan_mixed_xml_space_1() { assert_eq!(render("tests/text/tspan/mixed-xml-space-1"), 0); }
@@ -1733,6 +1738,7 @@ use crate::render;
 #[test] fn text_writing_mode_tb_with_dx_on_tspan() { assert_eq!(render("tests/text/writing-mode/tb-with-dx-on-tspan"), 0); }
 #[test] fn text_writing_mode_tb_with_dy_on_second_tspan() { assert_eq!(render("tests/text/writing-mode/tb-with-dy-on-second-tspan"), 0); }
 #[test] fn text_writing_mode_tb_with_rotate_and_underline() { assert_eq!(render("tests/text/writing-mode/tb-with-rotate-and-underline"), 0); }
+#[test] fn text_writing_mode_tb_with_negative_dy_and_text_anchor() { assert_eq!(render("tests/text/writing-mode/tb-with-negative-dy-and-text-anchor"), 0); }
 #[test] fn text_writing_mode_tb_with_rotate() { assert_eq!(render("tests/text/writing-mode/tb-with-rotate"), 0); }
 #[test] fn text_writing_mode_tb() { assert_eq!(render("tests/text/writing-mode/tb"), 0); }
 #[test] fn text_writing_mode_vertical_lr() { assert_eq!(render("tests/text/writing-mode/vertical-lr"), 0); }
