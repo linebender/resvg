@@ -3,7 +3,7 @@
 
 //! SVG filter types.
 
-use strict_num::PositiveF32;
+use strict_num::{NonZeroPositiveF32, PositiveF32};
 
 use crate::{BlendMode, Color, Group, NonEmptyString, NonZeroF32, NonZeroRect, Opacity};
 
@@ -350,6 +350,7 @@ pub struct ConvolveMatrix {
     pub(crate) bias: f32,
     pub(crate) edge_mode: EdgeMode,
     pub(crate) preserve_alpha: bool,
+    pub(crate) kernel_unit_length: Option<(NonZeroPositiveF32, NonZeroPositiveF32)>,
 }
 
 impl ConvolveMatrix {
@@ -391,6 +392,13 @@ impl ConvolveMatrix {
     /// `preserveAlpha` in the SVG.
     pub fn preserve_alpha(&self) -> bool {
         self.preserve_alpha
+    }
+
+    /// Intended distance in current filter units for dx and dy in the convolve matrix calculations.
+    ///
+    /// `kernelUnitLength` in the SVG.
+    pub fn kernel_unit_length(&self) -> Option<(NonZeroPositiveF32, NonZeroPositiveF32)> {
+        self.kernel_unit_length
     }
 }
 
@@ -693,6 +701,7 @@ pub struct DiffuseLighting {
     pub(crate) diffuse_constant: f32,
     pub(crate) lighting_color: Color,
     pub(crate) light_source: LightSource,
+    pub(crate) kernel_unit_length: Option<(NonZeroPositiveF32, NonZeroPositiveF32)>,
 }
 
 impl DiffuseLighting {
@@ -728,6 +737,13 @@ impl DiffuseLighting {
     pub fn light_source(&self) -> LightSource {
         self.light_source
     }
+
+    /// Intended distance in current filter units for dx and dy in the surface normal calculations.
+    ///
+    /// `kernelUnitLength` in the SVG.
+    pub fn kernel_unit_length(&self) -> Option<(NonZeroPositiveF32, NonZeroPositiveF32)> {
+        self.kernel_unit_length
+    }
 }
 
 /// A specular lighting filter primitive.
@@ -741,6 +757,7 @@ pub struct SpecularLighting {
     pub(crate) specular_exponent: f32,
     pub(crate) lighting_color: Color,
     pub(crate) light_source: LightSource,
+    pub(crate) kernel_unit_length: Option<(NonZeroPositiveF32, NonZeroPositiveF32)>,
 }
 
 impl SpecularLighting {
@@ -784,6 +801,13 @@ impl SpecularLighting {
     /// A light source.
     pub fn light_source(&self) -> LightSource {
         self.light_source
+    }
+
+    /// Intended distance in current filter units for dx and dy in the surface normal calculations.
+    ///
+    /// `kernelUnitLength` in the SVG.
+    pub fn kernel_unit_length(&self) -> Option<(NonZeroPositiveF32, NonZeroPositiveF32)> {
+        self.kernel_unit_length
     }
 }
 

@@ -80,3 +80,77 @@ fn render_node_filter_on_empty_group() {
 fn render_node_filter_with_transform_on_shape() {
     assert_eq!(render_node("extra/filter-with-transform-on-shape", "g1"), 0);
 }
+
+#[test]
+fn kernel_unit_length_diffuse_lighting() {
+    let svg = "
+    <svg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'>
+        <filter id='light' filterUnits='userSpaceOnUse' x='0' y='0' width='100' height='100'>
+            <feDiffuseLighting in='SourceGraphic' kernelUnitLength='2 2' surfaceScale='5' diffuseConstant='1'>
+                <feDistantLight azimuth='45' elevation='60'/>
+            </feDiffuseLighting>
+        </filter>
+        <circle cx='50' cy='50' r='30' fill='white' filter='url(#light)'/>
+    </svg>
+    ";
+
+    let tree = usvg::Tree::from_str(svg, &usvg::Options::default()).unwrap();
+    let mut pixmap = tiny_skia::Pixmap::new(100, 100).unwrap();
+    resvg::render(
+        &tree,
+        tiny_skia::Transform::identity(),
+        &mut pixmap.as_mut(),
+    );
+
+    // Verify non-empty rendering and diffuse shading
+    let non_zero_pixels = pixmap.data().iter().filter(|&&b| b != 0).count();
+    assert!(non_zero_pixels > 0);
+}
+
+#[test]
+fn kernel_unit_length_specular_lighting() {
+    let svg = "
+    <svg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'>
+        <filter id='spec' filterUnits='userSpaceOnUse' x='0' y='0' width='100' height='100'>
+            <feSpecularLighting in='SourceGraphic' kernelUnitLength='2 2' surfaceScale='5' specularConstant='1' specularExponent='20'>
+                <fePointLight x='50' y='50' z='30'/>
+            </feSpecularLighting>
+        </filter>
+        <circle cx='50' cy='50' r='30' fill='white' filter='url(#spec)'/>
+    </svg>
+    ";
+
+    let tree = usvg::Tree::from_str(svg, &usvg::Options::default()).unwrap();
+    let mut pixmap = tiny_skia::Pixmap::new(100, 100).unwrap();
+    resvg::render(
+        &tree,
+        tiny_skia::Transform::identity(),
+        &mut pixmap.as_mut(),
+    );
+
+    let non_zero_pixels = pixmap.data().iter().filter(|&&b| b != 0).count();
+    assert!(non_zero_pixels > 0);
+}
+
+#[test]
+fn kernel_unit_length_convolve_matrix() {
+    let svg = "
+    <svg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'>
+        <filter id='conv' filterUnits='userSpaceOnUse' x='0' y='0' width='100' height='100'>
+            <feConvolveMatrix order='3' kernelMatrix='1 1 1 1 1 1 1 1 1' divisor='9' kernelUnitLength='2 2'/>
+        </filter>
+        <rect x='30' y='30' width='40' height='40' fill='black' filter='url(#conv)'/>
+    </svg>
+    ";
+
+    let tree = usvg::Tree::from_str(svg, &usvg::Options::default()).unwrap();
+    let mut pixmap = tiny_skia::Pixmap::new(100, 100).unwrap();
+    resvg::render(
+        &tree,
+        tiny_skia::Transform::identity(),
+        &mut pixmap.as_mut(),
+    );
+
+    let non_zero_pixels = pixmap.data().iter().filter(|&&b| b != 0).count();
+    assert!(non_zero_pixels > 0);
+}

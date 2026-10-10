@@ -702,3 +702,76 @@ fn resolve_fr_from_referenced_radial_gradient() {
 
     assert_eq!(rg.fr().get(), 25.0);
 }
+
+#[test]
+fn filter_kernel_unit_length_parsing() {
+    let svg = "
+    <svg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'>
+        <filter id='f1'>
+            <feDiffuseLighting kernelUnitLength='2 4'>
+                <feDistantLight azimuth='0' elevation='45'/>
+            </feDiffuseLighting>
+            <feSpecularLighting kernelUnitLength='3'>
+                <feDistantLight azimuth='0' elevation='45'/>
+            </feSpecularLighting>
+            <feConvolveMatrix order='3' kernelMatrix='0 0 0 0 1 0 0 0 0' kernelUnitLength='1.5 2.5'/>
+        </filter>
+        <rect width='100' height='100' filter='url(#f1)'/>
+    </svg>
+    ";
+
+    let tree = usvg::Tree::from_str(svg, &usvg::Options::default()).unwrap();
+    let usvg::Node::Group(group) = &tree.root().children()[0] else {
+        unreachable!()
+    };
+    let primitives = group.filters()[0].primitives();
+    assert_eq!(primitives.len(), 3);
+
+    let usvg::filter::Kind::DiffuseLighting(dl) = primitives[0].kind() else {
+        unreachable!()
+    };
+    let (kx, ky) = dl.kernel_unit_length().unwrap();
+    assert_eq!(kx.get(), 2.0);
+    assert_eq!(ky.get(), 4.0);
+
+    let usvg::filter::Kind::SpecularLighting(sl) = primitives[1].kind() else {
+        unreachable!()
+    };
+    let (kx, ky) = sl.kernel_unit_length().unwrap();
+    assert_eq!(kx.get(), 3.0);
+    assert_eq!(ky.get(), 3.0);
+
+    let usvg::filter::Kind::ConvolveMatrix(cm) = primitives[2].kind() else {
+        unreachable!()
+    };
+    let (kx, ky) = cm.kernel_unit_length().unwrap();
+    assert_eq!(kx.get(), 1.5);
+    assert_eq!(ky.get(), 2.5);
+}
+
+#[test]
+fn filter_kernel_unit_length_invalid() {
+    let svg = "
+    <svg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'>
+        <filter id='f1'>
+            <feDiffuseLighting kernelUnitLength='0 4'>
+                <feDistantLight azimuth='0' elevation='45'/>
+            </feDiffuseLighting>
+            <feSpecularLighting kernelUnitLength='-2'>
+                <feDistantLight azimuth='0' elevation='45'/>
+            </feSpecularLighting>
+        </filter>
+        <rect width='100' height='100' filter='url(#f1)'/>
+    </svg>
+    ";
+
+    let tree = usvg::Tree::from_str(svg, &usvg::Options::default()).unwrap();
+    let usvg::Node::Group(group) = &tree.root().children()[0] else {
+        unreachable!()
+    };
+    let primitives = group.filters()[0].primitives();
+    // Primitives with invalid kernelUnitLength should be replaced by dummy primitives (skipped)
+    for p in primitives {
+        assert!(matches!(p.kind(), usvg::filter::Kind::Flood(_)));
+    }
+}
