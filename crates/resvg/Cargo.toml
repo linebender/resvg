@@ -34,7 +34,7 @@ png = "0.18.0"
 default = ["svgz", "text", "system-fonts", "memmap-fonts", "raster-images"]
 # Enables SVGZ decoding
 svgz = ["usvg/svgz"]
-# Enables SVG Text support.
+# Enables SVG text shaping and layout support.
 # Adds around 400KiB to your binary.
 text = ["usvg/text"]
 # Enables system fonts loading (only for `text`).
