@@ -11,8 +11,8 @@ SolidCompression=yes
 ChangesAssociations=yes
 DisableDirPage=yes
 DisableProgramGroupPage=yes
-ArchitecturesAllowed=x64
-ArchitecturesInstallIn64BitMode=x64
+ArchitecturesAllowed=x64compatible
+ArchitecturesInstallIn64BitMode=x64compatible
 OutputBaseFilename="resvg-explorer-extension"
 OutputDir=.
 
