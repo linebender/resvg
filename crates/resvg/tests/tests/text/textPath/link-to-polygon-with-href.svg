@@ -1,0 +1,14 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <title>Link to `polygon` via `href` (SVG 2)</title>
+
+    <polygon id="polygonForText1" points="100,25 175,100 100,175 25,100" fill="none" stroke="gray"/>
+
+    <text id="text1" font-family="Noto Sans" font-size="21">
+        <textPath id="textPath1" href="#polygonForText1">
+            Text along a polygon
+        </textPath>
+    </text>
+
+    <!-- image frame -->
+    <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>

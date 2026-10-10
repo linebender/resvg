@@ -4,16 +4,16 @@
     <desc>`path` should be prefered to `xlink:href`.</desc>
 
     <defs id="defs1">
-        <path id="path2" d="M 20 100 C 35 135 85 135 100 100 C 115 65 165 65 180 100" stroke="red" fill="none"
+        <path id="path-fallback" d="M 20 100 C 35 135 85 135 100 100 C 115 65 165 65 180 100" stroke="red" fill="none"
             transform="translate(100, 100) rotate(90) translate(-100, -100)" />
     </defs>
 
-    <path id="path1" d="M 20 100 C 35 135 85 135 100 100 C 115 65 165 65 180 100"
+    <path id="path-expected" d="M 20 100 C 35 135 85 135 100 100 C 115 65 165 65 180 100"
           fill="none" stroke="gray"/>
 
     <text id="text1" font-family="Noto Sans" font-size="21">
-        <textPath id="textPath1" path="M 20 100 C 35 135 85 135 100 100 C 115 65 165 65 180 100"
-            xlink:href="#path2">
+        <textPath id="textPath1"
+            xlink:href="#path-fallback" href="#path-expected">
             Text along a svg path
         </textPath>
     </text>
