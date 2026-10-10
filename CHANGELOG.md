@@ -12,6 +12,8 @@ This changelog also contains important changes in dependencies.
 
 - Filter primitive subregions with `primitiveUnits="objectBoundingBox"` are now resolved against
   the element's bounding box, and unspecified values default to the filter region. (#1188)
+- `feDisplacementMap` applied `scale` twice, displacing almost everything out of the filter region,
+  and read the displacement map with premultiplied colors. (#1019)
 
 ## [0.49.0] 2026-10-24
 

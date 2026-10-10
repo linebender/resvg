@@ -685,8 +685,8 @@ fn convert_displacement_map(fe: SvgNode, scale: Size, primitives: &[Primitive]) 
         _ => ColorChannel::A,
     };
 
-    // TODO: should probably split scale to scale_x and scale_y,
-    //       but resvg doesn't support displacement map anyway...
+    // TODO: should probably split scale to scale_x and scale_y
+    //       to handle `primitiveUnits=objectBoundingBox` with a non-square bbox.
     let scale = (scale.width() + scale.height()) / 2.0;
 
     Kind::DisplacementMap(DisplacementMap {

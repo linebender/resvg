@@ -1,0 +1,19 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <title>feTurbulence as a displacement map</title>
+    <desc>
+        A fractal noise map with scale=30 should only erode the edges of the rect
+        by up to 15 units, leaving the interior fully opaque.
+    </desc>
+
+    <filter id="filter1">
+        <feTurbulence type="fractalNoise" baseFrequency="0.999" numOctaves="3" seed="7050"
+                      result="noise"/>
+        <feDisplacementMap in="SourceGraphic" in2="noise" scale="30"
+                           xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <rect id="rect1" x="55" y="40" width="90" height="120" fill="#278D26"
+          filter="url(#filter1)"/>
+
+    <!-- image frame -->
+    <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>
