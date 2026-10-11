@@ -36,6 +36,7 @@ This release has an MSRV of 1.85.0 for `usvg` and `resvg` and the C API.
 
 ### Fixed
 
+- CSS rules after an XML comment inside a `style` element were ignored.
 - `dominant-baseline` is now correctly inherited by nested `<tspan>` elements,
   so a nested span stays on the same baseline as its siblings. (#1086)
 - Panics and incorrect clipping when a filter region is smaller than its input. (#1144)
