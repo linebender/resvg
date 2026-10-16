@@ -1,0 +1,23 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"
+     xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>With `path` and `xlink:href` (SVG 2)</title>
+    <desc>`path` should be prefered to `xlink:href`.</desc>
+
+    <defs id="defs1">
+        <path id="path-fallback" d="M 20 100 C 35 135 85 135 100 100 C 115 65 165 65 180 100" stroke="red" fill="none"
+            transform="translate(100, 100) rotate(90) translate(-100, -100)" />
+    </defs>
+
+    <path id="path-expected" d="M 20 100 C 35 135 85 135 100 100 C 115 65 165 65 180 100"
+          fill="none" stroke="gray"/>
+
+    <text id="text1" font-family="Noto Sans" font-size="21">
+        <textPath id="textPath1"
+            xlink:href="#path-fallback" href="#path-expected">
+            Text along a svg path
+        </textPath>
+    </text>
+
+    <!-- image frame -->
+    <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>
