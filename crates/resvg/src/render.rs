@@ -5,6 +5,17 @@ use crate::OptionLog;
 
 pub struct Context {
     pub max_bbox: tiny_skia::IntRect,
+    #[cfg_attr(not(feature = "raster-images"), allow(dead_code))]
+    pub images: crate::image::DecodedImages,
+}
+
+impl Context {
+    pub fn new(max_bbox: tiny_skia::IntRect) -> Self {
+        Context {
+            max_bbox,
+            images: Default::default(),
+        }
+    }
 }
 
 pub fn render_nodes(
@@ -38,7 +49,7 @@ pub fn render_node(
             );
         }
         usvg::Node::Image(image) => {
-            crate::image::render(image, transform, pixmap);
+            crate::image::render(image, ctx, transform, pixmap);
         }
         usvg::Node::Text(text) => {
             render_group(text.flattened(), ctx, transform, pixmap);

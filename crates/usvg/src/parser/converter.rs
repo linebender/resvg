@@ -64,6 +64,9 @@ pub struct Cache {
     pub masks: HashMap<String, Arc<Mask>>,
     pub filters: HashMap<String, Arc<filter::Filter>>,
     pub paint: HashMap<String, Paint>,
+    /// Resolved `xlink:href` of images, so that an image referenced several
+    /// times (e.g. through `use`) is loaded once and its data is shared.
+    pub images: HashMap<String, Option<crate::ImageKind>>,
 
     // used for ID generation
     all_ids: HashSet<u64>,
@@ -114,6 +117,7 @@ impl Cache {
             masks: HashMap::new(),
             filters: HashMap::new(),
             paint: HashMap::new(),
+            images: HashMap::new(),
 
             all_ids: HashSet::new(),
             linear_gradient_index: 0,

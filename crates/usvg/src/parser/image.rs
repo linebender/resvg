@@ -139,7 +139,7 @@ pub(crate) fn convert(
         .try_attribute(AId::Href)
         .log_none(|| log::warn!("Image lacks the 'xlink:href' attribute. Skipped."))?;
 
-    let kind = get_href_data(href, state)?;
+    let kind = get_href_data(href, state, cache)?;
 
     let visibility: Visibility = node.find_attribute(AId::Visibility).unwrap_or_default();
     let visible = visibility == Visibility::Visible;
@@ -300,7 +300,21 @@ pub(crate) fn convert_inner(
     Some(())
 }
 
-pub(crate) fn get_href_data(href: &str, state: &converter::State) -> Option<ImageKind> {
+pub(crate) fn get_href_data(
+    href: &str,
+    state: &converter::State,
+    cache: &mut converter::Cache,
+) -> Option<ImageKind> {
+    if let Some(kind) = cache.images.get(href) {
+        return kind.clone();
+    }
+
+    let kind = load_href_data(href, state);
+    cache.images.insert(href.to_string(), kind.clone());
+    kind
+}
+
+fn load_href_data(href: &str, state: &converter::State) -> Option<ImageKind> {
     if let Ok(url) = data_url::DataUrl::process(href) {
         let (data, _) = url.decode_to_vec().ok()?;
 
