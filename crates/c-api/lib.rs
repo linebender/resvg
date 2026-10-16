@@ -38,6 +38,8 @@ pub enum resvg_error {
     INVALID_SIZE,
     /// Failed to parse an SVG data.
     PARSING_FAILED,
+    /// A decompressed SVGZ file exceeded the size limit.
+    SVGZ_DECOMPRESSION_LIMIT_REACHED,
 }
 
 /// @brief A rectangle representation.
@@ -860,6 +862,7 @@ fn convert_error(e: usvg::Error) -> resvg_error {
         usvg::Error::ElementsLimitReached => resvg_error::ELEMENTS_LIMIT_REACHED,
         usvg::Error::InvalidSize => resvg_error::INVALID_SIZE,
         usvg::Error::ParsingFailed(_) => resvg_error::PARSING_FAILED,
+        usvg::Error::SvgzDecompressionLimitReached => resvg_error::SVGZ_DECOMPRESSION_LIMIT_REACHED,
     }
 }
 
