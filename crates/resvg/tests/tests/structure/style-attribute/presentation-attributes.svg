@@ -1,7 +1,7 @@
-<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" version="1.1">
-    <title>Non-presentational attribute</title>
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <title>Presentation attributes (SVG 2)</title>
     <desc>
-        Geometry attributes can be set via `style` only in SVG 2.
+        Geometry attributes can be set via `style`.
     </desc>
 
     <rect id="rect1" x="20" y="20" width="160" style="height:160px" fill="red"/>

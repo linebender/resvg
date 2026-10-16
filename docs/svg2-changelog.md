@@ -62,6 +62,10 @@ NOTE: This list is not final. This just things I was able to find so far. Patche
 
 ## Styling
 
+### Changed
+
+- `height`, `width`, `x`, `y`, `cx`, `cy`, `r` and `d` are presentation attributes now. Which means that they can be resolved from CSS now.
+
 ### Deprecated
 
 - A [`clip`](https://www.w3.org/TR/css-masking-1/#clip-property) property.
