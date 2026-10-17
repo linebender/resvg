@@ -286,11 +286,11 @@ pub(crate) fn convert_inner(
         // clip/mask/filter applied to the `<image>` would be resolved against
         // the oversized image. See https://github.com/linebender/resvg/issues/1034
         let bbox = rect.to_rect();
-        g2.bounding_box = bbox;
-        g2.stroke_bounding_box = bbox;
+        g2.bounding_box = Some(bbox);
+        g2.stroke_bounding_box = Some(bbox);
         if let Some(abs) = bbox.transform(g2.abs_transform) {
-            g2.abs_bounding_box = abs;
-            g2.abs_stroke_bounding_box = abs;
+            g2.abs_bounding_box = Some(abs);
+            g2.abs_stroke_bounding_box = Some(abs);
         }
 
         parent.children.push(Node::Group(Box::new(g2)));

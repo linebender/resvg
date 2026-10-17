@@ -103,7 +103,7 @@ fn render_layer(
     ctx: &Context,
     transform: tiny_skia::Transform,
 ) -> Option<(tiny_skia::Pixmap, tiny_skia::IntRect)> {
-    let bbox = group.layer_bounding_box().transform(transform)?;
+    let bbox = group.layer_bounding_box()?.transform(transform)?;
 
     let mut ibbox = if group.filters().is_empty() {
         // Convert group bbox into an integer one, expanding each side outwards by 2px
