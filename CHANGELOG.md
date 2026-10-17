@@ -16,6 +16,7 @@ This changelog also contains important changes in dependencies.
 
 ### Fixed
 
+- CSS rules after an XML comment inside a `style` element were ignored.
 - `dominant-baseline` is now correctly inherited by nested `<tspan>` elements,
   so a nested span stays on the same baseline as its siblings. (#864)
 - Panics and incorrect clipping when a filter region is smaller than its input. (#1141)

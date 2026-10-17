@@ -1176,6 +1176,7 @@ use crate::render;
 #[test] fn structure_style_attribute_selector() { assert_eq!(render("tests/structure/style/attribute-selector"), 0); }
 #[test] fn structure_style_class_selector() { assert_eq!(render("tests/structure/style/class-selector"), 0); }
 #[test] fn structure_style_combined_selectors() { assert_eq!(render("tests/structure/style/combined-selectors"), 0); }
+#[test] fn structure_style_comment_between_rules() { assert_eq!(render("tests/structure/style/comment-between-rules"), 0); }
 #[test] fn structure_style_current_color_fill_before_color() { assert_eq!(render("tests/structure/style/current-color-fill-before-color"), 0); }
 #[test] fn structure_style_current_color_stroke_before_color() { assert_eq!(render("tests/structure/style/current-color-stroke-before-color"), 0); }
 #[test] fn structure_style_external_CSS() { assert_eq!(render("tests/structure/style/external-CSS"), 0); }

@@ -90,7 +90,8 @@ fn parse<'input>(
         kind: NodeKind::Root,
     });
 
-    let style_sheet = resolve_css(xml, injected_stylesheet);
+    let style_texts = style_texts(xml);
+    let style_sheet = resolve_css(&style_texts, injected_stylesheet);
 
     parse_xml_node_children(
         xml.root(),
@@ -656,8 +657,23 @@ fn parse_svg_use_element<'input>(
     )
 }
 
+/// The text of each CSS `style` element. As in browsers, this is all of its text,
+/// also where XML comments split it, not only the part before the first comment.
+fn style_texts(xml: &roxmltree::Document) -> Vec<String> {
+    xml.descendants()
+        .filter(|n| n.has_tag_name("style"))
+        .filter(|n| matches!(n.attribute("type"), None | Some("text/css")))
+        .map(|n| {
+            n.children()
+                .filter(|c| c.is_text())
+                .filter_map(|c| c.text())
+                .collect()
+        })
+        .collect()
+}
+
 fn resolve_css<'a>(
-    xml: &'a roxmltree::Document<'a>,
+    style_texts: &'a [String],
     style_sheet: Option<&'a str>,
 ) -> simplecss::StyleSheet<'a> {
     let mut sheet = simplecss::StyleSheet::new();
@@ -668,18 +684,7 @@ fn resolve_css<'a>(
         sheet.parse_more(style_sheet);
     }
 
-    for node in xml.descendants().filter(|n| n.has_tag_name("style")) {
-        match node.attribute("type") {
-            Some("text/css") => {}
-            Some(_) => continue,
-            None => {}
-        }
-
-        let text = match node.text() {
-            Some(v) => v,
-            None => continue,
-        };
-
+    for text in style_texts {
         sheet.parse_more(text);
     }
 
