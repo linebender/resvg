@@ -61,7 +61,7 @@ pub fn fill_path(
             paint.shader = tiny_skia::Pattern::new(
                 pattern_pixmap.as_ref(),
                 tiny_skia::SpreadMode::Repeat,
-                tiny_skia::FilterQuality::Bicubic,
+                ctx.options.pattern_filter,
                 fill.opacity().get(),
                 patt_ts,
             );
@@ -101,7 +101,7 @@ fn stroke_path(
             paint.shader = tiny_skia::Pattern::new(
                 pattern_pixmap.as_ref(),
                 tiny_skia::SpreadMode::Repeat,
-                tiny_skia::FilterQuality::Bicubic,
+                ctx.options.pattern_filter,
                 stroke.opacity().get(),
                 patt_ts,
             );

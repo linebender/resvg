@@ -166,6 +166,9 @@ OPTIONS:
   --image-rendering HINT        Selects the default image rendering method
                                 [default: optimizeQuality]
                                 [possible values: optimizeQuality, optimizeSpeed, smooth, high-quality, crisp-edges, pixelated]
+  --pattern-filter FILTER       Selects how rasterized pattern tiles are sampled
+                                [default: bicubic]
+                                [possible values: nearest, bilinear, bicubic]
   --resources-dir DIR           Sets a directory that will be used during
                                 relative paths resolving.
                                 Expected to be the same as the directory that
@@ -232,6 +235,7 @@ struct CliArgs {
     shape_rendering: usvg::ShapeRendering,
     text_rendering: usvg::TextRendering,
     image_rendering: usvg::ImageRendering,
+    pattern_filter: tiny_skia::FilterQuality,
     resources_dir: Option<path::PathBuf>,
 
     font_family: Option<String>,
@@ -293,6 +297,14 @@ fn collect_args() -> Result<CliArgs, pico_args::Error> {
         image_rendering: input
             .opt_value_from_str("--image-rendering")?
             .unwrap_or_default(),
+        pattern_filter: input
+            .opt_value_from_fn("--pattern-filter", |value| match value {
+                "nearest" => Ok(tiny_skia::FilterQuality::Nearest),
+                "bilinear" => Ok(tiny_skia::FilterQuality::Bilinear),
+                "bicubic" => Ok(tiny_skia::FilterQuality::Bicubic),
+                _ => Err("expected nearest, bilinear or bicubic"),
+            })?
+            .unwrap_or(tiny_skia::FilterQuality::Bicubic),
         resources_dir: input
             .opt_value_from_str("--resources-dir")
             .unwrap_or_default(),
@@ -690,6 +702,9 @@ fn query_bbox(tree: &usvg::Tree) -> Result<(), String> {
 
 fn render_svg(args: &Args, tree: &usvg::Tree) -> Result<tiny_skia::Pixmap, String> {
     let now = std::time::Instant::now();
+    let options = resvg::Options {
+        pattern_filter: args.raw_args.pattern_filter,
+    };
 
     let img = if let Some(ref id) = args.export_id {
         let node = match tree.node_by_id(id) {
@@ -717,7 +732,7 @@ fn render_svg(args: &Args, tree: &usvg::Tree) -> Result<tiny_skia::Pixmap, Strin
 
         let ts = args.fit_to.fit_to_transform(tree.size());
 
-        resvg::render_node(node, ts, &mut pixmap.as_mut());
+        resvg::render_node_with_options(node, ts, &options, &mut pixmap.as_mut());
 
         if args.export_area_page {
             // TODO: add offset support to render_node() so we would not need an additional pixmap
@@ -765,7 +780,7 @@ fn render_svg(args: &Args, tree: &usvg::Tree) -> Result<tiny_skia::Pixmap, Strin
 
         let ts = args.fit_to.fit_to_transform(tree.size());
 
-        resvg::render(tree, ts, &mut pixmap.as_mut());
+        resvg::render_with_options(tree, ts, &options, &mut pixmap.as_mut());
 
         if args.export_area_drawing {
             trim_pixmap(tree, ts, &pixmap).unwrap_or(pixmap)
