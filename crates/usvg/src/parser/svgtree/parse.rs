@@ -535,6 +535,7 @@ fn resolve_inherit(parent_id: NodeId, aid: AId, doc: &mut Document) -> bool {
         AId::ClipRule | AId::FillRule => "nonzero",
 
         AId::BaselineShift => "baseline",
+        AId::ColorInterpolation => "sRGB",
         AId::ColorInterpolationFilters => "linearRGB",
         AId::Direction => "ltr",
         AId::Display => "inline",

@@ -1,0 +1,1 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="80" height="40"><defs><mask id="m" color-interpolation="linearRGB"><rect width="80" height="40" fill="#808080"/></mask></defs><rect width="80" height="40" fill="red" mask="url(#m)"/></svg>

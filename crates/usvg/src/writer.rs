@@ -554,6 +554,9 @@ fn write_defs(tree: &Tree, opt: &WriteOptions, xml: &mut XmlWriter, write_text_p
     for mask in tree.masks() {
         xml.start_svg_element(EId::Mask);
         xml.write_id_attribute(mask.id(), opt);
+        if mask.color_interpolation == ColorInterpolation::LinearRGB {
+            xml.write_svg_attribute(AId::ColorInterpolation, "linearRGB");
+        }
         if mask.kind == MaskType::Alpha {
             xml.write_svg_attribute(AId::MaskType, "alpha");
         }
@@ -1165,6 +1168,10 @@ fn has_xlink(parent: &Group) -> bool {
 fn write_base_grad(g: &BaseGradient, opt: &WriteOptions, xml: &mut XmlWriter) {
     xml.write_units(AId::GradientUnits, g.units, Units::ObjectBoundingBox);
     xml.write_transform(AId::GradientTransform, g.transform, opt);
+
+    if g.color_interpolation == ColorInterpolation::LinearRGB {
+        xml.write_svg_attribute(AId::ColorInterpolation, "linearRGB");
+    }
 
     match g.spread_method {
         SpreadMethod::Pad => {}

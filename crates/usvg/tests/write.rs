@@ -218,3 +218,8 @@ fn preserve_text_with_nested_baseline_shift() {
 fn optimize_paths_without_markers() {
     resave("optimize-paths-without-markers");
 }
+
+#[test]
+fn color_interpolation() {
+    resave("color-interpolation");
+}

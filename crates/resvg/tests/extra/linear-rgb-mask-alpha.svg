@@ -1,0 +1,8 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"
+     xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>Linear RGB mask alpha</title>
+    <mask id="m" color-interpolation="linearRGB" mask-type="alpha">
+        <rect id="m1" width="200" height="200" fill="#808080" opacity="0.5"/>
+    </mask>
+    <rect id="r" width="200" height="200" fill="red" mask="url(#m)"/>
+</svg>
