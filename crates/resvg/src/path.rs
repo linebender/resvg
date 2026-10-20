@@ -110,7 +110,34 @@ fn stroke_path(
     paint.anti_alias = path.rendering_mode().use_shape_antialiasing();
     paint.blend_mode = blend_mode;
 
-    pixmap.stroke_path(path.data(), &paint, &stroke.to_tiny_skia(), transform, None);
+    if pixmap.width() <= 2 || pixmap.height() <= 2 {
+        // tiny-skia's hairline clip optimization discards strokes when its
+        // one-pixel inset has no interior. A minimum 3x3 destination avoids
+        // that case; copy the existing pixels to preserve blending, then crop.
+        let mut padded = tiny_skia::Pixmap::new(pixmap.width().max(3), pixmap.height().max(3))?;
+        let stride = pixmap.width() as usize * 4;
+        let padded_stride = padded.width() as usize * 4;
+        for (source, target) in pixmap
+            .as_ref()
+            .data()
+            .chunks_exact(stride)
+            .zip(padded.data_mut().chunks_exact_mut(padded_stride))
+        {
+            target[..stride].copy_from_slice(source);
+        }
+
+        padded.stroke_path(path.data(), &paint, &stroke.to_tiny_skia(), transform, None);
+
+        for (source, target) in padded
+            .data()
+            .chunks_exact(padded_stride)
+            .zip(pixmap.data_mut().chunks_exact_mut(stride))
+        {
+            target.copy_from_slice(&source[..stride]);
+        }
+    } else {
+        pixmap.stroke_path(path.data(), &paint, &stroke.to_tiny_skia(), transform, None);
+    }
 
     Some(())
 }
