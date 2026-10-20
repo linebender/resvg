@@ -80,3 +80,88 @@ fn render_node_filter_on_empty_group() {
 fn render_node_filter_with_transform_on_shape() {
     assert_eq!(render_node("extra/filter-with-transform-on-shape", "g1"), 0);
 }
+
+#[test]
+fn marker_degenerate_tangent() {
+    assert_eq!(
+        render_extra_with_scale("extra/marker-degenerate-tangent", 2.0),
+        0
+    );
+}
+
+#[test]
+fn marker_closed_join() {
+    assert_eq!(render_extra_with_scale("extra/marker-closed-join", 2.0), 0);
+}
+
+#[test]
+fn marker_closed_zero_line() {
+    assert_eq!(
+        render_extra_with_scale("extra/marker-closed-zero-line", 2.0),
+        0
+    );
+}
+
+#[test]
+fn marker_degenerate_start_reverse() {
+    assert_eq!(
+        render_extra_with_scale("extra/marker-degenerate-start-reverse", 2.0),
+        0
+    );
+}
+
+#[test]
+fn marker_closed_start_reverse() {
+    assert_eq!(
+        render_extra_with_scale("extra/marker-closed-start-reverse", 2.0),
+        0
+    );
+}
+
+#[test]
+fn marker_degenerate_fixed_angle() {
+    assert_eq!(
+        render_extra_with_scale("extra/marker-degenerate-fixed-angle", 2.0),
+        0
+    );
+}
+
+#[test]
+fn marker_closed_subpaths() {
+    assert_eq!(
+        render_extra_with_scale("extra/marker-closed-subpaths", 2.0),
+        0
+    );
+}
+
+#[test]
+fn marker_closed_polygon() {
+    assert_eq!(
+        render_extra_with_scale("extra/marker-closed-polygon", 2.0),
+        0
+    );
+}
+
+#[test]
+fn marker_degenerate_controls() {
+    assert_eq!(
+        render_extra_with_scale("extra/marker-degenerate-controls", 2.0),
+        0
+    );
+}
+
+#[test]
+fn marker_closed_curve_mid() {
+    assert_eq!(
+        render_extra_with_scale("extra/marker-closed-curve-mid", 2.0),
+        0
+    );
+}
+
+#[test]
+fn marker_closed_zero_line_mid() {
+    assert_eq!(
+        render_extra_with_scale("extra/marker-closed-zero-line-mid", 2.0),
+        0
+    );
+}
