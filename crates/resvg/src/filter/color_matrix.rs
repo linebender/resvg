@@ -1,7 +1,7 @@
 // Copyright 2020 the Resvg Authors
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use super::{ImageRefMut, f32_bound};
+use super::ImageRefMut;
 use rgb::RGBA8;
 use usvg::filter::ColorMatrixKind as ColorMatrix;
 
@@ -106,5 +106,5 @@ fn to_normalized_components(pixel: RGBA8) -> (f32, f32, f32, f32) {
 
 #[inline]
 fn from_normalized(c: f32) -> u8 {
-    (f32_bound(0.0, c, 1.0) * 255.0) as u8
+    (f32::clamp(c, 0.0, 1.0) * 255.0) as u8
 }

@@ -237,22 +237,6 @@ fn from_linear_rgb(data: &mut [RGBA8]) {
     }
 }
 
-// TODO: https://github.com/rust-lang/rust/issues/44095
-#[inline]
-fn f32_bound(min: f32, val: f32, max: f32) -> f32 {
-    debug_assert!(min.is_finite());
-    debug_assert!(max.is_finite());
-
-    if val > max {
-        max
-    } else if val >= min {
-        val
-    } else {
-        // Catches `val < min` as well as a NaN `val`.
-        min
-    }
-}
-
 #[derive(Clone)]
 struct Image {
     /// Filter primitive result.

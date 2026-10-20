@@ -1,7 +1,7 @@
 // Copyright 2020 the Resvg Authors
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use super::{ImageRef, ImageRefMut, f32_bound};
+use super::{ImageRef, ImageRefMut};
 use rgb::RGBA8;
 use usvg::ApproxZeroUlps;
 
@@ -27,7 +27,7 @@ pub fn arithmetic(
         let i1 = i1 as f32 / 255.0;
         let i2 = i2 as f32 / 255.0;
         let result = k1 * i1 * i2 + k2 * i1 + k3 * i2 + k4;
-        f32_bound(0.0, result, max)
+        f32::clamp(result, 0.0, max)
     };
 
     let mut i = 0;

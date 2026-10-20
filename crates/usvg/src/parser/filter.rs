@@ -540,7 +540,7 @@ fn convert_color_matrix_kind(fe: SvgNode) -> Option<ColorMatrixKind> {
         Some("saturate") => {
             if let Some(list) = fe.attribute::<Vec<f32>>(AId::Values) {
                 if !list.is_empty() {
-                    let n = crate::f32_bound(0.0, list[0], 1.0);
+                    let n = f32::clamp(list[0], 0.0, 1.0);
                     return Some(ColorMatrixKind::Saturate(PositiveF32::new(n).unwrap()));
                 } else {
                     return Some(ColorMatrixKind::Saturate(PositiveF32::new(1.0).unwrap()));
@@ -907,7 +907,7 @@ fn convert_specular_lighting(fe: SvgNode, primitives: &[Primitive]) -> Option<Ki
         return None;
     }
 
-    let specular_exponent = crate::f32_bound(1.0, specular_exponent, 128.0);
+    let specular_exponent = f32::clamp(specular_exponent, 1.0, 128.0);
 
     Some(Kind::SpecularLighting(SpecularLighting {
         input: resolve_input(fe, AId::In, primitives),
