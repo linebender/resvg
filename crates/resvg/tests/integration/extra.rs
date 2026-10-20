@@ -80,3 +80,32 @@ fn render_node_filter_on_empty_group() {
 fn render_node_filter_with_transform_on_shape() {
     assert_eq!(render_node("extra/filter-with-transform-on-shape", "g1"), 0);
 }
+
+#[test]
+fn fractional_pattern_fill() {
+    assert_eq!(render_extra_with_scale("extra/fractional-pattern", 2.0), 0);
+}
+
+#[test]
+fn fractional_pattern_stroke() {
+    assert_eq!(
+        render_extra_with_scale("extra/fractional-pattern-stroke", 2.0),
+        0
+    );
+}
+
+#[test]
+fn fractional_pattern_horizontal_stripes() {
+    assert_eq!(
+        render_extra_with_scale("extra/fractional-pattern-horizontal-stripes", 2.0),
+        0
+    );
+}
+
+#[test]
+fn fractional_pattern_transforms() {
+    assert_eq!(
+        render_extra_with_scale("extra/fractional-pattern-transforms", 1.5),
+        0
+    );
+}
