@@ -842,7 +842,9 @@ fn collect_normals(
         };
 
         let arclen_accuracy = {
-            let base_arclen_accuracy = 0.5;
+            // Inverse arc length positions each glyph. Half a user unit is
+            // visible even on straight paths with non-uniform parameterization.
+            let base_arclen_accuracy = 0.001;
             // Accuracy depends on a current scale.
             // When we have a tiny path scaled by a large value,
             // we have to increase out accuracy accordingly.
