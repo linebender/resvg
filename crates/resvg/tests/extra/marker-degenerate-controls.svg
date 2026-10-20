@@ -1,0 +1,41 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <title>Marker tangents with coincident Bezier controls</title>
+    <defs id="defs1">
+        <marker id="m" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10"
+                refX="5" refY="5" orient="auto">
+            <path id="arrow" d="M5 1L9 5L5 9Z" fill="#174a86"/>
+        </marker>
+    </defs>
+    <g id="g0" transform="translate(0 0)">
+        <path id="p0" d="M10 10C10 10 10 40 80 10" fill="none" stroke="black"
+              marker-start="url(#m)"/>
+    </g>
+    <g id="g1" transform="translate(100 0)">
+        <path id="p1" d="M10 10C10 10 10 10 80 40" fill="none" stroke="black"
+              marker-start="url(#m)"/>
+    </g>
+    <g id="g2" transform="translate(0 50)">
+        <path id="p2" d="M10 10C10 40 80 40 80 40" fill="none" stroke="black"
+              marker-end="url(#m)"/>
+    </g>
+    <g id="g3" transform="translate(100 50)">
+        <path id="p3" d="M10 10C80 40 80 40 80 40" fill="none" stroke="black"
+              marker-end="url(#m)"/>
+    </g>
+    <g id="g4" transform="translate(0 100)">
+        <path id="p4" d="M10 10C10 40 45 40 45 40L80 10" fill="none" stroke="black"
+              marker-mid="url(#m)"/>
+    </g>
+    <g id="g5" transform="translate(100 100)">
+        <path id="p5" d="M10 10L30 30C30 30 80 30 80 10" fill="none" stroke="black"
+              marker-mid="url(#m)"/>
+    </g>
+    <g id="g6" transform="translate(0 150)">
+        <path id="p6" d="M10 10Q10 10 80 40" fill="none" stroke="black"
+              marker-start="url(#m)"/>
+    </g>
+    <g id="g7" transform="translate(100 150)">
+        <path id="p7" d="M10 10Q80 40 80 40" fill="none" stroke="black"
+              marker-end="url(#m)"/>
+    </g>
+</svg>
