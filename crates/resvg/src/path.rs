@@ -193,6 +193,10 @@ fn render_pattern_pixmap(
     )?;
     let mut pixmap = tiny_skia::Pixmap::new(img_size.width(), img_size.height())?;
 
+    // Fit the entire tile into the rounded pixmap, then map it back to its
+    // original size. Keeping the requested scale would change the repeat period.
+    let sx = img_size.width() as f32 / rect.width();
+    let sy = img_size.height() as f32 / rect.height();
     let transform = tiny_skia::Transform::from_scale(sx, sy);
     crate::render::render_nodes(pattern.root(), ctx, transform, &mut pixmap.as_mut());
 

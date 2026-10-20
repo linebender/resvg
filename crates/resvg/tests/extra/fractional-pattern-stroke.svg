@@ -1,0 +1,9 @@
+<svg id="svg1" xmlns="http://www.w3.org/2000/svg" width="160" height="48">
+    <title>Fractional pattern on a stroke</title>
+    <defs id="defs1">
+        <pattern id="p" patternUnits="userSpaceOnUse" width="12.3" height="8.3">
+            <rect id="tile" width="4" height="8.3" fill="#174a86"/>
+        </pattern>
+    </defs>
+    <path id="path1" d="M 0 24 H 160" fill="none" stroke="url(#p)" stroke-width="48"/>
+</svg>

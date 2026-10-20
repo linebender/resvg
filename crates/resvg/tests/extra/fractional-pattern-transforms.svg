@@ -1,0 +1,18 @@
+<svg id="svg1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+    <title>Fractional pattern with origin and transforms</title>
+    <defs id="defs1">
+        <pattern id="p" patternUnits="userSpaceOnUse" x="2.25" y="-1.5"
+                 width="12.3" height="8.3"
+                 patternTransform="rotate(30) skewX(15) scale(1.25 0.75)">
+            <rect id="tile" width="4" height="8.3" fill="#174a86"/>
+        </pattern>
+    </defs>
+    <rect id="rect1" x="10" y="10" width="180" height="45" fill="url(#p)"/>
+    <g id="group1" transform="translate(10 70) scale(1.5 0.75)">
+        <rect id="rect2" width="120" height="60" fill="url(#p)"/>
+    </g>
+    <g id="group2" transform="matrix(1 0.2 0.3 1 10 130)">
+        <rect id="rect3" width="160" height="30" fill="url(#p)"/>
+    </g>
+    <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>
