@@ -8,23 +8,48 @@ This changelog also contains important changes in dependencies.
 
 ## [Unreleased]
 
+## [0.49.0] 2026-10-21
+
+This release has an MSRV of 1.85.0 for `usvg` and `resvg` and the C API.
+
 ### Added
 
-- `--query-bbox` CLI option to query the drawing bounding box without rasterizing it.
-- `mix-blend-mode: plus-lighter` (Compositing and Blending Level 2).
-- `feComposite` `operator="lighter"` (SVG 2).
+- `--query-bbox` CLI option to query the drawing bounding box without rasterizing it. (#1050)
+- `mix-blend-mode: plus-lighter` (Compositing and Blending Level 2). (#1142)
+- `feComposite` `operator="lighter"` (SVG 2). (#1142)
+- Prebuilt `aarch64` release binaries for Linux and Windows. (#1132)
+
+### Changed
+
+- `usvg::BlendMode` and `usvg::filter::CompositeOperator` have new `PlusLighter`
+  and `Lighter` variants. (#1142)
+- `Group::layer_bounding_box` of a group without filters is now clipped by its clip path,
+  so clipped groups allocate smaller layers. This also affects the sizes reported by
+  `--query-all` and used by `--export-id`. (#1158)
 
 ### Fixed
 
 - `dominant-baseline` is now correctly inherited by nested `<tspan>` elements,
-  so a nested span stays on the same baseline as its siblings. (#864)
-- Panics and incorrect clipping when a filter region is smaller than its input. (#1141)
-- Incorrect transform order on the outermost `svg` element with a `viewBox`. (#899)
-- Relative positioning of right-to-left text with `dx` and `dy`, including text on a path and text decorations. (#1093)
+  so a nested span stays on the same baseline as its siblings. (#1086)
+- Panics and incorrect clipping when a filter region is smaller than its input. (#1144)
+- Incorrect transform order on the outermost `svg` element with a `viewBox`. (#1085)
+- Relative positioning of right-to-left text with `dx` and `dy`, including text on a path and text decorations. (#1145)
 - `text-anchor` now uses the actual extent of a text chunk, which `dx` and `textLength` can change. (#1145)
 - Filters inside rotated or skewed groups are now applied in the user space of the group.
   This fixes the clipping to filter regions and subregions, as well as the direction of
-  offsets, blurs, turbulence and tiles, and the rendering of `feImage`. (#949)
+  offsets, blurs, turbulence and tiles, and the rendering of `feImage`. (#1155)
+- `gradientTransform` and `patternTransform` are now inherited via `href`. (#1135)
+- The bounding box of an `<image>` with `preserveAspectRatio="… slice"` is now its viewport,
+  so `objectBoundingBox` clip paths, masks and filters on it are resolved correctly. (#1077)
+- Markers are now clipped to their viewport instead of their `viewBox` when the aspect ratios differ. (#1163)
+- Object bounding box gradients inside masks, patterns and `feImage` filters used by more than one element
+  are now resolved correctly, instead of being rendered as a flat fill or not at all. (#1164)
+- `feMorphology` kernels are now symmetric and fractional radii are rounded to the nearest pixel. (#1120)
+- Font fallback log messages now always name the correct fallback font family. (#1154)
+- The `resvg` CLI no longer rounds fractional image sizes before scaling, and rounds the output size up
+  instead of to the nearest integer. (#875)
+- The C API header was missing `RESVG_ERROR_SVGZ_UNSUPPORTED`, so all following error codes were off by one. (#1122)
+- `cargo-c` now installs `ResvgQt.h` alongside `resvg.h`. (#1182)
 
 ## [0.48.1] 2026-08-02
 
@@ -1413,7 +1438,8 @@ This release has an MSRV of 1.65 for `usvg` and 1.67.1 for `resvg` and the C API
 
 [#897]: https://github.com/linebender/resvg/pull/897
 
-[Unreleased]: https://github.com/linebender/resvg/compare/v0.48.1...HEAD
+[Unreleased]: https://github.com/linebender/resvg/compare/v0.49.0...HEAD
+[0.49.0]: https://github.com/linebender/resvg/compare/v0.48.1...v0.49.0
 [0.48.1]: https://github.com/linebender/resvg/compare/v0.48.0...v0.48.1
 [0.48.0]: https://github.com/linebender/resvg/compare/v0.47.0...v0.48.0
 [0.47.0]: https://github.com/linebender/resvg/compare/v0.46.0...v0.47.0
