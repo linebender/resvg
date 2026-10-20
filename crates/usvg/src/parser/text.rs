@@ -122,6 +122,7 @@ pub(crate) fn convert(
 
     let dummy = Rect::from_xywh(0.0, 0.0, 0.0, 0.0).unwrap();
 
+    #[allow(unused_mut)]
     let mut text = Text {
         id,
         rendering_mode,
@@ -137,9 +138,11 @@ pub(crate) fn convert(
         stroke_bounding_box: dummy,
         abs_stroke_bounding_box: dummy,
         flattened: Box::new(Group::empty()),
+        #[cfg(feature = "text")]
         layouted: vec![],
     };
 
+    #[cfg(feature = "text")]
     if text::convert(&mut text, &state.opt.font_resolver, cache).is_none() {
         return;
     }
