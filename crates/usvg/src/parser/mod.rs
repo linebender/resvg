@@ -37,6 +37,12 @@ pub enum Error {
     /// Compressed SVG must use the GZip algorithm.
     MalformedGZip,
 
+    /// A decompressed SVGZ file exceeded the size limit.
+    ///
+    /// This prevents decompression bombs: a small, crafted GZip stream can
+    /// otherwise expand into an extremely large amount of memory.
+    SvgzDecompressionLimitReached,
+
     /// We do not allow SVG with more than 1_000_000 elements for security reasons.
     ElementsLimitReached,
 
@@ -68,6 +74,9 @@ impl std::fmt::Display for Error {
             }
             Error::MalformedGZip => {
                 write!(f, "provided data has a malformed GZip content")
+            }
+            Error::SvgzDecompressionLimitReached => {
+                write!(f, "SVGZ data decompressed into too much data")
             }
             Error::ElementsLimitReached => {
                 write!(f, "the maximum number of SVG elements has been reached")
@@ -175,17 +184,89 @@ impl crate::Tree {
     }
 }
 
+/// The maximum amount of data (in bytes) we're willing to produce when
+/// decompressing an SVGZ file.
+///
+/// GZip allows for very high compression ratios, so without a limit a tiny,
+/// maliciously crafted `.svgz` file can decompress into gigabytes of data
+/// and exhaust all available memory (a "decompression bomb").
+#[cfg(feature = "svgz")]
+const SVGZ_DECOMPRESSION_LIMIT: u64 = 1024 * 1024 * 1024; // 1 GiB
+
 /// Decompresses an SVGZ file.
 #[cfg(feature = "svgz")]
 pub fn decompress_svgz(data: &[u8]) -> Result<Vec<u8>, Error> {
+    decompress_svgz_capped(data, SVGZ_DECOMPRESSION_LIMIT)
+}
+
+/// Decompresses an SVGZ file, refusing to produce more than `limit` bytes.
+///
+/// Split out from [`decompress_svgz`] so tests can exercise the limiting
+/// behavior with a small `limit` instead of allocating a real, huge buffer.
+#[cfg(feature = "svgz")]
+fn decompress_svgz_capped(data: &[u8], limit: u64) -> Result<Vec<u8>, Error> {
     use std::io::Read;
 
     let mut decoder = flate2::read::GzDecoder::new(data);
-    let mut decoded = Vec::with_capacity(data.len() * 2);
+    let mut decoded = Vec::with_capacity((data.len() * 2).min(1024 * 1024));
+    // Cap the number of decompressed bytes we'll accept, so a highly
+    // compressed, maliciously crafted input can't be used to exhaust memory.
     decoder
+        .by_ref()
+        .take(limit)
         .read_to_end(&mut decoded)
         .map_err(|_| Error::MalformedGZip)?;
+
+    if decoded.len() as u64 == limit {
+        // We stopped only because we hit the limit. Check whether there was
+        // actually more data left to decompress, as opposed to the input
+        // happening to decompress to exactly the limit.
+        let mut probe = [0u8; 1];
+        let more_data_remains = decoder.read(&mut probe).map_err(|_| Error::MalformedGZip)? != 0;
+        if more_data_remains {
+            return Err(Error::SvgzDecompressionLimitReached);
+        }
+    }
+
     Ok(decoded)
+}
+
+#[cfg(all(test, feature = "svgz"))]
+mod svgz_tests {
+    use super::decompress_svgz_capped;
+    use std::io::Write;
+
+    fn gzip(data: &[u8]) -> Vec<u8> {
+        let mut encoder = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::fast());
+        encoder.write_all(data).unwrap();
+        encoder.finish().unwrap()
+    }
+
+    #[test]
+    fn decompresses_input_within_the_limit() {
+        let compressed = gzip(b"hello world");
+        let decoded = decompress_svgz_capped(&compressed, 1024).unwrap();
+        assert_eq!(decoded, b"hello world");
+    }
+
+    #[test]
+    fn accepts_input_exactly_at_the_limit() {
+        let compressed = gzip(&[0u8; 1024]);
+        let decoded = decompress_svgz_capped(&compressed, 1024).unwrap();
+        assert_eq!(decoded.len(), 1024);
+    }
+
+    #[test]
+    fn rejects_a_decompression_bomb() {
+        // Highly compressible input (all zeros) that decompresses to more
+        // data than the limit allows. Reproduces the scenario from
+        // https://github.com/linebender/resvg/issues/1138 at a small scale.
+        let compressed = gzip(&[0u8; 4096]);
+        assert!(compressed.len() < 1024);
+
+        let err = decompress_svgz_capped(&compressed, 1024).unwrap_err();
+        assert!(matches!(err, super::Error::SvgzDecompressionLimitReached));
+    }
 }
 
 #[inline]
