@@ -476,6 +476,58 @@ impl Default for TextAnchor {
     }
 }
 
+/// A text direction.
+///
+/// The `direction` property in SVG. It sets the base direction of the bidirectional text
+/// algorithm and decides which side `text-anchor="start"` and `"end"` refer to.
+#[allow(missing_docs)]
+#[derive(Clone, Copy, PartialEq, Eq, Default, Debug)]
+pub enum Direction {
+    #[default]
+    LeftToRight,
+    RightToLeft,
+}
+
+/// The `unicode-bidi` property.
+#[cfg_attr(not(feature = "text"), allow(dead_code))]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub(crate) enum UnicodeBidi {
+    Normal,
+    Embed,
+    BidiOverride,
+    Isolate,
+    IsolateOverride,
+    Plaintext,
+}
+
+/// An element with a `unicode-bidi` value other than `normal`, which starts an embedding, an override
+/// or an isolate for its content.
+#[cfg_attr(not(feature = "text"), allow(dead_code))]
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct BidiScope {
+    pub(crate) unicode_bidi: UnicodeBidi,
+    /// The element's own `direction`.
+    pub(crate) direction: Direction,
+}
+
+#[cfg_attr(not(feature = "text"), allow(dead_code))]
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum BidiEventKind {
+    Open(BidiScope),
+    Close,
+}
+
+/// A `BidiScope` that opens or closes at a byte of the chunk text.
+///
+/// Scopes nest like the elements they come from. A chunk that starts inside an element opens
+/// its scopes again at byte 0.
+#[cfg_attr(not(feature = "text"), allow(dead_code))]
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct BidiEvent {
+    pub(crate) byte: usize,
+    pub(crate) kind: BidiEventKind,
+}
+
 /// A path used by text-on-path.
 #[derive(Debug)]
 pub struct TextPath {
@@ -524,6 +576,9 @@ pub struct TextChunk {
     pub(crate) x: Option<f32>,
     pub(crate) y: Option<f32>,
     pub(crate) anchor: TextAnchor,
+    pub(crate) direction: Direction,
+    #[cfg_attr(not(feature = "text"), allow(dead_code))]
+    pub(crate) bidi: Vec<BidiEvent>,
     pub(crate) spans: Vec<TextSpan>,
     pub(crate) text_flow: TextFlow,
     pub(crate) text: String,
@@ -543,6 +598,14 @@ impl TextChunk {
     /// A text anchor.
     pub fn anchor(&self) -> TextAnchor {
         self.anchor
+    }
+
+    /// A text chunk direction.
+    ///
+    /// The `direction` of the element the chunk starts in. `start` and `end` anchors
+    /// are relative to it: the text of a right-to-left chunk ends at a `start` anchor.
+    pub fn direction(&self) -> Direction {
+        self.direction
     }
 
     /// A list of text chunk style spans.
@@ -580,6 +643,7 @@ pub struct Text {
     pub(crate) dy: Vec<f32>,
     pub(crate) rotate: Vec<f32>,
     pub(crate) writing_mode: WritingMode,
+    pub(crate) direction: Direction,
     pub(crate) chunks: Vec<TextChunk>,
     pub(crate) abs_transform: Transform,
     pub(crate) bounding_box: Rect,
@@ -632,6 +696,14 @@ impl Text {
     /// A writing mode.
     pub fn writing_mode(&self) -> WritingMode {
         self.writing_mode
+    }
+
+    /// A base text direction.
+    ///
+    /// `direction` of the `text` element.
+    /// Ignored in a vertical writing mode.
+    pub fn direction(&self) -> Direction {
+        self.direction
     }
 
     /// A list of text chunks.

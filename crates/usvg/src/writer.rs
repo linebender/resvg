@@ -705,6 +705,10 @@ fn write_element(node: &Node, is_clip_path: bool, opt: &WriteOptions, xml: &mut 
                     WritingMode::TopToBottom => xml.write_svg_attribute(AId::WritingMode, "tb"),
                 }
 
+                if text.direction == Direction::RightToLeft {
+                    xml.write_svg_attribute(AId::Direction, "rtl");
+                }
+
                 match text.rendering_mode {
                     TextRendering::OptimizeSpeed => {
                         xml.write_svg_attribute(AId::TextRendering, "optimizeSpeed");
@@ -760,7 +764,37 @@ fn write_element(node: &Node, is_clip_path: bool, opt: &WriteOptions, xml: &mut 
                         TextAnchor::End => xml.write_svg_attribute(AId::TextAnchor, "end"),
                     }
 
+                    if chunk.direction != text.direction {
+                        let direction = match chunk.direction {
+                            Direction::LeftToRight => "ltr",
+                            Direction::RightToLeft => "rtl",
+                        };
+                        xml.write_svg_attribute(AId::Direction, direction);
+                    }
+
+                    // The directions of the `unicode-bidi` elements open at the current span.
+                    let mut bidi_scopes: Vec<Direction> = Vec::new();
                     for span in &chunk.spans {
+                        // The `unicode-bidi` elements that start or end at this span.
+                        for event in chunk.bidi.iter().filter(|e| e.byte == span.start) {
+                            match event.kind {
+                                BidiEventKind::Close => {
+                                    xml.end_element();
+                                    bidi_scopes.pop();
+                                }
+                                BidiEventKind::Open(scope) => {
+                                    write_bidi_scope(scope, xml);
+                                    bidi_scopes.push(scope.direction);
+                                }
+                            }
+                        }
+
+                        // The chunk takes its direction from the element its text is in, and an
+                        // element inherits the direction of the `unicode-bidi` element around it.
+                        let inherited = bidi_scopes.last().copied().unwrap_or(chunk.direction);
+                        let span_direction =
+                            (inherited != chunk.direction).then_some(chunk.direction);
+
                         let decorations: Vec<_> = [
                             ("underline", &span.decoration.underline),
                             ("line-through", &span.decoration.line_through),
@@ -783,12 +817,16 @@ fn write_element(node: &Node, is_clip_path: bool, opt: &WriteOptions, xml: &mut 
                             write_stroke(&deco.stroke, opt, xml);
                         }
 
-                        write_span(is_clip_path, opt, xml, chunk, span);
+                        write_span(is_clip_path, opt, xml, chunk, span, span_direction);
 
                         // End for each tspan we needed to create for decorations
                         for _ in &decorations {
                             xml.end_element();
                         }
+                    }
+
+                    for _ in &bidi_scopes {
+                        xml.end_element();
                     }
                     xml.end_element();
 
@@ -1425,14 +1463,41 @@ fn write_num(num: f32, buf: &mut Vec<u8>, precision: u8) {
 }
 
 /// Write all of the tspan attributes except for decorations.
+fn write_bidi_scope(scope: BidiScope, xml: &mut XmlWriter) {
+    xml.start_svg_element(EId::Tspan);
+
+    let unicode_bidi = match scope.unicode_bidi {
+        UnicodeBidi::Normal => "normal",
+        UnicodeBidi::Embed => "embed",
+        UnicodeBidi::BidiOverride => "bidi-override",
+        UnicodeBidi::Isolate => "isolate",
+        UnicodeBidi::IsolateOverride => "isolate-override",
+        UnicodeBidi::Plaintext => "plaintext",
+    };
+    xml.write_svg_attribute(AId::UnicodeBidi, unicode_bidi);
+
+    let direction = match scope.direction {
+        Direction::LeftToRight => "ltr",
+        Direction::RightToLeft => "rtl",
+    };
+    xml.write_svg_attribute(AId::Direction, direction);
+}
+
 fn write_span(
     is_clip_path: bool,
     opt: &WriteOptions,
     xml: &mut XmlWriter,
     chunk: &TextChunk,
     span: &TextSpan,
+    direction: Option<Direction>,
 ) {
     xml.start_svg_element(EId::Tspan);
+
+    match direction {
+        Some(Direction::LeftToRight) => xml.write_svg_attribute(AId::Direction, "ltr"),
+        Some(Direction::RightToLeft) => xml.write_svg_attribute(AId::Direction, "rtl"),
+        None => {}
+    }
 
     let font_family_to_str = |font_family: &FontFamily| match font_family {
         FontFamily::Monospace => "monospace".to_string(),

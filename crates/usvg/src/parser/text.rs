@@ -21,6 +21,30 @@ impl<'a, 'input: 'a> FromValue<'a, 'input> for TextAnchor {
     }
 }
 
+impl<'a, 'input: 'a> FromValue<'a, 'input> for Direction {
+    fn parse(_: SvgNode, _: AId, value: &str) -> Option<Self> {
+        match value {
+            "ltr" => Some(Direction::LeftToRight),
+            "rtl" => Some(Direction::RightToLeft),
+            _ => None,
+        }
+    }
+}
+
+impl<'a, 'input: 'a> FromValue<'a, 'input> for UnicodeBidi {
+    fn parse(_: SvgNode, _: AId, value: &str) -> Option<Self> {
+        match value {
+            "normal" => Some(UnicodeBidi::Normal),
+            "embed" => Some(UnicodeBidi::Embed),
+            "bidi-override" => Some(UnicodeBidi::BidiOverride),
+            "isolate" => Some(UnicodeBidi::Isolate),
+            "isolate-override" => Some(UnicodeBidi::IsolateOverride),
+            "plaintext" => Some(UnicodeBidi::Plaintext),
+            _ => None,
+        }
+    }
+}
+
 impl<'a, 'input: 'a> FromValue<'a, 'input> for AlignmentBaseline {
     fn parse(_: SvgNode, _: AId, value: &str) -> Option<Self> {
         match value {
@@ -106,6 +130,7 @@ pub(crate) fn convert(
     let pos_list = resolve_positions_list(text_node, state);
     let rotate_list = resolve_rotate_list(text_node);
     let writing_mode = convert_writing_mode(text_node);
+    let direction = text_node.find_attribute(AId::Direction).unwrap_or_default();
 
     let chunks = collect_text_chunks(text_node, &pos_list, state, cache);
 
@@ -129,6 +154,7 @@ pub(crate) fn convert(
         dy: pos_list.iter().map(|v| v.dy.unwrap_or(0.0)).collect(),
         rotate: rotate_list,
         writing_mode,
+        direction,
         chunks,
         abs_transform: parent.abs_transform,
         // All fields below will be reset by `text_to_paths`.
@@ -147,7 +173,17 @@ pub(crate) fn convert(
     parent.children.push(Node::Text(Box::new(text)));
 }
 
+/// An element that opens a `unicode-bidi` scope and has not ended yet.
+struct OpenScope {
+    id: usize,
+    scope: BidiScope,
+}
+
 struct IterState {
+    bidi_stack: Vec<OpenScope>,
+    next_scope_id: usize,
+    /// Ids of the scopes the last chunk has opened and not closed.
+    chunk_open_scopes: Vec<usize>,
     chars_count: usize,
     chunk_bytes_count: usize,
     split_chunk: bool,
@@ -162,6 +198,9 @@ fn collect_text_chunks(
     cache: &mut converter::Cache,
 ) -> Vec<TextChunk> {
     let mut iter_state = IterState {
+        bidi_stack: Vec::new(),
+        next_scope_id: 0,
+        chunk_open_scopes: Vec::new(),
         chars_count: 0,
         chunk_bytes_count: 0,
         split_chunk: false,
@@ -181,6 +220,21 @@ fn collect_text_chunks_impl(
     cache: &mut converter::Cache,
     iter_state: &mut IterState,
 ) {
+    let unicode_bidi: UnicodeBidi = parent
+        .attribute(AId::UnicodeBidi)
+        .unwrap_or(UnicodeBidi::Normal);
+    let opens_scope = unicode_bidi != UnicodeBidi::Normal;
+    if opens_scope {
+        iter_state.next_scope_id += 1;
+        iter_state.bidi_stack.push(OpenScope {
+            id: iter_state.next_scope_id,
+            scope: BidiScope {
+                unicode_bidi,
+                direction: parent.find_attribute(AId::Direction).unwrap_or_default(),
+            },
+        });
+    }
+
     for child in parent.children() {
         if child.is_element() {
             if child.tag_name() == Some(EId::TextPath) {
@@ -224,6 +278,7 @@ fn collect_text_chunks_impl(
         }
 
         let anchor = parent.find_attribute(AId::TextAnchor).unwrap_or_default();
+        let direction = parent.find_attribute(AId::Direction).unwrap_or_default();
 
         // TODO: what to do when <= 0? UB?
         let font_size = super::units::resolve_font_size(parent, state);
@@ -330,6 +385,8 @@ fn collect_text_chunks_impl(
                     x: pos_list[iter_state.chars_count].x,
                     y: pos_list[iter_state.chars_count].y,
                     anchor,
+                    direction,
+                    bidi: Vec::new(),
                     spans: vec![span2],
                     text_flow: iter_state.text_flow.clone(),
                     text: c.to_string(),
@@ -355,10 +412,54 @@ fn collect_text_chunks_impl(
                 }
             }
 
+            sync_bidi_scopes(iter_state, is_new_chunk);
+
             is_new_span = false;
             iter_state.chars_count += 1;
             iter_state.chunk_bytes_count += char_len;
         }
+    }
+
+    if opens_scope {
+        iter_state.bidi_stack.pop();
+    }
+}
+
+/// Makes the last chunk's open `unicode-bidi` scopes the ones the iteration is in now.
+/// Called before a character is added, at the byte it will start at.
+fn sync_bidi_scopes(iter_state: &mut IterState, is_new_chunk: bool) {
+    let Some(chunk) = iter_state.chunks.last_mut() else {
+        return;
+    };
+
+    if is_new_chunk {
+        iter_state.chunk_open_scopes.clear();
+    }
+
+    let byte = iter_state.chunk_bytes_count;
+    let open = &mut iter_state.chunk_open_scopes;
+    let stack = &iter_state.bidi_stack;
+
+    let common = open
+        .iter()
+        .zip(stack)
+        .take_while(|(id, entry)| **id == entry.id)
+        .count();
+
+    while open.len() > common {
+        open.pop();
+        chunk.bidi.push(BidiEvent {
+            byte,
+            kind: BidiEventKind::Close,
+        });
+    }
+
+    for entry in &stack[common..] {
+        open.push(entry.id);
+        chunk.bidi.push(BidiEvent {
+            byte,
+            kind: BidiEventKind::Open(entry.scope),
+        });
     }
 }
 

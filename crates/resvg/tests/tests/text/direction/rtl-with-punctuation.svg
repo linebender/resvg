@@ -1,0 +1,18 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"
+     font-family="Noto Sans" font-size="14">
+    <title>`rtl` with end-of-sentence punctuation</title>
+
+    <path id="line" d="M 100 20 L 100 180" stroke="gray" stroke-width="0.5"/>
+
+    <g id="group1" direction="rtl" font-family="Amiri" font-size="12">
+        <text id="text1" x="190" y="34">قرأت عن SVG.</text>
+        <text id="text2" x="190" y="56">هل تعرف HTML؟</text>
+        <text id="text3" x="190" y="78">ما أجمل SVG!</text>
+        <text id="text4" x="190" y="100">أولاً، ثانياً؛ ثم SVG.</text>
+        <text id="text5" x="190" y="122">نهاية الجملة: abc.</text>
+        <text id="text6" x="190" y="144">جملة بالإنجليزية at the end.</text>
+    </g>
+
+    <!-- image frame -->
+    <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>

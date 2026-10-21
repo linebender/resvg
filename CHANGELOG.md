@@ -13,6 +13,11 @@ This changelog also contains important changes in dependencies.
 - `--query-bbox` CLI option to query the drawing bounding box without rasterizing it.
 - `mix-blend-mode: plus-lighter` (Compositing and Blending Level 2).
 - `feComposite` `operator="lighter"` (SVG 2).
+- `direction` and `unicode-bidi` on text. `direction` sets the base direction of the text of a `text`
+  element and which side `text-anchor` `start` and `end` mean for a text chunk, including on a text path.
+  `unicode-bidi` supports `embed`, `bidi-override`, `isolate`, `isolate-override` and `plaintext`.
+  Both are ignored in a vertical writing mode. (#475)
+- `usvg::Direction`, `usvg::Text::direction` and `usvg::TextChunk::direction`.
 
 ### Fixed
 

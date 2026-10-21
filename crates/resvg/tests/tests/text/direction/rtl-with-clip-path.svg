@@ -1,0 +1,28 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"
+     font-family="Noto Sans" font-size="14">
+    <title>`rtl` with `clip-path`</title>
+    <defs>
+
+        <clipPath id="half" clipPathUnits="objectBoundingBox">
+            <rect x="0" y="0" width="0.5" height="1"/>
+        </clipPath>
+        <clipPath id="userSpace">
+            <rect x="60" y="60" width="60" height="40"/>
+        </clipPath>
+        <clipPath id="text">
+            <text x="190" y="160" direction="rtl" font-family="Amiri" font-size="36">ابجد هوز ABC</text>
+        </clipPath>
+    </defs>
+
+    <path id="crosshair" d="M 20 100 L 180 100 M 100 20 L 100 180"
+          stroke="gray" stroke-width="0.5"/>
+
+    <g id="g1" direction="rtl" font-family="Amiri" font-size="24">
+        <text id="text1" x="170" y="50" clip-path="url(#half)" fill="blue">ابجد هوز ABC</text>
+        <text id="text2" x="170" y="90" clip-path="url(#userSpace)" fill="green">ابجد هوز ABC</text>
+    </g>
+    <rect id="rect1" x="10" y="110" width="180" height="60" fill="orange" clip-path="url(#text)"/>
+
+    <!-- image frame -->
+    <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>

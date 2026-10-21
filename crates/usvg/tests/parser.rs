@@ -702,3 +702,214 @@ fn resolve_fr_from_referenced_radial_gradient() {
 
     assert_eq!(rg.fr().get(), 25.0);
 }
+
+fn text_options() -> usvg::Options<'static> {
+    let mut opts = usvg::Options::default();
+    opts.fontdb_mut()
+        .load_fonts_dir(env!("CARGO_MANIFEST_DIR").to_string() + "/../resvg/tests/fonts");
+    opts.font_family = "Noto Sans".to_string();
+    opts
+}
+
+/// The text and x offset of all glyphs of the first text element, in visual order.
+fn glyphs(tree: &usvg::Tree) -> Vec<(String, f32)> {
+    let usvg::Node::Text(text) = &tree.root().children()[0] else {
+        panic!("missing text")
+    };
+    text.layouted()
+        .iter()
+        .flat_map(|span| &span.positioned_glyphs)
+        .map(|glyph| (glyph.text.clone(), glyph.transform().tx))
+        .collect()
+}
+
+fn glyph_xs(tree: &usvg::Tree) -> Vec<f32> {
+    glyphs(tree).into_iter().map(|(_, x)| x).collect()
+}
+
+#[test]
+fn text_direction_is_inherited_by_text_and_chunks() {
+    let svg = r##"<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200">
+        <g direction="rtl">
+            <text x="100" y="50">Text<tspan x="100" y="80" direction="ltr">Tspan</tspan></text>
+        </g>
+        <text x="100" y="110">Text</text>
+    </svg>"##;
+    let tree = usvg::Tree::from_str(svg, &text_options()).unwrap();
+
+    let usvg::Node::Group(group) = &tree.root().children()[0] else {
+        panic!("missing group")
+    };
+    let usvg::Node::Text(text) = &group.children()[0] else {
+        panic!("missing text")
+    };
+    assert_eq!(text.direction(), usvg::Direction::RightToLeft);
+    let directions: Vec<_> = text.chunks().iter().map(|c| c.direction()).collect();
+    assert_eq!(
+        directions,
+        [usvg::Direction::RightToLeft, usvg::Direction::LeftToRight]
+    );
+
+    let usvg::Node::Text(text) = &tree.root().children()[1] else {
+        panic!("missing text")
+    };
+    assert_eq!(text.direction(), usvg::Direction::LeftToRight);
+}
+
+#[test]
+fn text_anchor_follows_direction() {
+    // The glyphs of `Text` at x = 100: left of the point for a right-to-left start,
+    // right of it for a right-to-left end, and the other way around for left-to-right.
+    let extent = |direction: &str, anchor: &str| {
+        let svg = format!(
+            r##"<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200">
+                <text x="100" y="50" font-size="20" direction="{direction}" text-anchor="{anchor}">Text</text>
+            </svg>"##
+        );
+        let tree = usvg::Tree::from_str(&svg, &text_options()).unwrap();
+        let xs = glyph_xs(&tree);
+        (
+            xs.iter().cloned().fold(f32::INFINITY, f32::min),
+            xs.iter().cloned().fold(f32::NEG_INFINITY, f32::max),
+        )
+    };
+
+    let (left, right) = extent("ltr", "start");
+    assert!(
+        (left - 100.0).abs() < 0.01 && right > 100.0,
+        "{left} {right}"
+    );
+    let (left, right) = extent("rtl", "start");
+    assert!(left < 100.0 && right < 100.0, "{left} {right}");
+    let (left, right) = extent("rtl", "end");
+    assert!(
+        (left - 100.0).abs() < 0.01 && right > 100.0,
+        "{left} {right}"
+    );
+    let (left, right) = extent("ltr", "end");
+    assert!(left < 100.0 && right < 100.0, "{left} {right}");
+}
+
+#[test]
+fn text_direction_is_ignored_in_vertical_writing_mode() {
+    let xs = |direction: &str| {
+        let svg = format!(
+            r##"<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200">
+                <text x="100" y="50" font-size="20" writing-mode="tb" direction="{direction}"
+                    unicode-bidi="bidi-override">Text</text>
+            </svg>"##
+        );
+        glyph_xs(&usvg::Tree::from_str(&svg, &text_options()).unwrap())
+    };
+    assert_eq!(xs("ltr"), xs("rtl"));
+}
+
+#[test]
+fn text_unicode_bidi_override_reverses_the_order_of_glyphs() {
+    let glyphs = |attributes: &str| {
+        let svg = format!(
+            r##"<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200">
+                <text x="20" y="50" font-size="20" {attributes}>ABC</text>
+            </svg>"##
+        );
+        glyphs(&usvg::Tree::from_str(&svg, &text_options()).unwrap())
+    };
+
+    // Glyphs are in visual order, left to right.
+    let texts = |glyphs: &[(String, f32)]| glyphs.iter().map(|g| g.0.clone()).collect::<Vec<_>>();
+    let normal = glyphs("");
+    assert_eq!(texts(&normal), ["A", "B", "C"]);
+
+    let overridden = glyphs(r#"direction="rtl" unicode-bidi="bidi-override""#);
+    assert_eq!(texts(&overridden), ["C", "B", "A"]);
+    assert!(overridden[0].1 < overridden[1].1 && overridden[1].1 < overridden[2].1);
+
+    // Without `unicode-bidi`, `direction` only sets the base direction of the text.
+    let rtl = glyphs(r#"direction="rtl""#);
+    assert_eq!(texts(&rtl), ["A", "B", "C"]);
+}
+
+#[test]
+fn text_direction_survives_writing_the_tree() {
+    let svg = r##"<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200">
+        <text x="150" y="50" font-size="20" direction="rtl">1 <tspan unicode-bidi="embed"
+            direction="ltr">ABC <tspan fill="red">DEF</tspan></tspan> 2</text>
+        <text x="150" y="80" font-size="20"><tspan x="150" direction="rtl" text-anchor="end">ABC</tspan></text>
+        <text y="110" font-size="20"><tspan unicode-bidi="embed" direction="rtl"><tspan direction="ltr"
+            x="100" text-anchor="start">ABC DEF</tspan></tspan></text>
+    </svg>"##;
+    let opts = text_options();
+    let tree = usvg::Tree::from_str(svg, &opts).unwrap();
+    let written = tree.to_string(&usvg::WriteOptions {
+        preserve_text: true,
+        ..Default::default()
+    });
+    let tree2 = usvg::Tree::from_str(&written, &opts).unwrap();
+
+    for (a, b) in tree.root().children().iter().zip(tree2.root().children()) {
+        let (usvg::Node::Text(a), usvg::Node::Text(b)) = (a, b) else {
+            panic!("missing text")
+        };
+        assert_eq!(a.direction(), b.direction());
+        let (a, b): (Vec<_>, Vec<_>) = (
+            a.layouted()
+                .iter()
+                .flat_map(|s| &s.positioned_glyphs)
+                .map(|g| (g.text.clone(), g.transform()))
+                .collect(),
+            b.layouted()
+                .iter()
+                .flat_map(|s| &s.positioned_glyphs)
+                .map(|g| (g.text.clone(), g.transform()))
+                .collect(),
+        );
+        assert_eq!(a.len(), b.len());
+        for ((ta, ma), (tb, mb)) in a.iter().zip(&b) {
+            assert_eq!(ta, tb);
+            assert!((ma.tx - mb.tx).abs() < 1e-3 && (ma.ty - mb.ty).abs() < 1e-3);
+        }
+    }
+}
+
+#[test]
+fn text_anchor_follows_direction_on_a_path() {
+    // The first glyph of `Text` on a path, 200 units after its start at x = 20.
+    let left = |direction: &str, anchor: &str| {
+        let svg = format!(
+            r##"<svg xmlns="http://www.w3.org/2000/svg" width="400" height="200">
+                <defs><path id="p" d="M 20 100 H 380"/></defs>
+                <text font-size="20" direction="{direction}" text-anchor="{anchor}">
+                    <textPath href="#p" startOffset="200">Text</textPath>
+                </text>
+            </svg>"##
+        );
+        let tree = usvg::Tree::from_str(&svg, &text_options()).unwrap();
+        glyph_xs(&tree).into_iter().fold(f32::INFINITY, f32::min)
+    };
+
+    // Right-to-left text ends at a `start` anchor and starts at an `end` one.
+    assert!((left("rtl", "start") - left("ltr", "end")).abs() < 1e-3);
+    assert!((left("rtl", "end") - left("ltr", "start")).abs() < 1e-3);
+    assert!((left("rtl", "middle") - left("ltr", "middle")).abs() < 1e-3);
+    assert!(left("rtl", "start") < 220.0 && left("ltr", "start") > 219.0);
+}
+
+#[test]
+fn text_chunk_continues_from_the_unanchored_end_of_a_right_to_left_chunk() {
+    // The chunk after a `tspan` with `direction="rtl"` starts where the same text with
+    // `direction="ltr"` would end, because the anchor does not move the text position.
+    let second = |direction: &str| {
+        let svg = format!(
+            r##"<svg xmlns="http://www.w3.org/2000/svg" width="400" height="200">
+                <text y="50" font-size="20"><tspan x="100" direction="{direction}">abc</tspan><tspan y="80">def</tspan></text>
+            </svg>"##
+        );
+        let tree = usvg::Tree::from_str(&svg, &text_options()).unwrap();
+        // The first glyph of the second chunk is the fourth one in visual order.
+        glyph_xs(&tree)[3]
+    };
+
+    // `abc` ends at 100 for the right-to-left chunk and starts there for the other one.
+    assert!((second("rtl") - second("ltr")).abs() < 1e-3);
+    assert!(second("rtl") > 100.0);
+}

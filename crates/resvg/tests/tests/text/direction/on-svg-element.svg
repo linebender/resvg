@@ -1,0 +1,15 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"
+     font-family="Noto Sans" font-size="11" direction="rtl" xml:lang="he">
+    <title>`direction` on the `svg` element (#475)</title>
+
+    <path id="crosshair" d="M 20 100 L 180 100 M 100 20 L 100 180"
+          stroke="gray" stroke-width="0.5"/>
+
+    <text id="text1" x="100" y="70" text-anchor="middle"> כתובת MAC:&#x200F;
+        <tspan id="tspan1" direction="ltr" unicode-bidi="embed">00-24-AF-2A-55-FC</tspan> </text>
+    <text id="text2" x="100" y="130" text-anchor="start"> כתובת MAC:&#x200F;
+        <tspan id="tspan2" direction="ltr" unicode-bidi="embed">00-24-AF-2A-55-FC</tspan> </text>
+
+    <!-- image frame -->
+    <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>

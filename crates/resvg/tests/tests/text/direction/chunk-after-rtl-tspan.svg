@@ -1,0 +1,12 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"
+     font-family="Amiri" font-size="14">
+    <title>A `y`-only chunk after a `tspan` with `direction`</title>
+
+    <path id="line" d="M 100 20 L 100 180" stroke="gray" stroke-width="0.5"/>
+
+    <text id="text1" y="40" direction="ltr" fill="red"><tspan id="tspan1" x="100" direction="rtl">abc ABC</tspan><tspan id="tspan2" y="60" fill="blue">def DEF</tspan></text>
+    <text id="text2" x="30" y="100" direction="ltr" fill="red">ABC<tspan id="tspan3" direction="rtl" y="120" fill="blue">DEF ابج</tspan><tspan id="tspan4" y="140" fill="green">ghi</tspan></text>
+
+    <!-- image frame -->
+    <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>
