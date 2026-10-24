@@ -321,17 +321,11 @@ fn collect_children(
             None => continue,
         };
 
-        let filter_subregion = match resolve_primitive_region(
-            child,
-            tag_name,
-            units,
-            state,
-            object_bbox,
-            filter_region,
-        ) {
-            Some(v) => v,
-            None => break,
-        };
+        let filter_subregion =
+            match resolve_primitive_region(child, units, state, object_bbox, filter_region) {
+                Some(v) => v,
+                None => break,
+            };
 
         let kind =
             match tag_name {
@@ -378,62 +372,35 @@ fn collect_children(
     primitives
 }
 
-// TODO: rewrite/simplify/explain/whatever
+/// Resolves a primitive subregion: an attribute that is not specified takes the filter region's
+/// value, and with `primitiveUnits="objectBoundingBox"` a specified one is a fraction of the
+/// element's bounding box.
 fn resolve_primitive_region(
     fe: SvgNode,
-    kind: EId,
     units: Units,
     state: &converter::State,
     bbox: Option<NonZeroRect>,
     filter_region: NonZeroRect,
 ) -> Option<NonZeroRect> {
-    let x = fe.try_convert_length(AId::X, units, state);
-    let y = fe.try_convert_length(AId::Y, units, state);
-    let width = fe.try_convert_length(AId::Width, units, state);
-    let height = fe.try_convert_length(AId::Height, units, state);
+    let mut x = fe.try_convert_length(AId::X, units, state);
+    let mut y = fe.try_convert_length(AId::Y, units, state);
+    let mut width = fe.try_convert_length(AId::Width, units, state);
+    let mut height = fe.try_convert_length(AId::Height, units, state);
 
-    let region = match kind {
-        EId::FeFlood | EId::FeImage => {
-            // `feImage` uses the object bbox.
-            if units == Units::ObjectBoundingBox {
-                let bbox = bbox?;
-
-                // TODO: wrong
-                // let ts_bbox = tiny_skia::Rect::new(ts.e, ts.f, ts.a, ts.d).unwrap();
-
-                let r = NonZeroRect::from_xywh(
-                    x.unwrap_or(0.0),
-                    y.unwrap_or(0.0),
-                    width.unwrap_or(1.0),
-                    height.unwrap_or(1.0),
-                )?;
-
-                return Some(r.bbox_transform(bbox));
-            } else {
-                filter_region
-            }
-        }
-        _ => filter_region,
-    };
-
-    // TODO: Wrong! Does not account rotate and skew.
     if units == Units::ObjectBoundingBox {
-        let subregion_bbox = NonZeroRect::from_xywh(
-            x.unwrap_or(0.0),
-            y.unwrap_or(0.0),
-            width.unwrap_or(1.0),
-            height.unwrap_or(1.0),
-        )?;
-
-        Some(region.bbox_transform(subregion_bbox))
-    } else {
-        NonZeroRect::from_xywh(
-            x.unwrap_or(region.x()),
-            y.unwrap_or(region.y()),
-            width.unwrap_or(region.width()),
-            height.unwrap_or(region.height()),
-        )
+        let bbox = bbox?;
+        x = x.map(|v| bbox.x() + v * bbox.width());
+        y = y.map(|v| bbox.y() + v * bbox.height());
+        width = width.map(|v| v * bbox.width());
+        height = height.map(|v| v * bbox.height());
     }
+
+    NonZeroRect::from_xywh(
+        x.unwrap_or(filter_region.x()),
+        y.unwrap_or(filter_region.y()),
+        width.unwrap_or(filter_region.width()),
+        height.unwrap_or(filter_region.height()),
+    )
 }
 
 // A malformed filter primitive usually should produce a transparent image.

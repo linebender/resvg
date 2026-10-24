@@ -337,6 +337,7 @@ use crate::render;
 #[test] fn filters_filter_some_attributes_via_xlink_href() { assert_eq!(render("tests/filters/filter/some-attributes-via-xlink-href"), 0); }
 #[test] fn filters_filter_subregion_and_primitiveUnits_eq_objectBoundingBox_1() { assert_eq!(render("tests/filters/filter/subregion-and-primitiveUnits=objectBoundingBox-1"), 0); }
 #[test] fn filters_filter_subregion_and_primitiveUnits_eq_objectBoundingBox_2() { assert_eq!(render("tests/filters/filter/subregion-and-primitiveUnits=objectBoundingBox-2"), 0); }
+#[test] fn filters_filter_subregion_and_primitiveUnits_eq_objectBoundingBox_3() { assert_eq!(render("tests/filters/filter/subregion-and-primitiveUnits=objectBoundingBox-3"), 0); }
 #[test] fn filters_filter_subregion_bigger_that_region() { assert_eq!(render("tests/filters/filter/subregion-bigger-that-region"), 0); }
 #[test] fn filters_filter_transform_on_filter() { assert_eq!(render("tests/filters/filter/transform-on-filter"), 0); }
 #[test] fn filters_filter_transform_on_shape_with_filter_region() { assert_eq!(render("tests/filters/filter/transform-on-shape-with-filter-region"), 0); }

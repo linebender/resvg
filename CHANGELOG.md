@@ -8,6 +8,11 @@ This changelog also contains important changes in dependencies.
 
 ## [Unreleased]
 
+### Fixed
+
+- `primitiveUnits="objectBoundingBox"` subregions: a specified value is a fraction of the bounding box
+  and an unspecified one is the filter region's.
+
 ## [0.49.0] 2026-10-24
 
 This release has an MSRV of 1.85.0 for `usvg` and `resvg` and the C API.
