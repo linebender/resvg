@@ -8,6 +8,13 @@ This changelog also contains important changes in dependencies.
 
 ## [Unreleased]
 
+### Fixed
+
+- Filters on rotated or skewed elements were off by up to a pixel: the filter layer now stays aligned
+  with user space, and filter regions are rounded out as in Skia.
+- A filter on a nearly 90° skew allocated gigabytes (from 0.49): as in Skia, such a layer now gets
+  fewer pixels instead.
+
 ## [0.49.0] 2026-10-24
 
 This release has an MSRV of 1.85.0 for `usvg` and `resvg` and the C API.

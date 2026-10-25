@@ -59,25 +59,47 @@ fn render_group(
         return Some(());
     }
 
-    let rest = if group.filters().is_empty() {
-        tiny_skia::Transform::identity()
-    } else {
+    let mut rest = tiny_skia::Transform::identity();
+    let mut layer_ts = transform;
+    if !group.filters().is_empty() {
         let sx = transform.sx.hypot(transform.ky);
         let sy = transform.kx.hypot(transform.sy);
-        tiny_skia::Transform::from_row(
+        rest = tiny_skia::Transform::from_row(
             transform.sx / sx,
             transform.ky / sx,
             transform.kx / sy,
             transform.sy / sy,
             0.0,
             0.0,
-        )
-    };
+        );
+        if rest.has_skew() {
+            // A rotated or skewed layer takes the translation along and is scaled exactly,
+            // so that its pixels stay aligned with the group's user space, as in browsers.
+            rest = rest.post_translate(transform.tx, transform.ty);
+            layer_ts = tiny_skia::Transform::from_scale(sx, sy);
+        } else {
+            layer_ts = rest.invert()?.pre_concat(transform);
+        }
+    }
     let inv_rest = rest.invert()?;
+    let mut max_bbox = ctx.max_bbox.to_rect().transform(inv_rest)?.round_out()?;
 
-    let max_bbox = ctx.max_bbox.to_rect().transform(inv_rest)?.round_out()?;
-    let (layer, ibbox) =
-        render_layer(group, &Context { max_bbox }, inv_rest.pre_concat(transform))?;
+    if rest.has_skew() {
+        // A skew can make the layer arbitrarily large. As in Skia, no side may be longer than
+        // the bounds a filter may cover (or 2048), at a lower resolution if need be.
+        let limit = ctx.max_bbox.width().max(ctx.max_bbox.height()).max(2048) as f32;
+        let bounds = crate::geom::to_int_rect(group.layer_bounding_box().transform(layer_ts)?)?;
+        let bounds = bounds.intersect(&max_bbox)?;
+        let kx = (limit / bounds.width() as f32).min(1.0);
+        let ky = (limit / bounds.height() as f32).min(1.0);
+        if kx < 1.0 || ky < 1.0 {
+            layer_ts = layer_ts.post_scale(kx, ky);
+            rest = rest.pre_scale(1.0 / kx, 1.0 / ky);
+            let scale = tiny_skia::Transform::from_scale(kx, ky);
+            max_bbox = bounds.to_rect().transform(scale)?.round_out()?;
+        }
+    }
+    let (layer, ibbox) = render_layer(group, &Context { max_bbox }, layer_ts)?;
 
     let paint = tiny_skia::Paint {
         shader: tiny_skia::Pattern::new(
@@ -117,12 +139,7 @@ fn render_layer(
     } else {
         // The bounding box for groups with filters is special and should not be expanded by 2px,
         // because it's already acting as a clipping region.
-        let bbox = tiny_skia::IntRect::from_xywh(
-            bbox.x().floor() as i32,
-            bbox.y().floor() as i32,
-            bbox.width().ceil().max(1.0) as u32,
-            bbox.height().ceil().max(1.0) as u32,
-        )?;
+        let bbox = crate::geom::to_int_rect(bbox)?;
         // Make sure our filter region is not bigger than 4x the canvas size.
         // This is required mainly to prevent huge filter regions that would tank the performance.
         // It should not affect the final result in any way.
@@ -204,6 +221,26 @@ mod tests {
         let mut pixmap = tiny_skia::Pixmap::new(1, 1).unwrap();
 
         // Just make sure we don't panic.
+        crate::render(
+            &tree,
+            tiny_skia::Transform::identity(),
+            &mut pixmap.as_mut(),
+        );
+    }
+
+    // A nearly 90° skew makes the scaled layer of a filter millions of pixels tall.
+    #[test]
+    fn filter_on_nearly_singular_skew() {
+        let svg = r#"<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200">
+            <filter id="f"><feGaussianBlur stdDeviation="2"/></filter>
+            <g transform="translate(100 100) skewX(89.9999) translate(-100 -100)">
+                <rect x="60" y="60" width="80" height="80" filter="url(#f)"/>
+            </g>
+        </svg>"#;
+        let tree = usvg::Tree::from_str(svg, &usvg::Options::default()).unwrap();
+        let mut pixmap = tiny_skia::Pixmap::new(200, 200).unwrap();
+
+        // Just make sure the layer is not allocated at that size.
         crate::render(
             &tree,
             tiny_skia::Transform::identity(),
