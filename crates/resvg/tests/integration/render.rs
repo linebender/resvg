@@ -556,6 +556,7 @@ use crate::render;
 #[test] fn paint_servers_pattern_children_via_xlink_href() { assert_eq!(render("tests/paint-servers/pattern/children-via-xlink-href"), 0); }
 #[test] fn paint_servers_pattern_display_eq_none_on_child() { assert_eq!(render("tests/paint-servers/pattern/display=none-on-child"), 0); }
 #[test] fn paint_servers_pattern_everything_via_xlink_href() { assert_eq!(render("tests/paint-servers/pattern/everything-via-xlink-href"), 0); }
+#[test] fn paint_servers_pattern_fractional_tile_size() { assert_eq!(render("tests/paint-servers/pattern/fractional-tile-size"), 0); }
 #[test] fn paint_servers_pattern_invalid_patternTransform() { assert_eq!(render("tests/paint-servers/pattern/invalid-patternTransform"), 0); }
 #[test] fn paint_servers_pattern_invalid_patternUnits_and_patternContentUnits() { assert_eq!(render("tests/paint-servers/pattern/invalid-patternUnits-and-patternContentUnits"), 0); }
 #[test] fn paint_servers_pattern_missing_height() { assert_eq!(render("tests/paint-servers/pattern/missing-height"), 0); }
