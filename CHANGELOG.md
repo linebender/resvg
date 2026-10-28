@@ -8,6 +8,11 @@ This changelog also contains important changes in dependencies.
 
 ## [Unreleased]
 
+### Fixed
+
+- Filter primitive subregions with `primitiveUnits="objectBoundingBox"` are now resolved against
+  the element's bounding box, and unspecified values default to the filter region. (#1188)
+
 ## [0.49.0] 2026-10-24
 
 This release has an MSRV of 1.85.0 for `usvg` and `resvg` and the C API.

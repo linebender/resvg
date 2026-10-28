@@ -161,6 +161,7 @@ use crate::render;
 #[test] fn filters_feFlood_complex_transform() { assert_eq!(render("tests/filters/feFlood/complex-transform"), 0); }
 #[test] fn filters_feFlood_default_values() { assert_eq!(render("tests/filters/feFlood/default-values"), 0); }
 #[test] fn filters_feFlood_partial_subregion() { assert_eq!(render("tests/filters/feFlood/partial-subregion"), 0); }
+#[test] fn filters_feFlood_partial_subregion_with_primitiveUnits_eq_objectBoundingBox() { assert_eq!(render("tests/filters/feFlood/partial-subregion-with-primitiveUnits=objectBoundingBox"), 0); }
 #[test] fn filters_feFlood_seagreen() { assert_eq!(render("tests/filters/feFlood/seagreen"), 0); }
 #[test] fn filters_feFlood_subregion_inheritance() { assert_eq!(render("tests/filters/feFlood/subregion-inheritance"), 0); }
 #[test] fn filters_feFlood_subregion_with_primitiveUnits_eq_objectBoundingBox() { assert_eq!(render("tests/filters/feFlood/subregion-with-primitiveUnits=objectBoundingBox"), 0); }
@@ -337,6 +338,7 @@ use crate::render;
 #[test] fn filters_filter_some_attributes_via_xlink_href() { assert_eq!(render("tests/filters/filter/some-attributes-via-xlink-href"), 0); }
 #[test] fn filters_filter_subregion_and_primitiveUnits_eq_objectBoundingBox_1() { assert_eq!(render("tests/filters/filter/subregion-and-primitiveUnits=objectBoundingBox-1"), 0); }
 #[test] fn filters_filter_subregion_and_primitiveUnits_eq_objectBoundingBox_2() { assert_eq!(render("tests/filters/filter/subregion-and-primitiveUnits=objectBoundingBox-2"), 0); }
+#[test] fn filters_filter_subregion_and_primitiveUnits_eq_objectBoundingBox_3() { assert_eq!(render("tests/filters/filter/subregion-and-primitiveUnits=objectBoundingBox-3"), 0); }
 #[test] fn filters_filter_subregion_bigger_that_region() { assert_eq!(render("tests/filters/filter/subregion-bigger-that-region"), 0); }
 #[test] fn filters_filter_transform_on_filter() { assert_eq!(render("tests/filters/filter/transform-on-filter"), 0); }
 #[test] fn filters_filter_transform_on_shape_with_filter_region() { assert_eq!(render("tests/filters/filter/transform-on-shape-with-filter-region"), 0); }
