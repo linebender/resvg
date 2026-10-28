@@ -1,0 +1,11 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <title>Partial subregion with primitiveUnits=objectBoundingBox</title>
+
+    <filter id="filter1" primitiveUnits="objectBoundingBox">
+        <feFlood flood-color="seagreen" width="0.5"/>
+    </filter>
+    <rect id="rect1" x="40" y="40" width="120" height="120" filter="url(#filter1)"/>
+
+    <!-- image frame -->
+    <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>

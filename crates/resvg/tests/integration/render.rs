@@ -161,6 +161,7 @@ use crate::render;
 #[test] fn filters_feFlood_complex_transform() { assert_eq!(render("tests/filters/feFlood/complex-transform"), 0); }
 #[test] fn filters_feFlood_default_values() { assert_eq!(render("tests/filters/feFlood/default-values"), 0); }
 #[test] fn filters_feFlood_partial_subregion() { assert_eq!(render("tests/filters/feFlood/partial-subregion"), 0); }
+#[test] fn filters_feFlood_partial_subregion_with_primitiveUnits_eq_objectBoundingBox() { assert_eq!(render("tests/filters/feFlood/partial-subregion-with-primitiveUnits=objectBoundingBox"), 0); }
 #[test] fn filters_feFlood_seagreen() { assert_eq!(render("tests/filters/feFlood/seagreen"), 0); }
 #[test] fn filters_feFlood_subregion_inheritance() { assert_eq!(render("tests/filters/feFlood/subregion-inheritance"), 0); }
 #[test] fn filters_feFlood_subregion_with_primitiveUnits_eq_objectBoundingBox() { assert_eq!(render("tests/filters/feFlood/subregion-with-primitiveUnits=objectBoundingBox"), 0); }

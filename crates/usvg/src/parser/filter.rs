@@ -372,9 +372,6 @@ fn collect_children(
     primitives
 }
 
-/// Resolves a primitive subregion: an attribute that is not specified takes the filter region's
-/// value, and with `primitiveUnits="objectBoundingBox"` a specified one is a fraction of the
-/// element's bounding box.
 fn resolve_primitive_region(
     fe: SvgNode,
     units: Units,
