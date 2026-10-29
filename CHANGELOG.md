@@ -14,6 +14,8 @@ This changelog also contains important changes in dependencies.
   the element's bounding box, and unspecified values default to the filter region. (#1188)
 - `feDisplacementMap` no longer applies `scale` twice, and now reads the displacement map
   with non-premultiplied colors. (#1157)
+- CSS in a `style` element is no longer cut off at the first XML comment or processing instruction,
+  and a `type` attribute that is empty or `text/css` in any letter case is now accepted. (#1161)
 
 ## [0.49.0] 2026-10-24
 
@@ -36,7 +38,6 @@ This release has an MSRV of 1.85.0 for `usvg` and `resvg` and the C API.
 
 ### Fixed
 
-- CSS rules after an XML comment inside a `style` element were ignored.
 - `dominant-baseline` is now correctly inherited by nested `<tspan>` elements,
   so a nested span stays on the same baseline as its siblings. (#1086)
 - Panics and incorrect clipping when a filter region is smaller than its input. (#1144)

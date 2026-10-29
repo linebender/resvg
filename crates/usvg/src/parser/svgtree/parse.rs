@@ -657,12 +657,14 @@ fn parse_svg_use_element<'input>(
     )
 }
 
-/// The text of each CSS `style` element. As in browsers, this is all of its text,
-/// also where XML comments split it, not only the part before the first comment.
+/// The child text content of each CSS `style` element.
 fn style_texts(xml: &roxmltree::Document) -> Vec<String> {
     xml.descendants()
         .filter(|n| n.has_tag_name("style"))
-        .filter(|n| matches!(n.attribute("type"), None | Some("text/css")))
+        .filter(|n| {
+            n.attribute("type")
+                .is_none_or(|t| t.is_empty() || t.eq_ignore_ascii_case("text/css"))
+        })
         .map(|n| {
             n.children()
                 .filter(|c| c.is_text())

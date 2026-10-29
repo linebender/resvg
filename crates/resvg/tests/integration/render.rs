@@ -1185,6 +1185,7 @@ use crate::render;
 #[test] fn structure_style_comment_between_rules() { assert_eq!(render("tests/structure/style/comment-between-rules"), 0); }
 #[test] fn structure_style_current_color_fill_before_color() { assert_eq!(render("tests/structure/style/current-color-fill-before-color"), 0); }
 #[test] fn structure_style_current_color_stroke_before_color() { assert_eq!(render("tests/structure/style/current-color-stroke-before-color"), 0); }
+#[test] fn structure_style_empty_type() { assert_eq!(render("tests/structure/style/empty-type"), 0); }
 #[test] fn structure_style_external_CSS() { assert_eq!(render("tests/structure/style/external-CSS"), 0); }
 #[test] fn structure_style_iD_selector() { assert_eq!(render("tests/structure/style/iD-selector"), 0); }
 #[test] fn structure_style_important() { assert_eq!(render("tests/structure/style/important"), 0); }
@@ -1198,6 +1199,7 @@ use crate::render;
 #[test] fn structure_style_type_selector() { assert_eq!(render("tests/structure/style/type-selector"), 0); }
 #[test] fn structure_style_universal_selector() { assert_eq!(render("tests/structure/style/universal-selector"), 0); }
 #[test] fn structure_style_unresolved_class_selector() { assert_eq!(render("tests/structure/style/unresolved-class-selector"), 0); }
+#[test] fn structure_style_uppercase_type() { assert_eq!(render("tests/structure/style/uppercase-type"), 0); }
 #[test] fn structure_style_attribute_comments() { assert_eq!(render("tests/structure/style-attribute/comments"), 0); }
 #[test] fn structure_style_attribute_non_presentational_attribute() { assert_eq!(render("tests/structure/style-attribute/non-presentational-attribute"), 0); }
 #[test] fn structure_style_attribute_simple_case() { assert_eq!(render("tests/structure/style-attribute/simple-case"), 0); }
