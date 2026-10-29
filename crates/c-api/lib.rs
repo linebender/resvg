@@ -313,10 +313,10 @@ pub extern "C" fn resvg_options_set_languages(opt: *mut resvg_options, languages
         None => return,
     };
 
-    let mut languages = Vec::new();
-    for lang in languages_str.split(',') {
-        languages.push(lang.trim().to_string());
-    }
+    let languages = languages_str
+        .split(',')
+        .map(|lang| lang.trim().to_string())
+        .collect::<Vec<_>>();
 
     cast_opt(opt).languages = languages;
 }

@@ -283,7 +283,9 @@ fn collect_args() -> Result<CliArgs, pico_args::Error> {
 
         languages: input
             .opt_value_from_fn("--languages", parse_languages)?
-            .unwrap_or_else(|| vec!["en".to_string()]), // TODO: use system language
+            .unwrap_or(vec![
+                sys_locale::get_locale().unwrap_or_else(|| String::from("en")),
+            ]),
         shape_rendering: input
             .opt_value_from_str("--shape-rendering")?
             .unwrap_or_default(),
@@ -368,10 +370,10 @@ fn parse_font_size(s: &str) -> Result<u32, String> {
 }
 
 fn parse_languages(s: &str) -> Result<Vec<String>, String> {
-    let mut langs = Vec::new();
-    for lang in s.split(',') {
-        langs.push(lang.trim().to_string());
-    }
+    let langs = s
+        .split(',')
+        .map(|lang| lang.trim().to_string())
+        .collect::<Vec<_>>();
 
     if langs.is_empty() {
         return Err("languages list cannot be empty".to_string());
