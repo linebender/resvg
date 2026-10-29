@@ -1,0 +1,21 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <title>Uniform displacement map</title>
+    <desc>
+        A solid red map (R=1, G=0) samples the source at (x + scale/2, y - scale/2),
+        so the green rect should be shifted 20 units to the left and 20 units down,
+        matching the dashed blue outline.
+    </desc>
+
+    <filter id="filter1" x="-0.5" y="-0.5" width="2" height="2">
+        <feFlood flood-color="red" result="map"/>
+        <feDisplacementMap in="SourceGraphic" in2="map" scale="40"
+                           xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <rect id="rect1" x="50" y="50" width="100" height="100" fill="green"
+          filter="url(#filter1)"/>
+    <rect id="expected" x="30" y="70" width="100" height="100" fill="none"
+          stroke="blue" stroke-dasharray="4"/>
+
+    <!-- image frame -->
+    <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>
