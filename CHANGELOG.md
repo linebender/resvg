@@ -14,6 +14,8 @@ This changelog also contains important changes in dependencies.
   the element's bounding box, and unspecified values default to the filter region. (#1188)
 - `feDisplacementMap` no longer applies `scale` twice, and now reads the displacement map
   with non-premultiplied colors. (#1157)
+- CSS in a `style` element is no longer cut off at the first XML comment or processing instruction,
+  and a `type` attribute that is empty or `text/css` in any letter case is now accepted. (#1161)
 
 ## [0.49.0] 2026-10-24
 
