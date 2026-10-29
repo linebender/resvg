@@ -567,7 +567,7 @@ pub fn update_paint_servers(
         // Set context transform and bbox if applicable if the
         // current group is a use node.
         let (context_transform, context_bbox) = if group.is_context_element {
-            (group.abs_transform, Some(group.bounding_box))
+            (group.abs_transform, group.bounding_box)
         } else {
             (context_transform, context_bbox)
         };

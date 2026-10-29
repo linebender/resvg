@@ -202,7 +202,7 @@ pub(crate) fn flatten(text: &mut Text, cache: &mut Cache) -> Option<(Group, NonZ
     }
 
     group.calculate_bounding_boxes();
-    let stroke_bbox = group.stroke_bounding_box().to_non_zero_rect()?;
+    let stroke_bbox = group.stroke_bounding_box()?.to_non_zero_rect()?;
     Some((group, stroke_bbox))
 }
 

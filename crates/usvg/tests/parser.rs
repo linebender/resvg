@@ -672,7 +672,7 @@ fn nested_svg_abs_bounding_box() {
     let tree = usvg::Tree::from_str(&svg, &usvg::Options::default()).unwrap();
     assert_eq!(
         tree.node_by_id("path").unwrap().abs_bounding_box(),
-        Rect::from_xywh(10.0, 20.0, 10.0, 10.0).unwrap()
+        Some(Rect::from_xywh(10.0, 20.0, 10.0, 10.0).unwrap())
     );
 }
 

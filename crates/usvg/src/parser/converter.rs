@@ -605,8 +605,11 @@ fn resolve_svg_size(svg: &SvgNode, opt: &Options) -> (Result<Size, Error>, bool)
 ///
 /// Simply iterates over all nodes and calculates a bounding box.
 fn calculate_svg_bbox(tree: &mut Tree) {
-    let bbox = tree.root.abs_bounding_box();
-    if let Some(size) = Size::from_wh(bbox.right(), bbox.bottom()) {
+    let size = tree
+        .root
+        .abs_bounding_box()
+        .and_then(|bbox| Size::from_wh(bbox.right(), bbox.bottom()));
+    if let Some(size) = size {
         tree.size = size;
     }
 }
@@ -832,7 +835,6 @@ pub(crate) fn convert_group(
     };
 
     let abs_transform = parent.abs_transform.pre_concat(transform);
-    let dummy = Rect::from_xywh(0.0, 0.0, 0.0, 0.0).unwrap();
     let mut g = Group {
         id,
         transform,
@@ -844,12 +846,12 @@ pub(crate) fn convert_group(
         mask: None,
         filters: Vec::new(),
         is_context_element: false,
-        bounding_box: dummy,
-        abs_bounding_box: dummy,
-        stroke_bounding_box: dummy,
-        abs_stroke_bounding_box: dummy,
-        layer_bounding_box: NonZeroRect::from_xywh(0.0, 0.0, 1.0, 1.0).unwrap(),
-        abs_layer_bounding_box: NonZeroRect::from_xywh(0.0, 0.0, 1.0, 1.0).unwrap(),
+        bounding_box: None,
+        abs_bounding_box: None,
+        stroke_bounding_box: None,
+        abs_stroke_bounding_box: None,
+        layer_bounding_box: None,
+        abs_layer_bounding_box: None,
         children: Vec::new(),
     };
     collect_children(cache, &mut g);

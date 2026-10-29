@@ -326,6 +326,7 @@ use crate::render;
 #[test] fn filters_filter_on_a_vertical_line() { assert_eq!(render("tests/filters/filter/on-a-vertical-line"), 0); }
 #[test] fn filters_filter_on_an_empty_group_1() { assert_eq!(render("tests/filters/filter/on-an-empty-group-1"), 0); }
 #[test] fn filters_filter_on_an_empty_group_2() { assert_eq!(render("tests/filters/filter/on-an-empty-group-2"), 0); }
+#[test] fn filters_filter_on_group_with_an_empty_filtered_child() { assert_eq!(render("tests/filters/filter/on-group-with-an-empty-filtered-child"), 0); }
 #[test] fn filters_filter_on_group_with_child_outside_of_canvas() { assert_eq!(render("tests/filters/filter/on-group-with-child-outside-of-canvas"), 0); }
 #[test] fn filters_filter_on_the_root_svg() { assert_eq!(render("tests/filters/filter/on-the-root-svg"), 0); }
 #[test] fn filters_filter_on_zero_sized_shape() { assert_eq!(render("tests/filters/filter/on-zero-sized-shape"), 0); }
