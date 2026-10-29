@@ -1672,6 +1672,7 @@ use crate::render;
 #[test] fn text_textPath_with_big_letter_spacing() { assert_eq!(render("tests/text/textPath/with-big-letter-spacing"), 0); }
 #[test] fn text_textPath_with_coordinates_on_text() { assert_eq!(render("tests/text/textPath/with-coordinates-on-text"), 0); }
 #[test] fn text_textPath_with_coordinates_on_textPath() { assert_eq!(render("tests/text/textPath/with-coordinates-on-textPath"), 0); }
+#[test] fn text_textPath_with_error_path() { assert_eq!(render("tests/text/textPath/with-error-path"), 0); }
 #[test] fn text_textPath_with_filter() { assert_eq!(render("tests/text/textPath/with-filter"), 0); }
 #[test] fn text_textPath_with_invalid_path_and_xlink_href() { assert_eq!(render("tests/text/textPath/with-invalid-path-and-xlink-href"), 0); }
 #[test] fn text_textPath_with_letter_spacing() { assert_eq!(render("tests/text/textPath/with-letter-spacing"), 0); }
