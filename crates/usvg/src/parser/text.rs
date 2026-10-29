@@ -391,13 +391,10 @@ fn resolve_text_flow_path(
     state: &converter::State,
     cache: &mut converter::Cache,
 ) -> Option<(NonEmptyString, Arc<tiny_skia_path::Path>)> {
-    // SVG 2: when both `path` and `href` are present, inline `path` has precedence.
-    // If `path` is missing or invalid, fallback to `href`.
+    // `path` takes precedence over `href`, unless it yields no path data.
     if let Some(path_data) = node.attribute::<&str>(AId::Path) {
         if let Some(path) = super::shapes::convert_path_data(path_data) {
-            // usvg serializes text-on-path via a referenced `<path id="...">` in `<defs>`.
-            // So an inline `textPath path="..."` without its own ID still needs
-            // an internal stable ID for `<textPath xlink:href="#...">` on write.
+            // The writer references text paths by ID, so an inline path needs one too.
             let id = NonEmptyString::new(node.element_id().to_string())
                 .unwrap_or_else(|| cache.gen_text_path_id());
             return Some((id, path));

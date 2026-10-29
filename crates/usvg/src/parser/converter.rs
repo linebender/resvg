@@ -443,9 +443,6 @@ pub(crate) fn convert_doc(svg_doc: &svgtree::Document, opt: &Options) -> Result<
         opt.fontdb.clone(),
     );
 
-    // ID generators use this set for collision checks.
-    // For synthesized text-path IDs we need to avoid conflicts with *any* existing SVG element ID,
-    // so we collect all non-empty IDs, not only clip/filter/paint/image resources.
     for node in svg_doc.descendants() {
         if !node.element_id().is_empty() {
             cache.all_ids.insert(string_hash(node.element_id()));

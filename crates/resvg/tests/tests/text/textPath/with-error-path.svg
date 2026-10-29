@@ -1,8 +1,8 @@
 <svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"
      xmlns:xlink="http://www.w3.org/1999/xlink">
-    <title>With partially invalid `path` and `xlink:href` fallback (SVG 2)</title>
+    <title>With partially invalid `path` and `xlink:href` (SVG 2)</title>
     <desc>
-        If the `path` attribute contains any parse error, the `xlink:href` path must be used.
+        The valid start of `path`, up to the first error, takes precedence over `xlink:href`.
     </desc>
 
     <path id="path1" d="M 20 100 C 35 135 85 135 100 100 C 115 65 165 65 180 100"
