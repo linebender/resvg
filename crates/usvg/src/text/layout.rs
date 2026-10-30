@@ -165,13 +165,13 @@ pub struct Span {
     pub positioned_glyphs: Vec<PositionedGlyph>,
     /// An underline text decoration of the span.
     /// Needs to be rendered before all glyphs.
-    pub underline: Option<Path>,
+    pub underline: Option<Box<Path>>,
     /// An overline text decoration of the span.
     /// Needs to be rendered before all glyphs.
-    pub overline: Option<Path>,
+    pub overline: Option<Box<Path>>,
     /// A line-through text decoration of the span.
     /// Needs to be rendered after all glyphs.
-    pub line_through: Option<Path>,
+    pub line_through: Option<Box<Path>>,
 }
 
 #[derive(Clone, Debug)]
@@ -220,7 +220,7 @@ pub(crate) fn layout_text(
         }
     }
 
-    let mut spans = vec![];
+    let mut spans = Vec::with_capacity(text_node.chunks.iter().map(|c| c.spans.len()).sum());
     let mut char_offset = 0;
     let mut last_x = 0.0;
     let mut last_y = 0.0;
@@ -295,7 +295,7 @@ pub(crate) fn layout_text(
                     convert_decoration(offset, span, font, decoration, &decoration_spans, span_ts)
                 {
                     bbox = bbox.expand(path.data.bounds());
-                    underline = Some(path);
+                    underline = Some(Box::new(path));
                 }
             }
 
@@ -309,7 +309,7 @@ pub(crate) fn layout_text(
                     convert_decoration(offset, span, font, decoration, &decoration_spans, span_ts)
                 {
                     bbox = bbox.expand(path.data.bounds());
-                    overline = Some(path);
+                    overline = Some(Box::new(path));
                 }
             }
 
@@ -323,7 +323,7 @@ pub(crate) fn layout_text(
                     convert_decoration(offset, span, font, decoration, &decoration_spans, span_ts)
                 {
                     bbox = bbox.expand(path.data.bounds());
-                    line_through = Some(path);
+                    line_through = Some(Box::new(path));
                 }
             }
 
