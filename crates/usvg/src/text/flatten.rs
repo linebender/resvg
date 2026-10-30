@@ -83,13 +83,13 @@ pub(crate) fn flatten(text: &mut Text, cache: &mut Cache) -> Option<(Group, NonZ
         if let Some(path) = span.overline.as_ref() {
             let mut path = path.clone();
             path.rendering_mode = rendering_mode;
-            new_children.push(Node::Path(Box::new(path)));
+            new_children.push(Node::Path(path));
         }
 
         if let Some(path) = span.underline.as_ref() {
             let mut path = path.clone();
             path.rendering_mode = rendering_mode;
-            new_children.push(Node::Path(Box::new(path)));
+            new_children.push(Node::Path(path));
         }
 
         // Instead of always processing each glyph separately, we always collect
@@ -184,7 +184,7 @@ pub(crate) fn flatten(text: &mut Text, cache: &mut Cache) -> Option<(Group, NonZ
         if let Some(path) = span.line_through.as_ref() {
             let mut path = path.clone();
             path.rendering_mode = rendering_mode;
-            new_children.push(Node::Path(Box::new(path)));
+            new_children.push(Node::Path(path));
         }
     }
 
