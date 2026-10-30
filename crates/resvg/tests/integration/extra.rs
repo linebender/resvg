@@ -80,3 +80,101 @@ fn render_node_filter_on_empty_group() {
 fn render_node_filter_with_transform_on_shape() {
     assert_eq!(render_node("extra/filter-with-transform-on-shape", "g1"), 0);
 }
+
+#[test]
+fn linear_rgb_gradient() {
+    assert_eq!(render_extra_with_scale("extra/linear-rgb-gradient", 2.0), 0);
+}
+
+#[test]
+fn linear_rgb_mask() {
+    assert_eq!(render_extra_with_scale("extra/linear-rgb-mask", 2.0), 0);
+}
+
+#[test]
+fn linear_rgb_gradient_radial() {
+    assert_eq!(
+        render_extra_with_scale("extra/linear-rgb-gradient-radial", 2.0),
+        0
+    );
+}
+
+#[test]
+fn linear_rgb_gradient_colors() {
+    assert_eq!(
+        render_extra_with_scale("extra/linear-rgb-gradient-colors", 2.0),
+        0
+    );
+}
+
+#[test]
+fn linear_rgb_gradient_alpha() {
+    assert_eq!(
+        render_extra_with_scale("extra/linear-rgb-gradient-alpha", 2.0),
+        0
+    );
+}
+
+#[test]
+fn linear_rgb_gradient_hard_stops() {
+    assert_eq!(
+        render_extra_with_scale("extra/linear-rgb-gradient-hard-stops", 2.0),
+        0
+    );
+}
+
+#[test]
+fn linear_rgb_gradient_stroke_reflect() {
+    assert_eq!(
+        render_extra_with_scale("extra/linear-rgb-gradient-stroke-reflect", 2.0),
+        0
+    );
+}
+
+#[test]
+fn linear_rgb_gradient_inheritance() {
+    assert_eq!(
+        render_extra_with_scale("extra/linear-rgb-gradient-inheritance", 2.0),
+        0
+    );
+}
+
+#[test]
+fn linear_rgb_gradient_href() {
+    assert_eq!(
+        render_extra_with_scale("extra/linear-rgb-gradient-href", 2.0),
+        0
+    );
+}
+
+#[test]
+fn linear_rgb_mask_colors_alpha() {
+    assert_eq!(
+        render_extra_with_scale("extra/linear-rgb-mask-colors-alpha", 2.0),
+        0
+    );
+}
+
+#[test]
+fn linear_rgb_mask_alpha() {
+    assert_eq!(
+        render_extra_with_scale("extra/linear-rgb-mask-alpha", 2.0),
+        0
+    );
+}
+
+#[test]
+fn linear_rgb_mask_gradient() {
+    assert_eq!(
+        render_extra_with_scale("extra/linear-rgb-mask-gradient", 2.0),
+        0
+    );
+}
+
+#[test]
+fn linear_rgb_gradient_repeat() {
+    assert_eq!(
+        render_extra_with_scale("extra/linear-rgb-gradient-repeat", 2.0),
+        0
+    );
+}

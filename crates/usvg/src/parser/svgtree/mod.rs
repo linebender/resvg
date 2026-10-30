@@ -772,6 +772,7 @@ impl AId {
                 | AId::ClipPath
                 | AId::ClipRule
                 | AId::Color
+                | AId::ColorInterpolation
                 | AId::ColorInterpolationFilters
                 | AId::Direction
                 | AId::Display

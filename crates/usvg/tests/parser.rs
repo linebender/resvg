@@ -702,3 +702,29 @@ fn resolve_fr_from_referenced_radial_gradient() {
 
     assert_eq!(rg.fr().get(), 25.0);
 }
+
+#[test]
+fn color_interpolation() {
+    use usvg::ColorInterpolation::{LinearRGB, SRGB};
+
+    let source = std::fs::read_to_string("tests/files/color-interpolation.svg").unwrap();
+    let tree = usvg::Tree::from_str(&source, &usvg::Options::default()).unwrap();
+    for gradient in tree.linear_gradients() {
+        let expected = if gradient.id() == "linear" {
+            LinearRGB
+        } else {
+            SRGB
+        };
+        assert_eq!(
+            gradient.color_interpolation(),
+            expected,
+            "{}",
+            gradient.id()
+        );
+    }
+    assert_eq!(tree.linear_gradients().len(), 4);
+    assert_eq!(tree.radial_gradients()[0].color_interpolation(), LinearRGB);
+    assert_eq!(tree.masks()[0].color_interpolation(), LinearRGB);
+    // The shared enum's existing filter default must remain unchanged.
+    assert_eq!(usvg::filter::ColorInterpolation::default(), LinearRGB);
+}
