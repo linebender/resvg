@@ -216,8 +216,13 @@ impl std::fmt::Debug for FontResolver<'_> {
 ///    as decoration spans).
 /// 2. We convert all of the positioned glyphs into outlines.
 pub(crate) fn convert(text: &mut Text, resolver: &FontResolver, cache: &mut Cache) -> Option<()> {
-    let (text_fragments, bbox) =
-        layout::layout_text(text, resolver, &mut cache.fontdb, &mut cache.shaping_fonts)?;
+    let (text_fragments, bbox) = layout::layout_text(
+        text,
+        resolver,
+        &mut cache.fontdb,
+        &mut cache.fonts,
+        &mut cache.shaping_fonts,
+    )?;
     text.layouted = text_fragments;
     text.bounding_box = bbox.to_rect();
     text.abs_bounding_box = bbox.transform(text.abs_transform)?.to_rect();
