@@ -888,9 +888,9 @@ fn apply_image(
         subregion.y() as f32,
     );
 
-    let ctx = crate::render::Context {
-        max_bbox: tiny_skia::IntRect::from_xywh(0, 0, region.width(), region.height()).unwrap(),
-    };
+    let ctx = crate::render::Context::new(
+        tiny_skia::IntRect::from_xywh(0, 0, region.width(), region.height()).unwrap(),
+    );
 
     crate::render::render_nodes(fe.root(), &ctx, transform, &mut pixmap.as_mut());
 

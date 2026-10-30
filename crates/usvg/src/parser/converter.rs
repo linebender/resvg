@@ -65,6 +65,9 @@ pub struct Cache<'a> {
     pub masks: HashMap<String, Arc<Mask>>,
     pub filters: HashMap<String, Arc<filter::Filter>>,
     pub paint: HashMap<String, Paint>,
+    /// Resolved `xlink:href` of images, so that an image referenced several
+    /// times (e.g. through `use`) is loaded once and its data is shared.
+    pub images: HashMap<String, Option<crate::ImageKind>>,
 
     /// Generated IDs must not collide with the IDs of this document's elements.
     svg_doc: &'a svgtree::Document<'a>,
@@ -123,6 +126,7 @@ impl<'a> Cache<'a> {
             masks: HashMap::new(),
             filters: HashMap::new(),
             paint: HashMap::new(),
+            images: HashMap::new(),
 
             svg_doc,
             linear_gradient_index: 0,
