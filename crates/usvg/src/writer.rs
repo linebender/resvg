@@ -583,20 +583,8 @@ fn has_text_paths(parent: &Group) -> bool {
             }
         } else if let Node::Text(text) = node {
             for chunk in &text.chunks {
-                if let TextFlow::Path(text_path) = &chunk.text_flow {
-                    let path = Path::new(
-                        text_path.id().to_string(),
-                        true,
-                        None,
-                        None,
-                        PaintOrder::default(),
-                        ShapeRendering::default(),
-                        text_path.path.clone(),
-                        Transform::default(),
-                    );
-                    if path.is_some() {
-                        return true;
-                    }
+                if let TextFlow::Path(_) = &chunk.text_flow {
+                    return true;
                 }
             }
         }
@@ -631,9 +619,7 @@ fn write_text_path_paths(parent: &Group, opt: &WriteOptions, xml: &mut XmlWriter
                         text_path.path.clone(),
                         Transform::default(),
                     );
-                    if let Some(path) = &path {
-                        write_path(path, false, Transform::default(), None, opt, xml);
-                    }
+                    write_path(&path, false, Transform::default(), None, opt, xml);
                 }
             }
         }

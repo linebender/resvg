@@ -1,0 +1,20 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"
+     xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>`context-fill` with gradient in nested use (SVG 2)</title>
+
+    <defs id="defs1">
+        <linearGradient id="lg1">
+            <stop id="stop1" offset="0" stop-color="green"/>
+            <stop id="stop2" offset="1" stop-color="blue"/>
+        </linearGradient>
+
+        <path id="path1" fill="context-fill" stroke="context-stroke" stroke-width="5"
+              d="M 100 15 l 50 160 l -130 -100 l 160 0 l -130 100 Z"/>
+        <use id="use2" xlink:href="#path1" fill="url(#lg1)" stroke="black"/>
+    </defs>
+
+    <use id="use1" xlink:href="#use2" fill="red" stroke="red"/>
+
+    <!-- image frame -->
+    <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>

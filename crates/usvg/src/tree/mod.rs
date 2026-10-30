@@ -6,7 +6,7 @@ mod geom;
 mod text;
 
 use std::fmt::Display;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 pub use strict_num::{self, ApproxEqUlps, NonZeroPositiveF32, NormalizedF32, PositiveF32};
 
@@ -939,7 +939,7 @@ impl Node {
     pub fn bounding_box(&self) -> Option<Rect> {
         match self {
             Node::Group(group) => group.bounding_box(),
-            Node::Path(path) => Some(path.bounding_box()),
+            Node::Path(path) => path.bounding_box(),
             Node::Image(image) => Some(image.bounding_box()),
             Node::Text(text) => Some(text.bounding_box()),
         }
@@ -949,7 +949,7 @@ impl Node {
     pub fn abs_bounding_box(&self) -> Option<Rect> {
         match self {
             Node::Group(group) => group.abs_bounding_box(),
-            Node::Path(path) => Some(path.abs_bounding_box()),
+            Node::Path(path) => path.abs_bounding_box(),
             Node::Image(image) => Some(image.abs_bounding_box()),
             Node::Text(text) => Some(text.abs_bounding_box()),
         }
@@ -959,7 +959,7 @@ impl Node {
     pub fn stroke_bounding_box(&self) -> Option<Rect> {
         match self {
             Node::Group(group) => group.stroke_bounding_box(),
-            Node::Path(path) => Some(path.stroke_bounding_box()),
+            Node::Path(path) => path.stroke_bounding_box(),
             // Image cannot be stroked.
             Node::Image(image) => Some(image.bounding_box()),
             Node::Text(text) => Some(text.stroke_bounding_box()),
@@ -970,7 +970,7 @@ impl Node {
     pub fn abs_stroke_bounding_box(&self) -> Option<Rect> {
         match self {
             Node::Group(group) => group.abs_stroke_bounding_box(),
-            Node::Path(path) => Some(path.abs_stroke_bounding_box()),
+            Node::Path(path) => path.abs_stroke_bounding_box(),
             // Image cannot be stroked.
             Node::Image(image) => Some(image.abs_bounding_box()),
             Node::Text(text) => Some(text.abs_stroke_bounding_box()),
@@ -987,7 +987,7 @@ impl Node {
         match self {
             Node::Group(group) => group.abs_layer_bounding_box(),
             // Hor/ver path without stroke can return None. This is expected.
-            Node::Path(path) => path.abs_bounding_box().to_non_zero_rect(),
+            Node::Path(path) => path.abs_bounding_box()?.to_non_zero_rect(),
             Node::Image(image) => image.abs_bounding_box().to_non_zero_rect(),
             Node::Text(text) => text.abs_bounding_box().to_non_zero_rect(),
         }
@@ -1054,12 +1054,14 @@ pub struct Group {
     pub(crate) is_context_element: bool,
     pub(crate) mask: Option<Arc<Mask>>,
     pub(crate) filters: Vec<Arc<filter::Filter>>,
-    pub(crate) bounding_box: Option<Rect>,
-    pub(crate) abs_bounding_box: Option<Rect>,
-    pub(crate) stroke_bounding_box: Option<Rect>,
-    pub(crate) abs_stroke_bounding_box: Option<Rect>,
-    pub(crate) layer_bounding_box: Option<NonZeroRect>,
-    pub(crate) abs_layer_bounding_box: Option<NonZeroRect>,
+    // Calculated from `children` on first access and cached, so they must
+    // only be accessed once the group is complete.
+    pub(crate) bounding_box: OnceLock<Option<Rect>>,
+    pub(crate) abs_bounding_box: OnceLock<Option<Rect>>,
+    pub(crate) stroke_bounding_box: OnceLock<Option<Rect>>,
+    pub(crate) abs_stroke_bounding_box: OnceLock<Option<Rect>>,
+    pub(crate) layer_bounding_box: OnceLock<Option<NonZeroRect>>,
+    pub(crate) abs_layer_bounding_box: OnceLock<Option<NonZeroRect>>,
     pub(crate) children: Vec<Node>,
 }
 
@@ -1076,12 +1078,12 @@ impl Group {
             mask: None,
             filters: Vec::new(),
             is_context_element: false,
-            bounding_box: None,
-            abs_bounding_box: None,
-            stroke_bounding_box: None,
-            abs_stroke_bounding_box: None,
-            layer_bounding_box: None,
-            abs_layer_bounding_box: None,
+            bounding_box: OnceLock::new(),
+            abs_bounding_box: OnceLock::new(),
+            stroke_bounding_box: OnceLock::new(),
+            abs_stroke_bounding_box: OnceLock::new(),
+            layer_bounding_box: OnceLock::new(),
+            abs_layer_bounding_box: OnceLock::new(),
             children: Vec::new(),
         }
     }
@@ -1155,28 +1157,38 @@ impl Group {
     ///
     /// Can be set to `None` in case of an empty group.
     pub fn bounding_box(&self) -> Option<Rect> {
-        self.bounding_box
+        *self.bounding_box.get_or_init(|| {
+            self.union_of_children(|child| Some(child.to_parent_coordinates(child.bounding_box()?)))
+        })
     }
 
     /// Element's bounding box in canvas coordinates.
     ///
     /// `userSpaceOnUse` in SVG terms.
     pub fn abs_bounding_box(&self) -> Option<Rect> {
-        self.abs_bounding_box
+        *self
+            .abs_bounding_box
+            .get_or_init(|| self.union_of_children(Node::abs_bounding_box))
     }
 
     /// Element's object bounding box including stroke.
     ///
     /// Similar to `bounding_box`, but includes stroke.
     pub fn stroke_bounding_box(&self) -> Option<Rect> {
-        self.stroke_bounding_box
+        *self.stroke_bounding_box.get_or_init(|| {
+            self.union_of_children(|child| {
+                Some(child.to_parent_coordinates(child.stroke_bounding_box()?))
+            })
+        })
     }
 
     /// Element's bounding box including stroke in user coordinates.
     ///
     /// Similar to `abs_bounding_box`, but includes stroke.
     pub fn abs_stroke_bounding_box(&self) -> Option<Rect> {
-        self.abs_stroke_bounding_box
+        *self
+            .abs_stroke_bounding_box
+            .get_or_init(|| self.union_of_children(Node::abs_stroke_bounding_box))
     }
 
     /// Element's "layer" bounding box in object units.
@@ -1192,12 +1204,17 @@ impl Group {
     ///
     /// Unlike other bounding boxes, cannot have zero size.
     pub fn layer_bounding_box(&self) -> Option<NonZeroRect> {
-        self.layer_bounding_box
+        *self
+            .layer_bounding_box
+            .get_or_init(|| self.calculate_layer_bounding_box())
     }
 
     /// Element's "layer" bounding box in canvas units.
     pub fn abs_layer_bounding_box(&self) -> Option<NonZeroRect> {
-        self.abs_layer_bounding_box
+        *self.abs_layer_bounding_box.get_or_init(|| {
+            self.layer_bounding_box()
+                .and_then(|r| r.transform(self.abs_transform))
+        })
     }
 
     /// Group's children.
@@ -1296,14 +1313,14 @@ pub struct Path {
     pub(crate) rendering_mode: ShapeRendering,
     pub(crate) data: Arc<tiny_skia_path::Path>,
     pub(crate) abs_transform: Transform,
-    pub(crate) bounding_box: Rect,
-    pub(crate) abs_bounding_box: Rect,
-    pub(crate) stroke_bounding_box: Rect,
-    pub(crate) abs_stroke_bounding_box: Rect,
+    pub(crate) bounding_box: OnceLock<Option<Rect>>,
+    pub(crate) abs_bounding_box: OnceLock<Option<Rect>>,
+    pub(crate) stroke_bounding_box: OnceLock<Option<Rect>>,
+    pub(crate) abs_stroke_bounding_box: OnceLock<Option<Rect>>,
 }
 
 impl Path {
-    pub(crate) fn new_simple(data: Arc<tiny_skia_path::Path>) -> Option<Self> {
+    pub(crate) fn new_simple(data: Arc<tiny_skia_path::Path>) -> Self {
         Self::new(
             String::new(),
             true,
@@ -1325,27 +1342,8 @@ impl Path {
         rendering_mode: ShapeRendering,
         data: Arc<tiny_skia_path::Path>,
         abs_transform: Transform,
-    ) -> Option<Self> {
-        let bounding_box = data.compute_tight_bounds()?;
-        let stroke_bounding_box =
-            Path::calculate_stroke_bbox(stroke.as_ref(), &data).unwrap_or(bounding_box);
-
-        let abs_bounding_box: Rect;
-        let abs_stroke_bounding_box: Rect;
-        if abs_transform.has_skew() {
-            // TODO: avoid re-alloc
-            let path2 = data.as_ref().clone();
-            let path2 = path2.transform(abs_transform)?;
-            abs_bounding_box = path2.compute_tight_bounds()?;
-            abs_stroke_bounding_box =
-                Path::calculate_stroke_bbox(stroke.as_ref(), &path2).unwrap_or(abs_bounding_box);
-        } else {
-            // A transform without a skew can be performed just on a bbox.
-            abs_bounding_box = bounding_box.transform(abs_transform)?;
-            abs_stroke_bounding_box = stroke_bounding_box.transform(abs_transform)?;
-        }
-
-        Some(Path {
+    ) -> Self {
+        Path {
             id,
             visible,
             fill,
@@ -1354,11 +1352,11 @@ impl Path {
             rendering_mode,
             data,
             abs_transform,
-            bounding_box,
-            abs_bounding_box,
-            stroke_bounding_box,
-            abs_stroke_bounding_box,
-        })
+            bounding_box: OnceLock::new(),
+            abs_bounding_box: OnceLock::new(),
+            stroke_bounding_box: OnceLock::new(),
+            abs_stroke_bounding_box: OnceLock::new(),
+        }
     }
 
     /// Element's ID.
@@ -1423,29 +1421,54 @@ impl Path {
     /// Element's object bounding box.
     ///
     /// `objectBoundingBox` in SVG terms. Meaning it doesn't affected by parent transforms.
-    pub fn bounding_box(&self) -> Rect {
-        self.bounding_box
+    pub fn bounding_box(&self) -> Option<Rect> {
+        *self
+            .bounding_box
+            .get_or_init(|| self.data.compute_tight_bounds())
     }
 
     /// Element's bounding box in canvas coordinates.
     ///
     /// `userSpaceOnUse` in SVG terms.
-    pub fn abs_bounding_box(&self) -> Rect {
-        self.abs_bounding_box
+    pub fn abs_bounding_box(&self) -> Option<Rect> {
+        *self.abs_bounding_box.get_or_init(|| {
+            if self.abs_transform.has_skew() {
+                self.abs_data()?.compute_tight_bounds()
+            } else {
+                // A transform without a skew can be performed just on a bbox.
+                self.bounding_box()?.transform(self.abs_transform)
+            }
+        })
     }
 
     /// Element's object bounding box including stroke.
     ///
     /// Will have the same value as `bounding_box` when path has no stroke.
-    pub fn stroke_bounding_box(&self) -> Rect {
-        self.stroke_bounding_box
+    pub fn stroke_bounding_box(&self) -> Option<Rect> {
+        *self.stroke_bounding_box.get_or_init(|| {
+            Path::calculate_stroke_bbox(self.stroke.as_ref(), &self.data)
+                .or_else(|| self.bounding_box())
+        })
     }
 
     /// Element's bounding box including stroke in canvas coordinates.
     ///
     /// Will have the same value as `abs_bounding_box` when path has no stroke.
-    pub fn abs_stroke_bounding_box(&self) -> Rect {
-        self.abs_stroke_bounding_box
+    pub fn abs_stroke_bounding_box(&self) -> Option<Rect> {
+        *self.abs_stroke_bounding_box.get_or_init(|| {
+            if self.stroke.is_none() {
+                self.abs_bounding_box()
+            } else if self.abs_transform.has_skew() {
+                Path::calculate_stroke_bbox(self.stroke.as_ref(), &self.abs_data()?)
+                    .or_else(|| self.abs_bounding_box())
+            } else {
+                self.stroke_bounding_box()?.transform(self.abs_transform)
+            }
+        })
+    }
+
+    fn abs_data(&self) -> Option<tiny_skia_path::Path> {
+        self.data.as_ref().clone().transform(self.abs_transform)
     }
 
     fn calculate_stroke_bbox(stroke: Option<&Stroke>, path: &tiny_skia_path::Path) -> Option<Rect> {
@@ -1855,73 +1878,128 @@ impl Group {
         }
     }
 
-    pub(crate) fn calculate_object_bbox(&mut self) -> Option<NonZeroRect> {
+    fn union_of_children(&self, f: impl Fn(&Node) -> Option<Rect>) -> Option<Rect> {
         let mut bbox = BBox::default();
         for child in &self.children {
-            if let Some(c_bbox) = child.bounding_box() {
-                bbox = bbox.expand(child.to_parent_coordinates(c_bbox));
+            if let Some(c_bbox) = f(child) {
+                bbox = bbox.expand(c_bbox);
             }
         }
-
-        bbox.to_non_zero_rect()
+        bbox.to_rect()
     }
 
-    pub(crate) fn calculate_bounding_boxes(&mut self) {
-        let mut bbox = BBox::default();
-        let mut abs_bbox = BBox::default();
-        let mut stroke_bbox = BBox::default();
-        let mut abs_stroke_bbox = BBox::default();
-        let mut layer_bbox = BBox::default();
-        for child in &self.children {
-            if let Some(c_bbox) = child.bounding_box() {
-                bbox = bbox.expand(child.to_parent_coordinates(c_bbox));
-            }
-            if let Some(c_bbox) = child.abs_bounding_box() {
-                abs_bbox = abs_bbox.expand(c_bbox);
-            }
-            if let Some(c_bbox) = child.stroke_bounding_box() {
-                stroke_bbox = stroke_bbox.expand(child.to_parent_coordinates(c_bbox));
-            }
-            if let Some(c_bbox) = child.abs_stroke_bounding_box() {
-                abs_stroke_bbox = abs_stroke_bbox.expand(c_bbox);
-            }
-
-            if let Node::Group(group) = child {
-                if let Some(r) = group
-                    .layer_bounding_box
-                    .and_then(|r| r.transform(group.transform))
-                {
-                    layer_bbox = layer_bbox.expand(r);
-                }
-            } else if let Some(c_bbox) = child.stroke_bounding_box() {
-                // Not a group - no need to transform.
-                layer_bbox = layer_bbox.expand(c_bbox);
-            }
-        }
-
-        self.bounding_box = bbox.to_rect();
-        self.abs_bounding_box = abs_bbox.to_rect();
-        self.stroke_bounding_box = stroke_bbox.to_rect();
-        self.abs_stroke_bounding_box = abs_stroke_bbox.to_rect();
-
+    fn calculate_layer_bounding_box(&self) -> Option<NonZeroRect> {
         // Filter bbox has a higher priority than layers bbox.
-        self.layer_bounding_box = self.filters_bounding_box().or_else(|| {
-            let layer_bbox = layer_bbox.to_rect()?;
+        self.filters_bounding_box().or_else(|| {
+            let layer_bbox = self.union_of_children(|child| match child {
+                Node::Group(group) => group
+                    .layer_bounding_box()
+                    .and_then(|r| r.transform(group.transform))
+                    .map(|r| r.to_rect()),
+                // Not a group - no need to transform.
+                _ => child.stroke_bounding_box(),
+            })?;
             // Nothing outside the clip path is visible. Filtered groups use their filter
             // region instead, because filters are applied before clipping.
             // The clip's stroke bounding box is used because, unlike the object one,
             // it covers the glyph outlines of text.
             let layer_bbox = match &self.clip_path {
                 Some(clip) => {
-                    let clip_bbox = clip.root.stroke_bounding_box?.transform(clip.transform)?;
+                    let clip_bbox = clip.root.stroke_bounding_box()?.transform(clip.transform)?;
                     layer_bbox.intersect(&clip_bbox)?
                 }
                 None => layer_bbox,
             };
             layer_bbox.to_non_zero_rect()
-        });
-        self.abs_layer_bounding_box = self
-            .layer_bounding_box
-            .and_then(|r| r.transform(self.abs_transform));
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn assert_no_bounding_boxes(group: &Group) {
+        assert!(group.bounding_box.get().is_none());
+        assert!(group.abs_bounding_box.get().is_none());
+        assert!(group.stroke_bounding_box.get().is_none());
+        assert!(group.abs_stroke_bounding_box.get().is_none());
+        assert!(group.layer_bounding_box.get().is_none());
+        assert!(group.abs_layer_bounding_box.get().is_none());
+
+        for child in group.children() {
+            match child {
+                Node::Group(group) => assert_no_bounding_boxes(group),
+                Node::Path(path) => {
+                    assert!(path.bounding_box.get().is_none());
+                    assert!(path.abs_bounding_box.get().is_none());
+                    assert!(path.stroke_bounding_box.get().is_none());
+                    assert!(path.abs_stroke_bounding_box.get().is_none());
+                }
+                _ => {}
+            }
+        }
+    }
+
+    fn parse(svg: &str) -> Tree {
+        Tree::from_str(svg, &crate::Options::default()).unwrap()
+    }
+
+    #[test]
+    fn paths_in_groups_dont_calculate_bounding_boxes() {
+        let tree = parse(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200">
+                <g transform="translate(10 20)" opacity="0.5">
+                    <path d="M 20 20 C 80 0 120 200 180 180" fill="green" stroke="black" stroke-width="10"/>
+                    <g transform="rotate(30)">
+                        <rect x="20" y="20" width="100" height="100" stroke="blue"/>
+                    </g>
+                </g>
+            </svg>"#,
+        );
+        assert_no_bounding_boxes(tree.root());
+    }
+
+    #[test]
+    fn user_space_clip_paths_dont_calculate_bounding_boxes() {
+        let tree = parse(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200">
+                <clipPath id="clip">
+                    <rect x="20" y="20" width="160" height="160"/>
+                </clipPath>
+                <g clip-path="url(#clip)">
+                    <path d="M 20 20 C 80 0 120 200 180 180" fill="green" stroke="black" stroke-width="10"/>
+                </g>
+            </svg>"#,
+        );
+        assert_no_bounding_boxes(tree.root());
+    }
+
+    #[test]
+    fn use_elements_dont_calculate_bounding_boxes() {
+        let tree = parse(
+            r##"<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="200" height="200">
+                <defs>
+                    <path id="shape" d="M 20 20 C 80 0 120 200 180 180" stroke="black" stroke-width="10"/>
+                </defs>
+                <use xlink:href="#shape" fill="green"/>
+                <use xlink:href="#shape" x="10" y="10" fill="blue"/>
+            </svg>"##,
+        );
+        assert_no_bounding_boxes(tree.root());
+    }
+
+    #[test]
+    fn user_space_paint_servers_dont_calculate_bounding_boxes() {
+        let tree = parse(
+            r#"<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200">
+                <linearGradient id="lg" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="200" y2="0">
+                    <stop offset="0" stop-color="white"/>
+                    <stop offset="1" stop-color="black"/>
+                </linearGradient>
+                <path d="M 20 20 C 80 0 120 200 180 180" fill="url(#lg)" stroke="url(#lg)" stroke-width="10"/>
+            </svg>"#,
+        );
+        assert_no_bounding_boxes(tree.root());
     }
 }

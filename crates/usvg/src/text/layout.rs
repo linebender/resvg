@@ -492,7 +492,7 @@ pub(crate) fn convert_decoration(
     let mut path_data = builder.finish()?;
     path_data = path_data.transform(transform)?;
 
-    Path::new(
+    Some(Path::new(
         String::new(),
         span.visible,
         decoration.fill.take(),
@@ -501,7 +501,7 @@ pub(crate) fn convert_decoration(
         ShapeRendering::default(),
         Arc::new(path_data),
         Transform::default(),
-    )
+    ))
 }
 
 /// A text decoration span.
