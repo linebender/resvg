@@ -202,7 +202,7 @@ pub(crate) fn flatten(text: &mut Text, cache: &mut Cache) -> Option<(Group, NonZ
     }
 
     group.calculate_bounding_boxes();
-    let stroke_bbox = group.stroke_bounding_box().to_non_zero_rect()?;
+    let stroke_bbox = group.stroke_bounding_box()?.to_non_zero_rect()?;
     Some((group, stroke_bbox))
 }
 
@@ -358,7 +358,7 @@ impl DatabaseExt for Database {
         self.with_face_data(id, |data, face_index| -> Option<Node> {
             let font = skrifa::FontRef::from_index(data, face_index).ok()?;
             let svg_table = font.svg().ok()?;
-            let image_data = svg_table.glyph_data(glyph_id.into()).ok()??;
+            let image_data = svg_table.glyph_data(glyph_id.into())?;
             let tree = Tree::from_data(image_data, &Options::default()).ok()?;
 
             // Twitter Color Emoji seems to always have one SVG record per glyph,

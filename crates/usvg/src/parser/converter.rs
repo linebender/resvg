@@ -71,6 +71,7 @@ pub struct Cache {
     radial_gradient_index: usize,
     pattern_index: usize,
     clip_path_index: usize,
+    text_path_index: usize,
     mask_index: usize,
     filter_index: usize,
     image_index: usize,
@@ -120,6 +121,7 @@ impl Cache {
             radial_gradient_index: 0,
             pattern_index: 0,
             clip_path_index: 0,
+            text_path_index: 0,
             mask_index: 0,
             filter_index: 0,
             image_index: 0,
@@ -164,6 +166,17 @@ impl Cache {
         loop {
             self.clip_path_index += 1;
             let new_id = format!("clipPath{}", self.clip_path_index);
+            let new_hash = string_hash(&new_id);
+            if !self.all_ids.contains(&new_hash) {
+                return NonEmptyString::new(new_id).unwrap();
+            }
+        }
+    }
+
+    pub(crate) fn gen_text_path_id(&mut self) -> NonEmptyString {
+        loop {
+            self.text_path_index += 1;
+            let new_id = format!("textPathPath{}", self.text_path_index);
             let new_hash = string_hash(&new_id);
             if !self.all_ids.contains(&new_hash) {
                 return NonEmptyString::new(new_id).unwrap();
@@ -431,21 +444,8 @@ pub(crate) fn convert_doc(svg_doc: &svgtree::Document, opt: &Options) -> Result<
     );
 
     for node in svg_doc.descendants() {
-        if let Some(tag) = node.tag_name() {
-            if matches!(
-                tag,
-                EId::ClipPath
-                    | EId::Filter
-                    | EId::LinearGradient
-                    | EId::Mask
-                    | EId::Pattern
-                    | EId::RadialGradient
-                    | EId::Image
-            ) {
-                if !node.element_id().is_empty() {
-                    cache.all_ids.insert(string_hash(node.element_id()));
-                }
-            }
+        if !node.element_id().is_empty() {
+            cache.all_ids.insert(string_hash(node.element_id()));
         }
     }
 
@@ -605,8 +605,11 @@ fn resolve_svg_size(svg: &SvgNode, opt: &Options) -> (Result<Size, Error>, bool)
 ///
 /// Simply iterates over all nodes and calculates a bounding box.
 fn calculate_svg_bbox(tree: &mut Tree) {
-    let bbox = tree.root.abs_bounding_box();
-    if let Some(size) = Size::from_wh(bbox.right(), bbox.bottom()) {
+    let size = tree
+        .root
+        .abs_bounding_box()
+        .and_then(|bbox| Size::from_wh(bbox.right(), bbox.bottom()));
+    if let Some(size) = size {
         tree.size = size;
     }
 }
@@ -832,7 +835,6 @@ pub(crate) fn convert_group(
     };
 
     let abs_transform = parent.abs_transform.pre_concat(transform);
-    let dummy = Rect::from_xywh(0.0, 0.0, 0.0, 0.0).unwrap();
     let mut g = Group {
         id,
         transform,
@@ -844,12 +846,12 @@ pub(crate) fn convert_group(
         mask: None,
         filters: Vec::new(),
         is_context_element: false,
-        bounding_box: dummy,
-        abs_bounding_box: dummy,
-        stroke_bounding_box: dummy,
-        abs_stroke_bounding_box: dummy,
-        layer_bounding_box: NonZeroRect::from_xywh(0.0, 0.0, 1.0, 1.0).unwrap(),
-        abs_layer_bounding_box: NonZeroRect::from_xywh(0.0, 0.0, 1.0, 1.0).unwrap(),
+        bounding_box: None,
+        abs_bounding_box: None,
+        stroke_bounding_box: None,
+        abs_stroke_bounding_box: None,
+        layer_bounding_box: None,
+        abs_layer_bounding_box: None,
         children: Vec::new(),
     };
     collect_children(cache, &mut g);

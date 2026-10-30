@@ -145,7 +145,9 @@ use crate::render;
 #[test] fn filters_feDiffuseLighting_surfaceScale_eq_1_33() { assert_eq!(render("tests/filters/feDiffuseLighting/surfaceScale=1.33"), 0); }
 #[test] fn filters_feDiffuseLighting_surfaceScale_eq_5() { assert_eq!(render("tests/filters/feDiffuseLighting/surfaceScale=5"), 0); }
 #[test] fn filters_feDiffuseLighting_tiny_element_with_spot_light() { assert_eq!(render("tests/filters/feDiffuseLighting/tiny-element-with-spot-light"), 0); }
+#[test] fn filters_feDisplacementMap_semi_transparent_map() { assert_eq!(render("tests/filters/feDisplacementMap/semi-transparent-map"), 0); }
 #[test] fn filters_feDisplacementMap_simple_case() { assert_eq!(render("tests/filters/feDisplacementMap/simple-case"), 0); }
+#[test] fn filters_feDisplacementMap_uniform_map() { assert_eq!(render("tests/filters/feDisplacementMap/uniform-map"), 0); }
 #[test] fn filters_feDistantLight_default_attributes() { assert_eq!(render("tests/filters/feDistantLight/default-attributes"), 0); }
 #[test] fn filters_feDistantLight_negative_azimuth_and_elevation() { assert_eq!(render("tests/filters/feDistantLight/negative-azimuth-and-elevation"), 0); }
 #[test] fn filters_feDistantLight_only_azimuth() { assert_eq!(render("tests/filters/feDistantLight/only-azimuth"), 0); }
@@ -161,6 +163,7 @@ use crate::render;
 #[test] fn filters_feFlood_complex_transform() { assert_eq!(render("tests/filters/feFlood/complex-transform"), 0); }
 #[test] fn filters_feFlood_default_values() { assert_eq!(render("tests/filters/feFlood/default-values"), 0); }
 #[test] fn filters_feFlood_partial_subregion() { assert_eq!(render("tests/filters/feFlood/partial-subregion"), 0); }
+#[test] fn filters_feFlood_partial_subregion_with_primitiveUnits_eq_objectBoundingBox() { assert_eq!(render("tests/filters/feFlood/partial-subregion-with-primitiveUnits=objectBoundingBox"), 0); }
 #[test] fn filters_feFlood_seagreen() { assert_eq!(render("tests/filters/feFlood/seagreen"), 0); }
 #[test] fn filters_feFlood_subregion_inheritance() { assert_eq!(render("tests/filters/feFlood/subregion-inheritance"), 0); }
 #[test] fn filters_feFlood_subregion_with_primitiveUnits_eq_objectBoundingBox() { assert_eq!(render("tests/filters/feFlood/subregion-with-primitiveUnits=objectBoundingBox"), 0); }
@@ -325,6 +328,7 @@ use crate::render;
 #[test] fn filters_filter_on_a_vertical_line() { assert_eq!(render("tests/filters/filter/on-a-vertical-line"), 0); }
 #[test] fn filters_filter_on_an_empty_group_1() { assert_eq!(render("tests/filters/filter/on-an-empty-group-1"), 0); }
 #[test] fn filters_filter_on_an_empty_group_2() { assert_eq!(render("tests/filters/filter/on-an-empty-group-2"), 0); }
+#[test] fn filters_filter_on_group_with_an_empty_filtered_child() { assert_eq!(render("tests/filters/filter/on-group-with-an-empty-filtered-child"), 0); }
 #[test] fn filters_filter_on_group_with_child_outside_of_canvas() { assert_eq!(render("tests/filters/filter/on-group-with-child-outside-of-canvas"), 0); }
 #[test] fn filters_filter_on_the_root_svg() { assert_eq!(render("tests/filters/filter/on-the-root-svg"), 0); }
 #[test] fn filters_filter_on_zero_sized_shape() { assert_eq!(render("tests/filters/filter/on-zero-sized-shape"), 0); }
@@ -337,6 +341,7 @@ use crate::render;
 #[test] fn filters_filter_some_attributes_via_xlink_href() { assert_eq!(render("tests/filters/filter/some-attributes-via-xlink-href"), 0); }
 #[test] fn filters_filter_subregion_and_primitiveUnits_eq_objectBoundingBox_1() { assert_eq!(render("tests/filters/filter/subregion-and-primitiveUnits=objectBoundingBox-1"), 0); }
 #[test] fn filters_filter_subregion_and_primitiveUnits_eq_objectBoundingBox_2() { assert_eq!(render("tests/filters/filter/subregion-and-primitiveUnits=objectBoundingBox-2"), 0); }
+#[test] fn filters_filter_subregion_and_primitiveUnits_eq_objectBoundingBox_3() { assert_eq!(render("tests/filters/filter/subregion-and-primitiveUnits=objectBoundingBox-3"), 0); }
 #[test] fn filters_filter_subregion_bigger_that_region() { assert_eq!(render("tests/filters/filter/subregion-bigger-that-region"), 0); }
 #[test] fn filters_filter_transform_on_filter() { assert_eq!(render("tests/filters/filter/transform-on-filter"), 0); }
 #[test] fn filters_filter_transform_on_shape_with_filter_region() { assert_eq!(render("tests/filters/filter/transform-on-shape-with-filter-region"), 0); }
@@ -554,6 +559,7 @@ use crate::render;
 #[test] fn paint_servers_pattern_children_via_xlink_href() { assert_eq!(render("tests/paint-servers/pattern/children-via-xlink-href"), 0); }
 #[test] fn paint_servers_pattern_display_eq_none_on_child() { assert_eq!(render("tests/paint-servers/pattern/display=none-on-child"), 0); }
 #[test] fn paint_servers_pattern_everything_via_xlink_href() { assert_eq!(render("tests/paint-servers/pattern/everything-via-xlink-href"), 0); }
+#[test] fn paint_servers_pattern_fractional_tile_size() { assert_eq!(render("tests/paint-servers/pattern/fractional-tile-size"), 0); }
 #[test] fn paint_servers_pattern_invalid_patternTransform() { assert_eq!(render("tests/paint-servers/pattern/invalid-patternTransform"), 0); }
 #[test] fn paint_servers_pattern_invalid_patternUnits_and_patternContentUnits() { assert_eq!(render("tests/paint-servers/pattern/invalid-patternUnits-and-patternContentUnits"), 0); }
 #[test] fn paint_servers_pattern_missing_height() { assert_eq!(render("tests/paint-servers/pattern/missing-height"), 0); }
@@ -1176,8 +1182,10 @@ use crate::render;
 #[test] fn structure_style_attribute_selector() { assert_eq!(render("tests/structure/style/attribute-selector"), 0); }
 #[test] fn structure_style_class_selector() { assert_eq!(render("tests/structure/style/class-selector"), 0); }
 #[test] fn structure_style_combined_selectors() { assert_eq!(render("tests/structure/style/combined-selectors"), 0); }
+#[test] fn structure_style_comment_between_rules() { assert_eq!(render("tests/structure/style/comment-between-rules"), 0); }
 #[test] fn structure_style_current_color_fill_before_color() { assert_eq!(render("tests/structure/style/current-color-fill-before-color"), 0); }
 #[test] fn structure_style_current_color_stroke_before_color() { assert_eq!(render("tests/structure/style/current-color-stroke-before-color"), 0); }
+#[test] fn structure_style_empty_type() { assert_eq!(render("tests/structure/style/empty-type"), 0); }
 #[test] fn structure_style_external_CSS() { assert_eq!(render("tests/structure/style/external-CSS"), 0); }
 #[test] fn structure_style_iD_selector() { assert_eq!(render("tests/structure/style/iD-selector"), 0); }
 #[test] fn structure_style_important() { assert_eq!(render("tests/structure/style/important"), 0); }
@@ -1191,6 +1199,7 @@ use crate::render;
 #[test] fn structure_style_type_selector() { assert_eq!(render("tests/structure/style/type-selector"), 0); }
 #[test] fn structure_style_universal_selector() { assert_eq!(render("tests/structure/style/universal-selector"), 0); }
 #[test] fn structure_style_unresolved_class_selector() { assert_eq!(render("tests/structure/style/unresolved-class-selector"), 0); }
+#[test] fn structure_style_uppercase_type() { assert_eq!(render("tests/structure/style/uppercase-type"), 0); }
 #[test] fn structure_style_attribute_comments() { assert_eq!(render("tests/structure/style-attribute/comments"), 0); }
 #[test] fn structure_style_attribute_non_presentational_attribute() { assert_eq!(render("tests/structure/style-attribute/non-presentational-attribute"), 0); }
 #[test] fn structure_style_attribute_simple_case() { assert_eq!(render("tests/structure/style-attribute/simple-case"), 0); }
@@ -1663,6 +1672,7 @@ use crate::render;
 #[test] fn text_textPath_with_big_letter_spacing() { assert_eq!(render("tests/text/textPath/with-big-letter-spacing"), 0); }
 #[test] fn text_textPath_with_coordinates_on_text() { assert_eq!(render("tests/text/textPath/with-coordinates-on-text"), 0); }
 #[test] fn text_textPath_with_coordinates_on_textPath() { assert_eq!(render("tests/text/textPath/with-coordinates-on-textPath"), 0); }
+#[test] fn text_textPath_with_error_path() { assert_eq!(render("tests/text/textPath/with-error-path"), 0); }
 #[test] fn text_textPath_with_filter() { assert_eq!(render("tests/text/textPath/with-filter"), 0); }
 #[test] fn text_textPath_with_invalid_path_and_xlink_href() { assert_eq!(render("tests/text/textPath/with-invalid-path-and-xlink-href"), 0); }
 #[test] fn text_textPath_with_letter_spacing() { assert_eq!(render("tests/text/textPath/with-letter-spacing"), 0); }

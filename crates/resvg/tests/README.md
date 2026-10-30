@@ -33,8 +33,6 @@ General requirements:
 1. A single trailing newline.
 1. UTF-8 only.
 
-You could use the `check.py` script to automatically check those requirements.
-
 ### Render PNG
 
 After the SVG test is finished, you should render it using resvg:

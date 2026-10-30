@@ -190,7 +190,7 @@ fn collect_text_chunks_impl(
                     continue;
                 }
 
-                match resolve_text_flow(child, state) {
+                match resolve_text_flow(child, state, cache) {
                     Some(v) => {
                         iter_state.text_flow = v;
                     }
@@ -362,7 +362,52 @@ fn collect_text_chunks_impl(
     }
 }
 
-fn resolve_text_flow(node: SvgNode, state: &converter::State) -> Option<TextFlow> {
+fn resolve_text_flow(
+    node: SvgNode,
+    state: &converter::State,
+    cache: &mut converter::Cache,
+) -> Option<TextFlow> {
+    let (id, path) = resolve_text_flow_path(node, state, cache)?;
+
+    let start_offset: Length = node.attribute(AId::StartOffset).unwrap_or_default();
+    let start_offset = if start_offset.unit == LengthUnit::Percent {
+        // 'If a percentage is given, then the `startOffset` represents
+        // a percentage distance along the entire path.'
+        let path_len = path_length(&path);
+        (path_len * (start_offset.number / 100.0)) as f32
+    } else {
+        node.resolve_length(AId::StartOffset, state, 0.0)
+    };
+
+    Some(TextFlow::Path(Arc::new(TextPath {
+        id,
+        start_offset,
+        path,
+    })))
+}
+
+fn resolve_text_flow_path(
+    node: SvgNode,
+    state: &converter::State,
+    cache: &mut converter::Cache,
+) -> Option<(NonEmptyString, Arc<tiny_skia_path::Path>)> {
+    // `path` takes precedence over `href`, unless it yields no path data.
+    if let Some(path_data) = node.attribute::<&str>(AId::Path) {
+        if let Some(path) = super::shapes::convert_path_data(path_data) {
+            // The writer references text paths by ID, so an inline path needs one too.
+            let id = NonEmptyString::new(node.element_id().to_string())
+                .unwrap_or_else(|| cache.gen_text_path_id());
+            return Some((id, path));
+        }
+    }
+
+    resolve_text_flow_href(node, state)
+}
+
+fn resolve_text_flow_href(
+    node: SvgNode,
+    state: &converter::State,
+) -> Option<(NonEmptyString, Arc<tiny_skia_path::Path>)> {
     let linked_node = node.attribute::<SvgNode>(AId::Href)?;
     let path = super::shapes::convert(linked_node, state)?;
 
@@ -376,22 +421,8 @@ fn resolve_text_flow(node: SvgNode, state: &converter::State) -> Option<TextFlow
         path
     };
 
-    let start_offset: Length = node.attribute(AId::StartOffset).unwrap_or_default();
-    let start_offset = if start_offset.unit == LengthUnit::Percent {
-        // 'If a percentage is given, then the `startOffset` represents
-        // a percentage distance along the entire path.'
-        let path_len = path_length(&path);
-        (path_len * (start_offset.number / 100.0)) as f32
-    } else {
-        node.resolve_length(AId::StartOffset, state, 0.0)
-    };
-
     let id = NonEmptyString::new(linked_node.element_id().to_string())?;
-    Some(TextFlow::Path(Arc::new(TextPath {
-        id,
-        start_offset,
-        path,
-    })))
+    Some((id, path))
 }
 
 fn convert_font(node: SvgNode, state: &converter::State) -> Font {

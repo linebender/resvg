@@ -1,6 +1,6 @@
 [package]
 name = "resvg-capi"
-version = "0.48.1"
+version = "0.49.0"
 keywords = ["svg", "render", "raster", "c-api"]
 license.workspace = true
 edition = "2024"
@@ -34,4 +34,4 @@ capi = []
 generation = false
 
 [package.metadata.capi.install.include]
-asset = [{ from="resvg.h" }]
+asset = [{ from="resvg.h" }, { from="ResvgQt.h" }]
