@@ -679,8 +679,10 @@ use crate::render;
 #[test] fn painting_context_in_use() { assert_eq!(render("tests/painting/context/in-use"), 0); }
 #[test] fn painting_context_on_shape_with_zero_size_bbox() { assert_eq!(render("tests/painting/context/on-shape-with-zero-size-bbox"), 0); }
 #[test] fn painting_context_with_gradient_and_gradient_transform() { assert_eq!(render("tests/painting/context/with-gradient-and-gradient-transform"), 0); }
+#[test] fn painting_context_with_gradient_in_nested_use() { assert_eq!(render("tests/painting/context/with-gradient-in-nested-use"), 0); }
 #[test] fn painting_context_with_gradient_in_use() { assert_eq!(render("tests/painting/context/with-gradient-in-use"), 0); }
 #[test] fn painting_context_with_gradient_on_marker() { assert_eq!(render("tests/painting/context/with-gradient-on-marker"), 0); }
+#[test] fn painting_context_with_gradient_on_text_decoration_in_use() { assert_eq!(render("tests/painting/context/with-gradient-on-text-decoration-in-use"), 0); }
 #[test] fn painting_context_with_pattern_and_transform_in_use() { assert_eq!(render("tests/painting/context/with-pattern-and-transform-in-use"), 0); }
 #[test] fn painting_context_with_pattern_in_use() { assert_eq!(render("tests/painting/context/with-pattern-in-use"), 0); }
 #[test] fn painting_context_with_pattern_objectBoundingBox_in_use() { assert_eq!(render("tests/painting/context/with-pattern-objectBoundingBox-in-use"), 0); }

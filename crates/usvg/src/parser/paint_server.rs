@@ -211,7 +211,6 @@ fn convert_pattern(
             return None;
         }
 
-        g.calculate_bounding_boxes();
         patt.root.children.push(Node::Group(Box::new(g)));
     } else {
         converter::convert_children(node_with_children, state, cache, &mut patt.root);
@@ -220,7 +219,6 @@ fn convert_pattern(
         }
     }
 
-    patt.root.calculate_bounding_boxes();
     update_paint_servers(&mut patt.root, Transform::default(), None, None, cache);
 
     Some(ServerOrColor::Server(Paint::Pattern(Arc::new(patt))))
@@ -563,17 +561,54 @@ pub fn update_paint_servers(
     text_bbox: Option<Rect>,
     cache: &mut Cache,
 ) {
-    for child in &mut group.children {
-        // Set context transform and bbox if applicable if the
-        // current group is a use node.
-        let (context_transform, context_bbox) = if group.is_context_element {
-            (group.abs_transform, group.bounding_box)
+    // Set context transform and bbox if applicable if the
+    // current group is a use node.
+    let (context_transform, context_bbox) = if group.is_context_element {
+        let bbox = if uses_context_bbox(group) {
+            group.bounding_box()
         } else {
-            (context_transform, context_bbox)
+            None
         };
+        (group.abs_transform, bbox)
+    } else {
+        (context_transform, context_bbox)
+    };
 
+    for child in &mut group.children {
         node_to_user_coordinates(child, context_transform, context_bbox, text_bbox, cache);
     }
+}
+
+fn uses_context_bbox(group: &Group) -> bool {
+    let uses = |paint: &Paint, context_element: Option<ContextElement>| {
+        matches!(context_element, Some(ContextElement::UseNode)) && uses_object_bounding_box(paint)
+    };
+    let fill_uses = |fill: Option<&Fill>| fill.is_some_and(|f| uses(&f.paint, f.context_element));
+    let stroke_uses =
+        |stroke: Option<&Stroke>| stroke.is_some_and(|s| uses(&s.paint, s.context_element));
+    let decoration_uses = |style: Option<&TextDecorationStyle>| {
+        style.is_some_and(|s| fill_uses(s.fill.as_ref()) || stroke_uses(s.stroke.as_ref()))
+    };
+
+    group.children.iter().any(|node| match node {
+        // A nested `use` element is the context element of its own children.
+        Node::Group(g) => !g.is_context_element && uses_context_bbox(g),
+        Node::Path(path) => fill_uses(path.fill.as_ref()) || stroke_uses(path.stroke.as_ref()),
+        Node::Image(image) => {
+            matches!(&image.kind, ImageKind::SVG(tree) if uses_context_bbox(&tree.root))
+        }
+        Node::Text(text) => text
+            .chunks
+            .iter()
+            .flat_map(|chunk| &chunk.spans)
+            .any(|span| {
+                fill_uses(span.fill.as_ref())
+                    || stroke_uses(span.stroke.as_ref())
+                    || decoration_uses(span.decoration.underline.as_ref())
+                    || decoration_uses(span.decoration.overline.as_ref())
+                    || decoration_uses(span.decoration.line_through.as_ref())
+            }),
+    })
 }
 
 // When parsing clipPaths, masks and filters we already know group's bounding box.
@@ -597,7 +632,23 @@ fn node_to_user_coordinates(
         Node::Path(path) => {
             // Paths inside `Text::flattened` are special and must use text's bounding box
             // instead of their own.
-            let bbox = text_bbox.unwrap_or(path.bounding_box);
+            let uses_bbox = |paint: &Paint, context_element: Option<ContextElement>| {
+                !matches!(context_element, Some(ContextElement::UseNode))
+                    && uses_object_bounding_box(paint)
+            };
+            let fill_uses_bbox = path
+                .fill
+                .as_ref()
+                .is_some_and(|f| uses_bbox(&f.paint, f.context_element));
+            let stroke_uses_bbox = path
+                .stroke
+                .as_ref()
+                .is_some_and(|s| uses_bbox(&s.paint, s.context_element));
+            let bbox = if fill_uses_bbox || stroke_uses_bbox {
+                text_bbox.or_else(|| path.bounding_box())
+            } else {
+                None
+            };
 
             process_fill(
                 &mut path.fill,
@@ -625,7 +676,7 @@ fn node_to_user_coordinates(
             // By the SVG spec, `tspan` doesn't have a bbox and uses the parent `text` bbox.
             // Therefore we have to use text's bbox when converting tspan and flatted text
             // paint servers.
-            let bbox = text.bounding_box;
+            let bbox = Some(text.bounding_box);
 
             // We need to update three things:
             // 1. The fills/strokes of the original elements in the usvg tree.
@@ -714,7 +765,7 @@ fn node_to_user_coordinates(
                 &mut text.flattened,
                 context_transform,
                 context_bbox,
-                Some(bbox),
+                bbox,
                 cache,
             );
         }
@@ -726,7 +777,7 @@ fn process_fill(
     path_transform: Transform,
     context_transform: Transform,
     context_bbox: Option<Rect>,
-    bbox: Rect,
+    bbox: Option<Rect>,
     cache: &mut Cache,
 ) {
     let mut ok = false;
@@ -753,7 +804,7 @@ fn process_stroke(
     path_transform: Transform,
     context_transform: Transform,
     context_bbox: Option<Rect>,
-    bbox: Rect,
+    bbox: Option<Rect>,
     cache: &mut Cache,
 ) {
     let mut ok = false;
@@ -854,19 +905,13 @@ pub(crate) fn process_paint(
     context_transform: Transform,
     context_bbox: Option<Rect>,
     path_transform: Transform,
-    bbox: Rect,
+    bbox: Option<Rect>,
     cache: &mut Cache,
 ) -> bool {
-    if paint.units() == Units::ObjectBoundingBox
-        || paint.content_units() == Units::ObjectBoundingBox
-    {
-        let bbox = if has_context {
-            let Some(bbox) = context_bbox else {
-                return false;
-            };
-            bbox
-        } else {
-            bbox
+    if uses_object_bounding_box(paint) {
+        let bbox = if has_context { context_bbox } else { bbox };
+        let Some(bbox) = bbox else {
+            return false;
         };
 
         if paint.to_user_coordinates(bbox, cache).is_none() {
@@ -881,7 +926,15 @@ pub(crate) fn process_paint(
     true
 }
 
-fn process_text_decoration(style: &mut Option<TextDecorationStyle>, bbox: Rect, cache: &mut Cache) {
+fn uses_object_bounding_box(paint: &Paint) -> bool {
+    paint.units() == Units::ObjectBoundingBox || paint.content_units() == Units::ObjectBoundingBox
+}
+
+fn process_text_decoration(
+    style: &mut Option<TextDecorationStyle>,
+    bbox: Option<Rect>,
+    cache: &mut Cache,
+) {
     if let Some(style) = style.as_mut() {
         process_fill(
             &mut style.fill,
@@ -1025,7 +1078,6 @@ fn push_pattern_transform(root: &mut Group, transform: Transform) {
     g.abs_transform = transform;
 
     root.children.push(Node::Group(Box::new(g)));
-    root.calculate_bounding_boxes();
 }
 
 impl Paint {

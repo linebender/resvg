@@ -58,18 +58,17 @@ fn push_outline_paths(
 ) {
     let builder = mem::replace(builder, tiny_skia_path::PathBuilder::new());
 
-    if let Some(path) = builder.finish().and_then(|p| {
-        Path::new(
+    if let Some(data) = builder.finish() {
+        let path = Path::new(
             String::new(),
             span.visible,
             span.fill.clone(),
             span.stroke.clone(),
             span.paint_order,
             rendering_mode,
-            Arc::new(p),
+            Arc::new(data),
             abs_transform,
-        )
-    }) {
+        );
         new_children.push(Node::Path(Box::new(path)));
     }
 }
@@ -113,7 +112,6 @@ pub(crate) fn flatten(text: &mut Text, cache: &mut Cache) -> Option<(Group, NonZ
                 // TODO: Probably need to update abs_transform of children? Same
                 // for SVG and bitmap glyphs.
                 group.children.push(Node::Group(Box::new(tree.root)));
-                group.calculate_bounding_boxes();
 
                 new_children.push(Node::Group(Box::new(group)));
             }
@@ -132,7 +130,6 @@ pub(crate) fn flatten(text: &mut Text, cache: &mut Cache) -> Option<(Group, NonZ
                     ..Group::empty()
                 };
                 group.children.push(node);
-                group.calculate_bounding_boxes();
 
                 new_children.push(Node::Group(Box::new(group)));
             }
@@ -164,7 +161,6 @@ pub(crate) fn flatten(text: &mut Text, cache: &mut Cache) -> Option<(Group, NonZ
                     ..Group::empty()
                 };
                 group.children.push(Node::Image(Box::new(img.image)));
-                group.calculate_bounding_boxes();
 
                 new_children.push(Node::Group(Box::new(group)));
             } else {
@@ -201,7 +197,6 @@ pub(crate) fn flatten(text: &mut Text, cache: &mut Cache) -> Option<(Group, NonZ
         group.children.push(child);
     }
 
-    group.calculate_bounding_boxes();
     let stroke_bbox = group.stroke_bounding_box()?.to_non_zero_rect()?;
     Some((group, stroke_bbox))
 }

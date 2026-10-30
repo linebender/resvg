@@ -475,7 +475,6 @@ pub(crate) fn convert_doc(svg_doc: &svgtree::Document, opt: &Options) -> Result<
         g.transform = root_ts;
         g.abs_transform = root_ts;
         convert_children(svg_doc.root(), &state, &mut cache, &mut g);
-        g.calculate_bounding_boxes();
         tree.root.children.push(Node::Group(Box::new(g)));
     }
 
@@ -496,7 +495,6 @@ pub(crate) fn convert_doc(svg_doc: &svgtree::Document, opt: &Options) -> Result<
     tree.root.collect_clip_paths(&mut tree.clip_paths);
     tree.root.collect_masks(&mut tree.masks);
     tree.root.collect_filters(&mut tree.filters);
-    tree.root.calculate_bounding_boxes();
 
     // The fontdb might have been mutated and we want to apply these changes to
     // the tree's fontdb.
@@ -525,7 +523,7 @@ fn background_path(background_color: svgtypes::Color, area: Rect) -> Option<Path
         ..Default::default()
     };
 
-    let mut path = Path::new_simple(Arc::new(path))?;
+    let mut path = Path::new_simple(Arc::new(path));
     path.fill = Some(fill);
 
     Some(path)
@@ -850,26 +848,18 @@ pub(crate) fn convert_group(
         mask: None,
         filters: Vec::new(),
         is_context_element: false,
-        bounding_box: None,
-        abs_bounding_box: None,
-        stroke_bounding_box: None,
-        abs_stroke_bounding_box: None,
-        layer_bounding_box: None,
-        abs_layer_bounding_box: None,
-        children: Vec::new(),
+        ..Group::empty()
     };
     collect_children(cache, &mut g);
 
-    // We need to know group's bounding box before converting
-    // clipPaths, masks and filters.
-    let object_bbox = g.calculate_object_bbox();
+    let object_bbox = || g.bounding_box().and_then(|r| r.to_non_zero_rect());
 
     // `mask` and `filter` cannot be set on `clipPath` children.
     // But `clip-path` can.
 
     let mut clip_path = None;
     if let Some(link) = node.attribute::<SvgNode>(AId::ClipPath) {
-        clip_path = super::clippath::convert(link, state, object_bbox, cache);
+        clip_path = super::clippath::convert(link, state, &object_bbox, cache);
         if clip_path.is_none() {
             return None;
         }
@@ -878,7 +868,7 @@ pub(crate) fn convert_group(
     let mut mask = None;
     if state.parent_clip_path.is_none() {
         if let Some(link) = node.attribute::<SvgNode>(AId::Mask) {
-            mask = super::mask::convert(link, state, object_bbox, cache);
+            mask = super::mask::convert(link, state, &object_bbox, cache);
             if mask.is_none() {
                 return None;
             }
@@ -891,7 +881,7 @@ pub(crate) fn convert_group(
             if node.attribute(AId::Filter) == Some("none") {
                 // Do nothing.
             } else if node.has_attribute(AId::Filter) {
-                if let Ok(f) = super::filter::convert(node, state, object_bbox, cache) {
+                if let Ok(f) = super::filter::convert(node, state, object_bbox(), cache) {
                     filters = f;
                 } else {
                     // A filter that not a link or a filter with a link to a non existing element.
@@ -932,9 +922,6 @@ pub(crate) fn convert_group(
     g.clip_path = clip_path;
     g.mask = mask;
     g.filters = filters;
-
-    // Must be called after we set Group::filters
-    g.calculate_bounding_boxes();
 
     Some(g)
 }
@@ -982,7 +969,7 @@ fn convert_path(
                 context_transform,
                 context_bbox.map(|r| r.to_rect()),
                 path_transform,
-                tiny_skia_path.bounds(),
+                Some(tiny_skia_path.bounds()),
                 cache,
             );
             fill.context_element = None;
@@ -999,7 +986,7 @@ fn convert_path(
                 context_transform,
                 context_bbox.map(|r| r.to_rect()),
                 path_transform,
-                tiny_skia_path.bounds(),
+                Some(tiny_skia_path.bounds()),
                 cache,
             );
             stroke.context_element = None;
@@ -1038,7 +1025,6 @@ fn convert_path(
             cache,
             &mut marker_group,
         );
-        marker_group.calculate_bounding_boxes();
         marker = Some(marker_group);
     }
 
@@ -1059,11 +1045,6 @@ fn convert_path(
         tiny_skia_path,
         path_transform,
     );
-
-    let path = match path {
-        Some(v) => v,
-        None => return,
-    };
 
     match (raw_paint_order.order, marker) {
         ([PaintOrderKind::Markers, _, _], Some(markers_node)) => {

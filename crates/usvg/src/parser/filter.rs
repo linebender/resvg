@@ -799,7 +799,6 @@ fn convert_image_inner(
         let mut root = Group::empty();
         super::converter::convert_element(node, &state, cache, &mut root);
         return if root.has_children() {
-            root.calculate_bounding_boxes();
             super::paint_server::update_paint_servers(
                 &mut root,
                 Transform::default(),
@@ -846,7 +845,6 @@ fn convert_image_inner(
         cache,
         &mut root,
     );
-    root.calculate_bounding_boxes();
 
     Some(Kind::Image(Image { root }))
 }
