@@ -76,9 +76,7 @@ fn parse<'input>(
     let mut id_map = HashMap::new();
     for node in xml.descendants() {
         if let Some(id) = node.attribute("id") {
-            if !id_map.contains_key(id) {
-                id_map.insert(id, node);
-            }
+            id_map.entry(id).or_insert(node);
         }
     }
 
