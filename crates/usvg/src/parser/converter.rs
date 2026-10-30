@@ -44,7 +44,6 @@ pub struct State<'a> {
     pub(crate) opt: &'a Options<'a>,
 }
 
-#[derive(Clone)]
 pub struct Cache<'a> {
     /// This fontdb is initialized from [`Options::fontdb`] and then populated
     /// over the course of conversion.
