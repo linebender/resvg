@@ -204,10 +204,9 @@ pub(crate) fn layout_text(
     text_node: &Text,
     resolver: &FontResolver,
     fontdb: &mut Arc<fontdb::Database>,
+    fonts_cache: &mut FontsCache,
     shaping_fonts: &mut ShapingFonts,
 ) -> Option<(Vec<Span>, NonZeroRect)> {
-    let mut fonts_cache: FontsCache = HashMap::new();
-
     for chunk in &text_node.chunks {
         for span in &chunk.spans {
             if !fonts_cache.contains_key(&span.font) {
