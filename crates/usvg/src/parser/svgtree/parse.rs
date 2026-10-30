@@ -112,20 +112,35 @@ fn parse<'input>(
         None => return Err(roxmltree::Error::NoRootNode),
     }
 
-    // Collect all elements with `id` attribute.
+    // Collect all elements with `id` attribute, and all elements that
+    // can be referenced recursively.
     let mut links = HashMap::new();
+    let mut patterns = Vec::new();
+    let mut clip_paths = Vec::new();
+    let mut masks = Vec::new();
+    let mut filters = Vec::new();
+    let mut fe_images = Vec::new();
     for node in doc.descendants() {
         if let Some(id) = node.attribute::<&str>(AId::Id) {
             links.insert(id.to_string(), node.id);
         }
+
+        match node.tag_name() {
+            Some(EId::Pattern) => patterns.push(node.id),
+            Some(EId::ClipPath) => clip_paths.push(node.id),
+            Some(EId::Mask) => masks.push(node.id),
+            Some(EId::Filter) => filters.push(node.id),
+            Some(EId::FeImage) => fe_images.push(node.id),
+            _ => {}
+        }
     }
     doc.links = links;
 
-    fix_recursive_patterns(&mut doc);
-    fix_recursive_links(EId::ClipPath, AId::ClipPath, &mut doc);
-    fix_recursive_links(EId::Mask, AId::Mask, &mut doc);
-    fix_recursive_links(EId::Filter, AId::Filter, &mut doc);
-    fix_recursive_fe_image(&mut doc);
+    fix_recursive_patterns(&patterns, &mut doc);
+    fix_recursive_links(&clip_paths, AId::ClipPath, &mut doc);
+    fix_recursive_links(&masks, AId::Mask, &mut doc);
+    fix_recursive_links(&filters, AId::Filter, &mut doc);
+    fix_recursive_fe_image(&fe_images, &mut doc);
 
     Ok(doc)
 }
@@ -722,24 +737,20 @@ impl simplecss::Element for XmlNode<'_, '_> {
     }
 }
 
-fn fix_recursive_patterns(doc: &mut Document) {
-    while let Some(node_id) = find_recursive_pattern(AId::Fill, doc) {
+fn fix_recursive_patterns(patterns: &[NodeId], doc: &mut Document) {
+    while let Some(node_id) = find_recursive_pattern(AId::Fill, patterns, doc) {
         let idx = doc.get(node_id).attribute_id(AId::Fill).unwrap();
         doc.attrs[idx].value = roxmltree::StringStorage::Borrowed("none");
     }
 
-    while let Some(node_id) = find_recursive_pattern(AId::Stroke, doc) {
+    while let Some(node_id) = find_recursive_pattern(AId::Stroke, patterns, doc) {
         let idx = doc.get(node_id).attribute_id(AId::Stroke).unwrap();
         doc.attrs[idx].value = roxmltree::StringStorage::Borrowed("none");
     }
 }
 
-fn find_recursive_pattern(aid: AId, doc: &mut Document) -> Option<NodeId> {
-    for pattern_node in doc
-        .root()
-        .descendants()
-        .filter(|n| n.tag_name() == Some(EId::Pattern))
-    {
+fn find_recursive_pattern(aid: AId, patterns: &[NodeId], doc: &Document) -> Option<NodeId> {
+    for pattern_node in patterns.iter().map(|id| doc.get(*id)) {
         for node in pattern_node.descendants() {
             let value = match node.attribute(aid) {
                 Some(v) => v,
@@ -778,19 +789,15 @@ fn find_recursive_pattern(aid: AId, doc: &mut Document) -> Option<NodeId> {
     None
 }
 
-fn fix_recursive_links(eid: EId, aid: AId, doc: &mut Document) {
-    while let Some(node_id) = find_recursive_link(eid, aid, doc) {
+fn fix_recursive_links(nodes: &[NodeId], aid: AId, doc: &mut Document) {
+    while let Some(node_id) = find_recursive_link(nodes, aid, doc) {
         let idx = doc.get(node_id).attribute_id(aid).unwrap();
         doc.attrs[idx].value = roxmltree::StringStorage::Borrowed("none");
     }
 }
 
-fn find_recursive_link(eid: EId, aid: AId, doc: &Document) -> Option<NodeId> {
-    for node in doc
-        .root()
-        .descendants()
-        .filter(|n| n.tag_name() == Some(eid))
-    {
+fn find_recursive_link(nodes: &[NodeId], aid: AId, doc: &Document) -> Option<NodeId> {
+    for node in nodes.iter().map(|id| doc.get(*id)) {
         for child in node.descendants() {
             if let Some(link) = child.node_attribute(aid) {
                 if link == node {
@@ -823,13 +830,9 @@ fn find_recursive_link(eid: EId, aid: AId, doc: &Document) -> Option<NodeId> {
 /// </filter>
 /// <rect id="rect1" x="36" y="36" width="120" height="120" fill="green" filter="url(#filter1)"/>
 /// ```
-fn fix_recursive_fe_image(doc: &mut Document) {
+fn fix_recursive_fe_image(fe_images: &[NodeId], doc: &mut Document) {
     let mut ids = Vec::new();
-    for fe_node in doc
-        .root()
-        .descendants()
-        .filter(|n| n.tag_name() == Some(EId::FeImage))
-    {
+    for fe_node in fe_images.iter().map(|id| doc.get(*id)) {
         if let Some(link) = fe_node.node_attribute(AId::Href) {
             if let Some(filter_uri) = link.attribute::<&str>(AId::Filter) {
                 let filter_id = fe_node.parent().unwrap().element_id();
