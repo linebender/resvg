@@ -167,6 +167,28 @@ fn stylesheet_injection_with_important() {
 }
 
 #[test]
+fn invalid_style_declaration_falls_back_to_valid_one() {
+    // Figma exports a valid hex stroke followed by an unsupported `color(display-p3 ...)`
+    // declaration. Per CSS error recovery, the invalid declaration must be discarded and
+    // the previous valid one kept, instead of dropping the stroke entirely.
+    // See https://github.com/linebender/resvg/issues/914
+    let svg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'>
+        <path d='M13 13L9 9' stroke='#FAFAFA' \
+            style='stroke:#FAFAFA;stroke:color(display-p3 0.9804 0.9804 0.9804);stroke-opacity:1;' \
+            stroke-width='1'/>
+    </svg>";
+
+    let tree = usvg::Tree::from_str(svg, &usvg::Options::default()).unwrap();
+    let usvg::Node::Path(path) = &tree.root().children()[0] else {
+        unreachable!()
+    };
+    assert_eq!(
+        path.stroke().unwrap().paint(),
+        &usvg::Paint::Color(Color::new_rgb(250, 250, 250))
+    );
+}
+
+#[test]
 fn simplify_paths() {
     let svg = "
     <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1'>
