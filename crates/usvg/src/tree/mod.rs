@@ -1314,9 +1314,7 @@ pub struct Path {
     pub(crate) data: Arc<tiny_skia_path::Path>,
     pub(crate) abs_transform: Transform,
     pub(crate) bounding_box: OnceLock<Option<Rect>>,
-    pub(crate) abs_bounding_box: OnceLock<Option<Rect>>,
     pub(crate) stroke_bounding_box: OnceLock<Option<Rect>>,
-    pub(crate) abs_stroke_bounding_box: OnceLock<Option<Rect>>,
 }
 
 impl Path {
@@ -1353,9 +1351,7 @@ impl Path {
             data,
             abs_transform,
             bounding_box: OnceLock::new(),
-            abs_bounding_box: OnceLock::new(),
             stroke_bounding_box: OnceLock::new(),
-            abs_stroke_bounding_box: OnceLock::new(),
         }
     }
 
@@ -1431,14 +1427,12 @@ impl Path {
     ///
     /// `userSpaceOnUse` in SVG terms.
     pub fn abs_bounding_box(&self) -> Option<Rect> {
-        *self.abs_bounding_box.get_or_init(|| {
-            if self.abs_transform.has_skew() {
-                self.abs_data()?.compute_tight_bounds()
-            } else {
-                // A transform without a skew can be performed just on a bbox.
-                self.bounding_box()?.transform(self.abs_transform)
-            }
-        })
+        if self.abs_transform.has_skew() {
+            self.abs_data()?.compute_tight_bounds()
+        } else {
+            // A transform without a skew can be performed just on a bbox.
+            self.bounding_box()?.transform(self.abs_transform)
+        }
     }
 
     /// Element's object bounding box including stroke.
@@ -1455,16 +1449,14 @@ impl Path {
     ///
     /// Will have the same value as `abs_bounding_box` when path has no stroke.
     pub fn abs_stroke_bounding_box(&self) -> Option<Rect> {
-        *self.abs_stroke_bounding_box.get_or_init(|| {
-            if self.stroke.is_none() {
-                self.abs_bounding_box()
-            } else if self.abs_transform.has_skew() {
-                Path::calculate_stroke_bbox(self.stroke.as_ref(), &self.abs_data()?)
-                    .or_else(|| self.abs_bounding_box())
-            } else {
-                self.stroke_bounding_box()?.transform(self.abs_transform)
-            }
-        })
+        if self.stroke.is_none() {
+            self.abs_bounding_box()
+        } else if self.abs_transform.has_skew() {
+            Path::calculate_stroke_bbox(self.stroke.as_ref(), &self.abs_data()?)
+                .or_else(|| self.abs_bounding_box())
+        } else {
+            self.stroke_bounding_box()?.transform(self.abs_transform)
+        }
     }
 
     fn abs_data(&self) -> Option<tiny_skia_path::Path> {
@@ -1932,9 +1924,7 @@ mod tests {
                 Node::Group(group) => assert_no_bounding_boxes(group),
                 Node::Path(path) => {
                     assert!(path.bounding_box.get().is_none());
-                    assert!(path.abs_bounding_box.get().is_none());
                     assert!(path.stroke_bounding_box.get().is_none());
-                    assert!(path.abs_stroke_bounding_box.get().is_none());
                 }
                 _ => {}
             }
