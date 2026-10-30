@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="48">
+    <title>Fractional rectangle edge coverage</title>
+    <rect id="r1" x="0" y="0" width="4.0650405" height="48" fill="#174a86"/>
+    <rect id="r2" x="12.3" y="0" width="4.0650405" height="48" fill="#174a86"/>
+    <rect id="r3" x="24.6" y="0" width="4.0650405" height="48" fill="#174a86"/>
+    <rect id="r4" x="36.9" y="0" width="4.0650405" height="48" fill="#174a86"/>
+    <rect id="r5" x="49.2" y="0" width="4.0650405" height="48" fill="#174a86"/>
+    <rect id="r6" x="61.5" y="0" width="4.0650405" height="48" fill="#174a86"/>
+    <rect id="r7" x="73.8" y="0" width="4.0650405" height="48" fill="#174a86"/>
+    <rect id="r8" x="86.1" y="0" width="4.0650405" height="48" fill="#174a86"/>
+    <rect id="r9" x="98.4" y="0" width="4.0650405" height="48" fill="#174a86"/>
+    <rect id="r10" x="110.7" y="0" width="4.0650405" height="48" fill="#174a86"/>
+    <rect id="r11" x="123" y="0" width="4.0650405" height="48" fill="#174a86"/>
+    <rect id="r12" x="135.3" y="0" width="4.0650405" height="48" fill="#174a86"/>
+    <rect id="r13" x="147.6" y="0" width="4.0650405" height="48" fill="#174a86"/>
+</svg>
