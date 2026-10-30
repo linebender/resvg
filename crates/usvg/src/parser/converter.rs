@@ -31,6 +31,9 @@ pub struct State<'a> {
     /// Stores the resolved fill and stroke of a use node
     /// or a path element (for markers)
     pub(crate) context_element: Option<(Option<Fill>, Option<Stroke>)>,
+    /// The transform and bounding box of the path element whose markers
+    /// are being converted.
+    pub(crate) context_path: Option<(Transform, Option<NonZeroRect>)>,
     pub(crate) fe_image_link: bool,
     /// A viewBox of the parent SVG element.
     pub(crate) view_box: NonZeroRect,
@@ -424,6 +427,7 @@ pub(crate) fn convert_doc(svg_doc: &svgtree::Document, opt: &Options) -> Result<
     let state = State {
         parent_clip_path: None,
         context_element: None,
+        context_path: None,
         parent_markers: Vec::new(),
         fe_image_link: false,
         view_box: view_box.rect,
@@ -517,6 +521,7 @@ fn resolve_svg_size(svg: &SvgNode, opt: &Options) -> (Result<Size, Error>, bool)
     let mut state = State {
         parent_clip_path: None,
         context_element: None,
+        context_path: None,
         parent_markers: Vec::new(),
         fe_image_link: false,
         view_box: NonZeroRect::from_xywh(0.0, 0.0, 100.0, 100.0).unwrap(),
@@ -944,8 +949,8 @@ fn convert_path(
     }
 
     if let Some(fill) = fill.as_mut() {
-        if let Some(ContextElement::PathNode(context_transform, context_bbox)) =
-            fill.context_element
+        if let (Some(ContextElement::PathNode), Some((context_transform, context_bbox))) =
+            (fill.context_element, state.context_path)
         {
             process_paint(
                 &mut fill.paint,
@@ -961,8 +966,8 @@ fn convert_path(
     }
 
     if let Some(stroke) = stroke.as_mut() {
-        if let Some(ContextElement::PathNode(context_transform, context_bbox)) =
-            stroke.context_element
+        if let (Some(ContextElement::PathNode), Some((context_transform, context_bbox))) =
+            (stroke.context_element, state.context_path)
         {
             process_paint(
                 &mut stroke.paint,
@@ -991,16 +996,17 @@ fn convert_path(
             .and_then(|r| r.to_non_zero_rect());
 
         let fill = fill.clone().map(|mut f| {
-            f.context_element = Some(ContextElement::PathNode(path_transform, bbox));
+            f.context_element = Some(ContextElement::PathNode);
             f
         });
 
         let stroke = stroke.clone().map(|mut s| {
-            s.context_element = Some(ContextElement::PathNode(path_transform, bbox));
+            s.context_element = Some(ContextElement::PathNode);
             s
         });
 
         marker_state.context_element = Some((fill, stroke));
+        marker_state.context_path = Some((path_transform, bbox));
 
         marker::convert(
             node,
