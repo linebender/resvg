@@ -1,8 +1,7 @@
 // Copyright 2018 the Resvg Authors
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use std::collections::{HashMap, HashSet};
-use std::hash::{Hash, Hasher};
+use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -43,7 +42,7 @@ pub struct State<'a> {
 }
 
 #[derive(Clone)]
-pub struct Cache {
+pub struct Cache<'a> {
     /// This fontdb is initialized from [`Options::fontdb`] and then populated
     /// over the course of conversion.
     #[cfg(feature = "text")]
@@ -67,8 +66,10 @@ pub struct Cache {
     pub filters: HashMap<String, Arc<filter::Filter>>,
     pub paint: HashMap<String, Paint>,
 
+    /// Generated IDs must not collide with the IDs of this document's elements.
+    svg_doc: &'a svgtree::Document<'a>,
+
     // used for ID generation
-    all_ids: HashSet<u64>,
     linear_gradient_index: usize,
     radial_gradient_index: usize,
     pattern_index: usize,
@@ -96,8 +97,11 @@ macro_rules! font_lookup {
     };
 }
 
-impl Cache {
-    pub(crate) fn new(#[cfg(feature = "text")] fontdb: Arc<Database>) -> Self {
+impl<'a> Cache<'a> {
+    pub(crate) fn new(
+        svg_doc: &'a svgtree::Document<'a>,
+        #[cfg(feature = "text")] fontdb: Arc<Database>,
+    ) -> Self {
         Self {
             #[cfg(feature = "text")]
             fontdb,
@@ -120,7 +124,7 @@ impl Cache {
             filters: HashMap::new(),
             paint: HashMap::new(),
 
-            all_ids: HashSet::new(),
+            svg_doc,
             linear_gradient_index: 0,
             radial_gradient_index: 0,
             pattern_index: 0,
@@ -137,8 +141,7 @@ impl Cache {
         loop {
             self.linear_gradient_index += 1;
             let new_id = format!("linearGradient{}", self.linear_gradient_index);
-            let new_hash = string_hash(&new_id);
-            if !self.all_ids.contains(&new_hash) {
+            if self.svg_doc.element_by_id(&new_id).is_none() {
                 return NonEmptyString::new(new_id).unwrap();
             }
         }
@@ -148,8 +151,7 @@ impl Cache {
         loop {
             self.radial_gradient_index += 1;
             let new_id = format!("radialGradient{}", self.radial_gradient_index);
-            let new_hash = string_hash(&new_id);
-            if !self.all_ids.contains(&new_hash) {
+            if self.svg_doc.element_by_id(&new_id).is_none() {
                 return NonEmptyString::new(new_id).unwrap();
             }
         }
@@ -159,8 +161,7 @@ impl Cache {
         loop {
             self.pattern_index += 1;
             let new_id = format!("pattern{}", self.pattern_index);
-            let new_hash = string_hash(&new_id);
-            if !self.all_ids.contains(&new_hash) {
+            if self.svg_doc.element_by_id(&new_id).is_none() {
                 return NonEmptyString::new(new_id).unwrap();
             }
         }
@@ -170,8 +171,7 @@ impl Cache {
         loop {
             self.clip_path_index += 1;
             let new_id = format!("clipPath{}", self.clip_path_index);
-            let new_hash = string_hash(&new_id);
-            if !self.all_ids.contains(&new_hash) {
+            if self.svg_doc.element_by_id(&new_id).is_none() {
                 return NonEmptyString::new(new_id).unwrap();
             }
         }
@@ -181,8 +181,7 @@ impl Cache {
         loop {
             self.text_path_index += 1;
             let new_id = format!("textPathPath{}", self.text_path_index);
-            let new_hash = string_hash(&new_id);
-            if !self.all_ids.contains(&new_hash) {
+            if self.svg_doc.element_by_id(&new_id).is_none() {
                 return NonEmptyString::new(new_id).unwrap();
             }
         }
@@ -192,8 +191,7 @@ impl Cache {
         loop {
             self.mask_index += 1;
             let new_id = format!("mask{}", self.mask_index);
-            let new_hash = string_hash(&new_id);
-            if !self.all_ids.contains(&new_hash) {
+            if self.svg_doc.element_by_id(&new_id).is_none() {
                 return NonEmptyString::new(new_id).unwrap();
             }
         }
@@ -203,8 +201,7 @@ impl Cache {
         loop {
             self.filter_index += 1;
             let new_id = format!("filter{}", self.filter_index);
-            let new_hash = string_hash(&new_id);
-            if !self.all_ids.contains(&new_hash) {
+            if self.svg_doc.element_by_id(&new_id).is_none() {
                 return NonEmptyString::new(new_id).unwrap();
             }
         }
@@ -214,8 +211,7 @@ impl Cache {
         loop {
             self.image_index += 1;
             let new_id = format!("image{}", self.image_index);
-            let new_hash = string_hash(&new_id);
-            if !self.all_ids.contains(&new_hash) {
+            if self.svg_doc.element_by_id(&new_id).is_none() {
                 return NonEmptyString::new(new_id).unwrap();
             }
         }
@@ -269,13 +265,6 @@ impl Cache {
         self.cache_has_opsz.insert(font, has_opsz);
         has_opsz
     }
-}
-
-// TODO: is there a simpler way?
-fn string_hash(s: &str) -> u64 {
-    let mut h = std::collections::hash_map::DefaultHasher::new();
-    s.hash(&mut h);
-    h.finish()
 }
 
 impl<'a, 'input: 'a> SvgNode<'a, 'input> {
@@ -443,15 +432,10 @@ pub(crate) fn convert_doc(svg_doc: &svgtree::Document, opt: &Options) -> Result<
     };
 
     let mut cache = Cache::new(
+        svg_doc,
         #[cfg(feature = "text")]
         opt.fontdb.clone(),
     );
-
-    for node in svg_doc.descendants() {
-        if !node.element_id().is_empty() {
-            cache.all_ids.insert(string_hash(node.element_id()));
-        }
-    }
 
     // The root transform wraps the viewBox mapping, so its origin is resolved
     // against the viewport rather than the viewBox.
