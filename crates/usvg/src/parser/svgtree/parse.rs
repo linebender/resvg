@@ -308,21 +308,14 @@ pub(crate) fn parse_svg_element<'input>(
         }
     }
 
-    let mut insert_attribute = |aid, value: &str, important: bool| {
+    let mut insert_attribute = |aid, value: roxmltree::StringStorage<'input>, important: bool| {
         // Check that attribute already exists.
         let idx = doc.attrs[attrs_start_idx..]
             .iter_mut()
             .position(|a| a.name == aid);
 
         // Append an attribute as usual.
-        let added = append_attribute(
-            parent_id,
-            tag_name,
-            aid,
-            roxmltree::StringStorage::new_owned(value),
-            important,
-            doc,
-        );
+        let added = append_attribute(parent_id, tag_name, aid, value, important, doc);
 
         // Check that attribute was actually added, because it could be skipped.
         if added {
@@ -357,74 +350,32 @@ pub(crate) fn parse_svg_element<'input>(
         }
     };
 
-    let mut write_declaration = |declaration: &Declaration| {
-        // TODO: perform XML attribute normalization
-        let imp = declaration.important;
-        let val = declaration.value;
-
-        if declaration.name == "marker" {
-            insert_attribute(AId::MarkerStart, val, imp);
-            insert_attribute(AId::MarkerMid, val, imp);
-            insert_attribute(AId::MarkerEnd, val, imp);
-        } else if declaration.name == "font" {
-            if let Ok(shorthand) = FontShorthand::from_str(val) {
-                // First we need to reset all values to their default.
-                insert_attribute(AId::FontStyle, "normal", imp);
-                insert_attribute(AId::FontVariant, "normal", imp);
-                insert_attribute(AId::FontWeight, "normal", imp);
-                insert_attribute(AId::FontStretch, "normal", imp);
-                insert_attribute(AId::LineHeight, "normal", imp);
-                insert_attribute(AId::FontSizeAdjust, "none", imp);
-                insert_attribute(AId::FontKerning, "auto", imp);
-                insert_attribute(AId::FontVariantCaps, "normal", imp);
-                insert_attribute(AId::FontVariantLigatures, "normal", imp);
-                insert_attribute(AId::FontVariantNumeric, "normal", imp);
-                insert_attribute(AId::FontVariantEastAsian, "normal", imp);
-                insert_attribute(AId::FontVariantPosition, "normal", imp);
-
-                // Then, we set the properties that have been declared.
-                shorthand
-                    .font_stretch
-                    .map(|s| insert_attribute(AId::FontStretch, s, imp));
-                shorthand
-                    .font_weight
-                    .map(|s| insert_attribute(AId::FontWeight, s, imp));
-                shorthand
-                    .font_variant
-                    .map(|s| insert_attribute(AId::FontVariant, s, imp));
-                shorthand
-                    .font_style
-                    .map(|s| insert_attribute(AId::FontStyle, s, imp));
-                insert_attribute(AId::FontSize, shorthand.font_size, imp);
-                insert_attribute(AId::FontFamily, shorthand.font_family, imp);
-            } else {
-                log::warn!(
-                    "Failed to parse {} value: '{}'",
-                    AId::Font,
-                    declaration.value
-                );
-            }
-        } else if let Some(aid) = AId::from_str(declaration.name) {
-            // Parse only the presentation attributes.
-            if aid.is_presentation() {
-                insert_attribute(aid, val, imp);
-            }
-        }
-    };
-
     // Apply CSS.
     for rule in &style_sheet.rules {
         if rule.selector.matches(&XmlNode(xml_node)) {
             for declaration in &rule.declarations {
-                write_declaration(declaration);
+                write_declaration(
+                    declaration,
+                    roxmltree::StringStorage::new_owned,
+                    &mut insert_attribute,
+                );
             }
         }
     }
 
     // Split a `style` attribute.
-    if let Some(value) = xml_node.attribute("style") {
-        for declaration in simplecss::DeclarationTokenizer::from(value) {
-            write_declaration(&declaration);
+    if let Some(style) = xml_node.attribute_node("style") {
+        match style.value_storage() {
+            roxmltree::StringStorage::Borrowed(value) => write_declarations(
+                value,
+                roxmltree::StringStorage::Borrowed,
+                &mut insert_attribute,
+            ),
+            roxmltree::StringStorage::Owned(_) => write_declarations(
+                style.value(),
+                roxmltree::StringStorage::new_owned,
+                &mut insert_attribute,
+            ),
         }
     }
 
@@ -441,6 +392,79 @@ pub(crate) fn parse_svg_element<'input>(
     );
 
     Ok(node_id)
+}
+
+fn write_declarations<'a, 'input>(
+    text: &'a str,
+    storage: fn(&'a str) -> roxmltree::StringStorage<'input>,
+    insert: &mut impl FnMut(AId, roxmltree::StringStorage<'input>, bool),
+) {
+    for declaration in simplecss::DeclarationTokenizer::from(text) {
+        write_declaration(&declaration, storage, insert);
+    }
+}
+
+fn write_declaration<'a, 'input>(
+    declaration: &Declaration<'a>,
+    storage: fn(&'a str) -> roxmltree::StringStorage<'input>,
+    insert: &mut impl FnMut(AId, roxmltree::StringStorage<'input>, bool),
+) {
+    // TODO: perform XML attribute normalization
+    let imp = declaration.important;
+    let val = declaration.value;
+
+    if declaration.name == "marker" {
+        insert(AId::MarkerStart, storage(val), imp);
+        insert(AId::MarkerMid, storage(val), imp);
+        insert(AId::MarkerEnd, storage(val), imp);
+    } else if declaration.name == "font" {
+        if let Ok(shorthand) = FontShorthand::from_str(val) {
+            // First we need to reset all values to their default.
+            for (aid, value) in [
+                (AId::FontStyle, "normal"),
+                (AId::FontVariant, "normal"),
+                (AId::FontWeight, "normal"),
+                (AId::FontStretch, "normal"),
+                (AId::LineHeight, "normal"),
+                (AId::FontSizeAdjust, "none"),
+                (AId::FontKerning, "auto"),
+                (AId::FontVariantCaps, "normal"),
+                (AId::FontVariantLigatures, "normal"),
+                (AId::FontVariantNumeric, "normal"),
+                (AId::FontVariantEastAsian, "normal"),
+                (AId::FontVariantPosition, "normal"),
+            ] {
+                insert(aid, roxmltree::StringStorage::Borrowed(value), imp);
+            }
+
+            // Then, we set the properties that have been declared.
+            if let Some(s) = shorthand.font_stretch {
+                insert(AId::FontStretch, storage(s), imp);
+            }
+            if let Some(s) = shorthand.font_weight {
+                insert(AId::FontWeight, storage(s), imp);
+            }
+            if let Some(s) = shorthand.font_variant {
+                insert(AId::FontVariant, storage(s), imp);
+            }
+            if let Some(s) = shorthand.font_style {
+                insert(AId::FontStyle, storage(s), imp);
+            }
+            insert(AId::FontSize, storage(shorthand.font_size), imp);
+            insert(AId::FontFamily, storage(shorthand.font_family), imp);
+        } else {
+            log::warn!(
+                "Failed to parse {} value: '{}'",
+                AId::Font,
+                declaration.value
+            );
+        }
+    } else if let Some(aid) = AId::from_str(declaration.name) {
+        // Parse only the presentation attributes.
+        if aid.is_presentation() {
+            insert(aid, storage(val), imp);
+        }
+    }
 }
 
 fn append_attribute<'input>(
