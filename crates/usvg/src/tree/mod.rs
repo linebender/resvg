@@ -681,7 +681,7 @@ impl Default for FillRule {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub(crate) enum ContextElement {
     /// The current context element is a use node. Since we can get
     /// the bounding box of a use node only once we have converted
@@ -692,7 +692,7 @@ pub(crate) enum ContextElement {
     /// if we draw the marker of a path). Since we already know the bounding
     /// box of the path when rendering the markers, we can convert them directly,
     /// so we do it while parsing.
-    PathNode(Transform, Option<NonZeroRect>),
+    PathNode,
 }
 
 /// A fill style.
