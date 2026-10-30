@@ -23,6 +23,26 @@ enum Segment {
     Close,
 }
 
+// These segments are used only for marker placement, not for drawing the curve.
+// Retain the first and last non-coincident controls as the endpoint tangents.
+fn cubic_segment(start: Point, p1: Point, p2: Point, end: Point) -> Segment {
+    let first = if same_point(start, p1) {
+        if same_point(start, p2) { end } else { p2 }
+    } else {
+        p1
+    };
+    let last = if same_point(end, p2) {
+        if same_point(end, p1) { start } else { p1 }
+    } else {
+        p2
+    };
+    Segment::CubicTo(first, last, end)
+}
+
+fn same_point(a: Point, b: Point) -> bool {
+    a.x.approx_eq_ulps(&b.x, 4) && a.y.approx_eq_ulps(&b.y, 4)
+}
+
 pub(crate) fn is_valid(node: SvgNode) -> bool {
     // `marker-*` attributes cannot be set on shapes inside a `clipPath`.
     if node
@@ -155,11 +175,11 @@ fn resolve(
             }
             tiny_skia_path::PathSegment::QuadTo(p1, p) => {
                 let (p1, p2, p) = quad_to_curve(prev, p1, p);
-                segments.push(Segment::CubicTo(p1, p2, p));
+                segments.push(cubic_segment(prev, p1, p2, p));
                 prev = p;
             }
             tiny_skia_path::PathSegment::CubicTo(p1, p2, p) => {
-                segments.push(Segment::CubicTo(p1, p2, p));
+                segments.push(cubic_segment(prev, p1, p2, p));
                 prev = p;
             }
             tiny_skia_path::PathSegment::Close => {
@@ -273,6 +293,36 @@ where
 }
 
 fn calc_vertex_angle(path: &[Segment], idx: usize) -> f32 {
+    // The first and last vertices of a closed subpath share the same join.
+    // Both markers use its incoming/outgoing bisector, including when the
+    // closing line has zero length because the preceding curve ends at start.
+    if matches!(path[idx], Segment::MoveTo(_) | Segment::Close) {
+        let start = path[..=idx]
+            .iter()
+            .rposition(|s| matches!(s, Segment::MoveTo(_)))
+            .unwrap();
+        let end = path[start + 1..]
+            .iter()
+            .position(|s| matches!(s, Segment::MoveTo(_)))
+            .map_or(path.len(), |offset| start + 1 + offset);
+        if end > start + 2 && matches!(path[end - 1], Segment::Close) {
+            let origin = get_subpath_start(path, end - 1);
+            let outgoing = match path[start + 1] {
+                Segment::LineTo(p) | Segment::CubicTo(p, _, _) => p,
+                _ => origin,
+            };
+            let incoming = get_prev_vertex(path, end - 1);
+            if same_point(incoming, origin) {
+                // Browsers use the initial tangent for a zero-length close.
+                return calc_line_angle(origin.x, origin.y, outgoing.x, outgoing.y);
+            }
+            return calc_angle(
+                incoming.x, incoming.y, origin.x, origin.y, origin.x, origin.y, outgoing.x,
+                outgoing.y,
+            );
+        }
+    }
+
     if idx == 0 {
         // First segment.
 
@@ -371,14 +421,14 @@ fn calc_vertex_angle(path: &[Segment], idx: usize) -> f32 {
             }
             (Segment::LineTo(p), Segment::Close) => {
                 let prev = get_prev_vertex(path, idx);
-                let next = get_subpath_start(path, idx);
+                let next = close_target(path, idx, p);
                 calc_angle(prev.x, prev.y, p.x, p.y, p.x, p.y, next.x, next.y)
             }
-            (_, Segment::Close) => {
-                let prev = get_prev_vertex(path, idx);
-                let next = get_subpath_start(path, idx);
-                calc_line_angle(prev.x, prev.y, next.x, next.y)
+            (Segment::CubicTo(_, p2, p), Segment::Close) => {
+                let next = close_target(path, idx, p);
+                calc_angle(p2.x, p2.y, p.x, p.y, p.x, p.y, next.x, next.y)
             }
+            (_, Segment::Close) => 0.0,
             (_, Segment::MoveTo(_)) | (Segment::Close, _) => 0.0,
         }
     }
@@ -443,6 +493,23 @@ fn get_subpath_start(segments: &[Segment], idx: usize) -> tiny_skia_path::Point 
     }
 
     tiny_skia_path::Point::zero()
+}
+
+// A zero-length close uses the initial tangent, matching browser marker layout.
+fn close_target(segments: &[Segment], idx: usize, from: Point) -> Point {
+    let origin = get_subpath_start(segments, idx);
+    if same_point(from, origin) {
+        let start = segments[..=idx]
+            .iter()
+            .rposition(|s| matches!(s, Segment::MoveTo(_)))
+            .unwrap();
+        match segments[start + 1] {
+            Segment::LineTo(p) | Segment::CubicTo(p, _, _) => p,
+            _ => origin,
+        }
+    } else {
+        origin
+    }
 }
 
 fn get_prev_vertex(segments: &[Segment], idx: usize) -> tiny_skia_path::Point {
