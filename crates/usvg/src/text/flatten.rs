@@ -236,9 +236,18 @@ pub(crate) trait DatabaseExt {
         variations: &[crate::FontVariation],
     ) -> Option<tiny_skia_path::Path>;
     fn has_opsz_axis(&self, id: ID) -> bool;
+    fn color_tables(&self, id: ID) -> ColorTables;
     fn raster(&self, id: ID, glyph_id: GlyphId) -> Option<BitmapImage>;
     fn svg(&self, id: ID, glyph_id: GlyphId) -> Option<Node>;
     fn colr(&self, id: ID, glyph_id: GlyphId, variations: &[crate::FontVariation]) -> Option<Tree>;
+}
+
+/// The tables a font can contain non-outline glyphs in.
+#[derive(Clone, Copy, Default)]
+pub(crate) struct ColorTables {
+    pub(crate) colr: bool,
+    pub(crate) svg: bool,
+    pub(crate) bitmaps: bool,
 }
 
 #[derive(Clone)]
@@ -289,6 +298,19 @@ impl DatabaseExt for Database {
         })
         .flatten()
         .unwrap_or(false)
+    }
+
+    fn color_tables(&self, id: ID) -> ColorTables {
+        self.with_face_data(id, |data, face_index| -> Option<ColorTables> {
+            let font = skrifa::FontRef::from_index(data, face_index).ok()?;
+            Some(ColorTables {
+                colr: font.colr().is_ok(),
+                svg: font.svg().is_ok(),
+                bitmaps: !font.bitmap_strikes().is_empty(),
+            })
+        })
+        .flatten()
+        .unwrap_or_default()
     }
 
     fn raster(&self, id: ID, glyph_id: GlyphId) -> Option<BitmapImage> {
