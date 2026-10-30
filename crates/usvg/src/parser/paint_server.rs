@@ -297,7 +297,7 @@ fn convert_stops(grad: SvgNode) -> Vec<Stop> {
                 _ => prev_offset.number,
             };
             prev_offset = Length::new_number(offset);
-            let offset = crate::f32_bound(0.0, offset as f32, 1.0);
+            let offset = f32::clamp(offset as f32, 0.0, 1.0);
 
             let (color, opacity) = match stop.attribute(AId::StopColor) {
                 Some("currentColor") => stop

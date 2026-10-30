@@ -187,18 +187,3 @@ pub fn decompress_svgz(data: &[u8]) -> Result<Vec<u8>, Error> {
         .map_err(|_| Error::MalformedGZip)?;
     Ok(decoded)
 }
-
-#[inline]
-pub(crate) fn f32_bound(min: f32, val: f32, max: f32) -> f32 {
-    debug_assert!(min.is_finite());
-    debug_assert!(max.is_finite());
-
-    if val > max {
-        max
-    } else if val >= min {
-        val
-    } else {
-        // Catches `val < min` as well as a NaN `val`.
-        min
-    }
-}

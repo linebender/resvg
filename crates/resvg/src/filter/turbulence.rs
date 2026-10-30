@@ -3,7 +3,7 @@
 
 #![allow(clippy::needless_range_loop)]
 
-use super::{ImageRefMut, f32_bound};
+use super::ImageRefMut;
 use usvg::ApproxZeroUlps;
 
 const RAND_M: i32 = 2147483647; // 2**31 - 1
@@ -74,7 +74,7 @@ pub fn apply(
                 n * 255.0
             };
 
-            (f32_bound(0.0, n as f32, 255.0) + 0.5) as u8
+            (f32::clamp(n as f32, 0.0, 255.0) + 0.5) as u8
         };
 
         pixel.r = turb(0);
