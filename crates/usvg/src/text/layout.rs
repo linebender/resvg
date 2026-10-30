@@ -204,6 +204,7 @@ pub(crate) fn layout_text(
     text_node: &Text,
     resolver: &FontResolver,
     fontdb: &mut Arc<fontdb::Database>,
+    shaping_fonts: &mut ShapingFonts,
 ) -> Option<(Vec<Span>, NonZeroRect)> {
     let mut fonts_cache: FontsCache = HashMap::new();
 
@@ -230,7 +231,7 @@ pub(crate) fn layout_text(
             TextFlow::Path(_) => (0.0, 0.0),
         };
 
-        let mut clusters = process_chunk(chunk, &fonts_cache, resolver, fontdb);
+        let mut clusters = process_chunk(chunk, &fonts_cache, resolver, fontdb, shaping_fonts);
         if clusters.is_empty() {
             char_offset += chunk.text.chars().count();
             continue;
@@ -899,6 +900,7 @@ fn process_chunk(
     fonts_cache: &FontsCache,
     resolver: &FontResolver,
     fontdb: &mut Arc<fontdb::Database>,
+    shaping_fonts: &mut ShapingFonts,
 ) -> Vec<GlyphCluster> {
     // The way this function works is a bit tricky.
     //
@@ -953,6 +955,7 @@ fn process_chunk(
             span.font_optical_sizing,
             resolver,
             fontdb,
+            shaping_fonts,
         );
 
         // Do nothing with the first run.
@@ -1366,6 +1369,7 @@ pub(crate) fn shape_text(
     font_optical_sizing: crate::FontOpticalSizing,
     resolver: &FontResolver,
     fontdb: &mut Arc<fontdb::Database>,
+    shaping_fonts: &mut ShapingFonts,
 ) -> Vec<Glyph> {
     let mut glyphs = shape_text_with_font(
         text,
@@ -1376,6 +1380,7 @@ pub(crate) fn shape_text(
         font_size,
         font_optical_sizing,
         fontdb,
+        shaping_fonts,
     )
     .unwrap_or_default();
 
@@ -1410,6 +1415,7 @@ pub(crate) fn shape_text(
                 font_size,
                 font_optical_sizing,
                 fontdb,
+                shaping_fonts,
             )
             .unwrap_or_default();
 
@@ -1458,6 +1464,29 @@ pub(crate) fn shape_text(
     glyphs
 }
 
+pub(crate) type ShapingFonts = HashMap<ID, harfrust::Font>;
+
+fn shaping_font(
+    id: ID,
+    fontdb: &fontdb::Database,
+    shaping_fonts: &mut ShapingFonts,
+) -> Option<harfrust::Font> {
+    if let Some(font) = shaping_fonts.get(&id) {
+        return Some(font.clone());
+    }
+
+    // Share the font data if it is already in memory, otherwise copy it.
+    let font = if let Some((fontdb::Source::Binary(data), face_index)) = fontdb.face_source(id) {
+        harfrust::Font::new(data, face_index)
+    } else {
+        fontdb.with_face_data(id, |data, face_index| {
+            harfrust::Font::new(data.to_vec(), face_index)
+        })?
+    }?;
+    shaping_fonts.insert(id, font.clone());
+    Some(font)
+}
+
 /// Converts a text into a list of glyph IDs.
 ///
 /// This function will do the BIDI reordering and text shaping.
@@ -1470,24 +1499,14 @@ fn shape_text_with_font(
     font_size: f32,
     font_optical_sizing: crate::FontOpticalSizing,
     fontdb: &fontdb::Database,
+    shaping_fonts: &mut ShapingFonts,
 ) -> Option<Vec<Glyph>> {
     use harfrust::font::Variation;
     use harfrust::{Buffer, Feature, ShaperFont, Tag};
 
     use crate::text::OPSZ;
 
-    // `harfrust::Font` needs owned font data: share it if the font is already in memory,
-    // otherwise copy it.
-    // TODO: add an ID -> font data cache so that non-`Source::Binary` fonts
-    // aren't re-copied for every text span.
-    let hr_font =
-        if let Some((fontdb::Source::Binary(data), face_index)) = fontdb.face_source(font.id) {
-            harfrust::Font::new(data, face_index)
-        } else {
-            fontdb.with_face_data(font.id, |font_data, face_index| {
-                harfrust::Font::new(font_data.to_vec(), face_index)
-            })?
-        }?;
+    let hr_font = shaping_font(font.id, fontdb, shaping_fonts)?;
 
     // Build the list of variations to apply
     let mut variations: Vec<Variation> = variations

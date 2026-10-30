@@ -59,6 +59,8 @@ pub struct Cache {
     cache_raster: HashMap<(ID, GlyphId), Option<BitmapImage>>,
     #[cfg(feature = "text")]
     cache_has_opsz: HashMap<ID, bool>,
+    #[cfg(feature = "text")]
+    pub(crate) shaping_fonts: crate::text::layout::ShapingFonts,
 
     pub clip_paths: HashMap<String, Arc<ClipPath>>,
     pub masks: HashMap<String, Arc<Mask>>,
@@ -110,6 +112,8 @@ impl Cache {
             cache_raster: HashMap::new(),
             #[cfg(feature = "text")]
             cache_has_opsz: HashMap::new(),
+            #[cfg(feature = "text")]
+            shaping_fonts: HashMap::new(),
 
             clip_paths: HashMap::new(),
             masks: HashMap::new(),
