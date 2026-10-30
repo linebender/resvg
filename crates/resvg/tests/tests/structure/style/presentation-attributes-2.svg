@@ -1,0 +1,11 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <title>Presentation attributes (SVG 2)</title>
+    <desc>
+        Geometry attributes can be set via CSS type selectors.
+    </desc>
+
+    <style id="style1">
+        rect { x:20;height:160px;fill:red; }
+    </style>
+    <rect id="rect1" y="20" width="160"/>
+</svg>
