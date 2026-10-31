@@ -1056,13 +1056,19 @@ pub struct Group {
     pub(crate) filters: Vec<Arc<filter::Filter>>,
     // Calculated from `children` on first access and cached, so they must
     // only be accessed once the group is complete.
+    pub(crate) bounding_boxes: OnceLock<Box<GroupBoundingBoxes>>,
+    pub(crate) children: Vec<Node>,
+}
+
+// Boxed, because most nodes never have their bounding boxes requested.
+#[derive(Clone, Debug, Default)]
+pub(crate) struct GroupBoundingBoxes {
     pub(crate) bounding_box: OnceLock<Option<Rect>>,
     pub(crate) abs_bounding_box: OnceLock<Option<Rect>>,
     pub(crate) stroke_bounding_box: OnceLock<Option<Rect>>,
     pub(crate) abs_stroke_bounding_box: OnceLock<Option<Rect>>,
     pub(crate) layer_bounding_box: OnceLock<Option<NonZeroRect>>,
     pub(crate) abs_layer_bounding_box: OnceLock<Option<NonZeroRect>>,
-    pub(crate) children: Vec<Node>,
 }
 
 impl Group {
@@ -1078,12 +1084,7 @@ impl Group {
             mask: None,
             filters: Vec::new(),
             is_context_element: false,
-            bounding_box: OnceLock::new(),
-            abs_bounding_box: OnceLock::new(),
-            stroke_bounding_box: OnceLock::new(),
-            abs_stroke_bounding_box: OnceLock::new(),
-            layer_bounding_box: OnceLock::new(),
-            abs_layer_bounding_box: OnceLock::new(),
+            bounding_boxes: OnceLock::new(),
             children: Vec::new(),
         }
     }
@@ -1157,7 +1158,7 @@ impl Group {
     ///
     /// Can be set to `None` in case of an empty group.
     pub fn bounding_box(&self) -> Option<Rect> {
-        *self.bounding_box.get_or_init(|| {
+        *self.bounding_boxes().bounding_box.get_or_init(|| {
             self.union_of_children(|child| Some(child.to_parent_coordinates(child.bounding_box()?)))
         })
     }
@@ -1167,6 +1168,7 @@ impl Group {
     /// `userSpaceOnUse` in SVG terms.
     pub fn abs_bounding_box(&self) -> Option<Rect> {
         *self
+            .bounding_boxes()
             .abs_bounding_box
             .get_or_init(|| self.union_of_children(Node::abs_bounding_box))
     }
@@ -1175,7 +1177,7 @@ impl Group {
     ///
     /// Similar to `bounding_box`, but includes stroke.
     pub fn stroke_bounding_box(&self) -> Option<Rect> {
-        *self.stroke_bounding_box.get_or_init(|| {
+        *self.bounding_boxes().stroke_bounding_box.get_or_init(|| {
             self.union_of_children(|child| {
                 Some(child.to_parent_coordinates(child.stroke_bounding_box()?))
             })
@@ -1187,6 +1189,7 @@ impl Group {
     /// Similar to `abs_bounding_box`, but includes stroke.
     pub fn abs_stroke_bounding_box(&self) -> Option<Rect> {
         *self
+            .bounding_boxes()
             .abs_stroke_bounding_box
             .get_or_init(|| self.union_of_children(Node::abs_stroke_bounding_box))
     }
@@ -1205,21 +1208,29 @@ impl Group {
     /// Unlike other bounding boxes, cannot have zero size.
     pub fn layer_bounding_box(&self) -> Option<NonZeroRect> {
         *self
+            .bounding_boxes()
             .layer_bounding_box
             .get_or_init(|| self.calculate_layer_bounding_box())
     }
 
     /// Element's "layer" bounding box in canvas units.
     pub fn abs_layer_bounding_box(&self) -> Option<NonZeroRect> {
-        *self.abs_layer_bounding_box.get_or_init(|| {
-            self.layer_bounding_box()
-                .and_then(|r| r.transform(self.abs_transform))
-        })
+        *self
+            .bounding_boxes()
+            .abs_layer_bounding_box
+            .get_or_init(|| {
+                self.layer_bounding_box()
+                    .and_then(|r| r.transform(self.abs_transform))
+            })
     }
 
     /// Group's children.
     pub fn children(&self) -> &[Node] {
         &self.children
+    }
+
+    fn bounding_boxes(&self) -> &GroupBoundingBoxes {
+        self.bounding_boxes.get_or_init(Box::default)
     }
 
     /// Checks if this group should be isolated during rendering.
@@ -1313,10 +1324,16 @@ pub struct Path {
     pub(crate) rendering_mode: ShapeRendering,
     pub(crate) data: Arc<tiny_skia_path::Path>,
     pub(crate) abs_transform: Transform,
-    pub(crate) bounding_box: OnceLock<Option<Rect>>,
-    pub(crate) abs_bounding_box: OnceLock<Option<Rect>>,
-    pub(crate) stroke_bounding_box: OnceLock<Option<Rect>>,
-    pub(crate) abs_stroke_bounding_box: OnceLock<Option<Rect>>,
+    pub(crate) bounding_boxes: OnceLock<Box<PathBoundingBoxes>>,
+}
+
+// Boxed, because most nodes never have their bounding boxes requested.
+#[derive(Clone, Debug, Default)]
+pub(crate) struct PathBoundingBoxes {
+    bounding_box: OnceLock<Option<Rect>>,
+    abs_bounding_box: OnceLock<Option<Rect>>,
+    stroke_bounding_box: OnceLock<Option<Rect>>,
+    abs_stroke_bounding_box: OnceLock<Option<Rect>>,
 }
 
 impl Path {
@@ -1352,10 +1369,7 @@ impl Path {
             rendering_mode,
             data,
             abs_transform,
-            bounding_box: OnceLock::new(),
-            abs_bounding_box: OnceLock::new(),
-            stroke_bounding_box: OnceLock::new(),
-            abs_stroke_bounding_box: OnceLock::new(),
+            bounding_boxes: OnceLock::new(),
         }
     }
 
@@ -1423,6 +1437,7 @@ impl Path {
     /// `objectBoundingBox` in SVG terms. Meaning it doesn't affected by parent transforms.
     pub fn bounding_box(&self) -> Option<Rect> {
         *self
+            .bounding_boxes()
             .bounding_box
             .get_or_init(|| self.data.compute_tight_bounds())
     }
@@ -1431,7 +1446,7 @@ impl Path {
     ///
     /// `userSpaceOnUse` in SVG terms.
     pub fn abs_bounding_box(&self) -> Option<Rect> {
-        *self.abs_bounding_box.get_or_init(|| {
+        *self.bounding_boxes().abs_bounding_box.get_or_init(|| {
             if self.abs_transform.has_skew() {
                 self.abs_data()?.compute_tight_bounds()
             } else {
@@ -1445,7 +1460,7 @@ impl Path {
     ///
     /// Will have the same value as `bounding_box` when path has no stroke.
     pub fn stroke_bounding_box(&self) -> Option<Rect> {
-        *self.stroke_bounding_box.get_or_init(|| {
+        *self.bounding_boxes().stroke_bounding_box.get_or_init(|| {
             Path::calculate_stroke_bbox(self.stroke.as_ref(), &self.data)
                 .or_else(|| self.bounding_box())
         })
@@ -1455,16 +1470,23 @@ impl Path {
     ///
     /// Will have the same value as `abs_bounding_box` when path has no stroke.
     pub fn abs_stroke_bounding_box(&self) -> Option<Rect> {
-        *self.abs_stroke_bounding_box.get_or_init(|| {
-            if self.stroke.is_none() {
-                self.abs_bounding_box()
-            } else if self.abs_transform.has_skew() {
-                Path::calculate_stroke_bbox(self.stroke.as_ref(), &self.abs_data()?)
-                    .or_else(|| self.abs_bounding_box())
-            } else {
-                self.stroke_bounding_box()?.transform(self.abs_transform)
-            }
-        })
+        *self
+            .bounding_boxes()
+            .abs_stroke_bounding_box
+            .get_or_init(|| {
+                if self.stroke.is_none() {
+                    self.abs_bounding_box()
+                } else if self.abs_transform.has_skew() {
+                    Path::calculate_stroke_bbox(self.stroke.as_ref(), &self.abs_data()?)
+                        .or_else(|| self.abs_bounding_box())
+                } else {
+                    self.stroke_bounding_box()?.transform(self.abs_transform)
+                }
+            })
+    }
+
+    fn bounding_boxes(&self) -> &PathBoundingBoxes {
+        self.bounding_boxes.get_or_init(Box::default)
     }
 
     fn abs_data(&self) -> Option<tiny_skia_path::Path> {
@@ -1920,22 +1942,12 @@ mod tests {
     use super::*;
 
     fn assert_no_bounding_boxes(group: &Group) {
-        assert!(group.bounding_box.get().is_none());
-        assert!(group.abs_bounding_box.get().is_none());
-        assert!(group.stroke_bounding_box.get().is_none());
-        assert!(group.abs_stroke_bounding_box.get().is_none());
-        assert!(group.layer_bounding_box.get().is_none());
-        assert!(group.abs_layer_bounding_box.get().is_none());
+        assert!(group.bounding_boxes.get().is_none());
 
         for child in group.children() {
             match child {
                 Node::Group(group) => assert_no_bounding_boxes(group),
-                Node::Path(path) => {
-                    assert!(path.bounding_box.get().is_none());
-                    assert!(path.abs_bounding_box.get().is_none());
-                    assert!(path.stroke_bounding_box.get().is_none());
-                    assert!(path.abs_stroke_bounding_box.get().is_none());
-                }
+                Node::Path(path) => assert!(path.bounding_boxes.get().is_none()),
                 _ => {}
             }
         }
