@@ -60,7 +60,7 @@ fn push_outline_paths(
 
     if let Some(data) = builder.finish() {
         let path = Path::new(
-            String::new(),
+            Box::default(),
             span.visible,
             span.fill.clone(),
             span.stroke.clone(),

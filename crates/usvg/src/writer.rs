@@ -610,7 +610,7 @@ fn write_text_path_paths(parent: &Group, opt: &WriteOptions, xml: &mut XmlWriter
             for chunk in &text.chunks {
                 if let TextFlow::Path(text_path) = &chunk.text_flow {
                     let path = Path::new(
-                        text_path.id().to_string(),
+                        text_path.id().into(),
                         true,
                         None,
                         None,

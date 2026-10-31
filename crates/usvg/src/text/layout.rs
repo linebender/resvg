@@ -492,7 +492,7 @@ pub(crate) fn convert_decoration(
     path_data = path_data.transform(transform)?;
 
     Some(Path::new(
-        String::new(),
+        Box::default(),
         span.visible,
         decoration.fill.take(),
         decoration.stroke.take(),
