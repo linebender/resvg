@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="48">
+    <title>Pattern sampling filters</title>
+    <defs>
+        <pattern id="p" patternUnits="userSpaceOnUse" width="12" height="8"
+                 patternTransform="rotate(12)">
+            <rect id="stripe" width="4" height="8" fill="#174a86"/>
+        </pattern>
+    </defs>
+    <rect id="area" width="160" height="48" fill="url(#p)"/>
+</svg>
