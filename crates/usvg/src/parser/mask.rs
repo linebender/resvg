@@ -7,7 +7,9 @@ use svgtypes::{Length, LengthUnit as Unit};
 
 use super::svgtree::{AId, EId, SvgNode};
 use super::{OptionLog, converter};
-use crate::{Group, Mask, MaskType, Node, NonEmptyString, NonZeroRect, Transform, Units};
+use crate::{
+    ColorInterpolation, Group, Mask, MaskType, Node, NonEmptyString, NonZeroRect, Transform, Units,
+};
 
 pub(crate) fn convert(
     node: SvgNode,
@@ -68,11 +70,16 @@ pub(crate) fn convert(
     }
     let id_copy = id.get().to_string();
 
+    let color_interpolation = node
+        .find_attribute(AId::ColorInterpolation)
+        .unwrap_or(ColorInterpolation::SRGB);
+
     if mask_all {
         let mask = Arc::new(Mask {
             id,
             rect,
             kind: MaskType::Luminance,
+            color_interpolation,
             mask: None,
             root: Group::empty(),
         });
@@ -101,6 +108,7 @@ pub(crate) fn convert(
         id,
         rect,
         kind,
+        color_interpolation,
         mask,
         root: Group::empty(),
     };

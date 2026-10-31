@@ -50,9 +50,13 @@ pub fn fill_path(
         }
         usvg::Paint::LinearGradient(lg) => {
             paint.shader = convert_linear_gradient(lg, fill.opacity())?;
+            paint.force_hq_pipeline =
+                lg.color_interpolation() == usvg::ColorInterpolation::LinearRGB;
         }
         usvg::Paint::RadialGradient(rg) => {
             paint.shader = convert_radial_gradient(rg, fill.opacity())?;
+            paint.force_hq_pipeline =
+                rg.color_interpolation() == usvg::ColorInterpolation::LinearRGB;
         }
         usvg::Paint::Pattern(pattern) => {
             let (patt_pix, patt_ts) = render_pattern_pixmap(pattern, ctx, transform)?;
@@ -90,9 +94,13 @@ fn stroke_path(
         }
         usvg::Paint::LinearGradient(lg) => {
             paint.shader = convert_linear_gradient(lg, stroke.opacity())?;
+            paint.force_hq_pipeline =
+                lg.color_interpolation() == usvg::ColorInterpolation::LinearRGB;
         }
         usvg::Paint::RadialGradient(rg) => {
             paint.shader = convert_radial_gradient(rg, stroke.opacity())?;
+            paint.force_hq_pipeline =
+                rg.color_interpolation() == usvg::ColorInterpolation::LinearRGB;
         }
         usvg::Paint::Pattern(pattern) => {
             let (patt_pix, patt_ts) = render_pattern_pixmap(pattern, ctx, transform)?;
@@ -161,19 +169,73 @@ fn convert_base_gradient(
         usvg::SpreadMethod::Repeat => tiny_skia::SpreadMode::Repeat,
     };
 
+    let linear_rgb = gradient.color_interpolation() == usvg::ColorInterpolation::LinearRGB;
     let mut points = Vec::with_capacity(gradient.stops().len());
+    let mut previous = None;
     for stop in gradient.stops() {
         let alpha = stop.opacity() * opacity;
-        let color = tiny_skia::Color::from_rgba8(
+        let mut color = tiny_skia::Color::from_rgba8(
             stop.color().red,
             stop.color().green,
             stop.color().blue,
             alpha.to_u8(),
         );
-        points.push(tiny_skia::GradientStop::new(stop.offset().get(), color));
+        if linear_rgb {
+            // Preserve opacity precision when adding intermediate stops.
+            color.set_alpha(alpha.get());
+        }
+        let current = (stop.offset().get(), color);
+        if linear_rgb {
+            if let Some(previous) = previous {
+                append_linear_rgb_stops(previous, current, &mut points);
+            } else {
+                points.push(tiny_skia::GradientStop::new(current.0, current.1));
+            }
+            previous = Some(current);
+        } else {
+            points.push(tiny_skia::GradientStop::new(current.0, current.1));
+        }
     }
 
     Some((mode, points))
+}
+
+// Approximate linear-light interpolation with sRGB stops, leaving tiny-skia's
+// existing alpha compositing and antialiasing unchanged.
+fn append_linear_rgb_stops(
+    start: (f32, tiny_skia::Color),
+    end: (f32, tiny_skia::Color),
+    output: &mut Vec<tiny_skia::GradientStop>,
+) {
+    use crate::color::{linear_to_srgb, srgb_to_linear};
+
+    let offset = (start.0 + end.0) * 0.5;
+    let channels = |c: tiny_skia::Color| [c.red(), c.green(), c.blue()];
+    let a = channels(start.1);
+    let b = channels(end.1);
+    let middle = std::array::from_fn::<_, 3, _>(|i| {
+        linear_to_srgb((srgb_to_linear(a[i]) + srgb_to_linear(b[i])) * 0.5)
+    });
+
+    // The encoding curve is concave. Its maximum distance from a chord is at
+    // most twice its midpoint distance. Keep it below one eighth of an 8-bit
+    // channel step to leave room for rounding during rasterization.
+    let subdivide = (0..3).any(|i| (middle[i] - (a[i] + b[i]) * 0.5).abs() > 0.0625 / 255.0);
+    if subdivide && offset > start.0 && offset < end.0 {
+        let color = tiny_skia::Color::from_rgba(
+            middle[0],
+            middle[1],
+            middle[2],
+            (start.1.alpha() + end.1.alpha()) * 0.5,
+        )
+        .unwrap();
+        let midpoint = (offset, color);
+        append_linear_rgb_stops(start, midpoint, output);
+        append_linear_rgb_stops(midpoint, end, output);
+    } else {
+        // Keep coincident stops, which represent hard transitions.
+        output.push(tiny_skia::GradientStop::new(end.0, end.1));
+    }
 }
 
 fn render_pattern_pixmap(
