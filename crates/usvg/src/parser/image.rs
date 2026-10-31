@@ -7,6 +7,7 @@ use svgtypes::{AspectRatio, Length};
 
 use super::svgtree::{AId, SvgNode};
 use super::{OptionLog, Options, converter};
+use crate::tree::GroupBoundingBoxes;
 use crate::{
     ClipPath, Group, Image, ImageKind, ImageRendering, Node, NonZeroRect, Path, Size, Transform,
     Tree, Visibility,
@@ -282,12 +283,16 @@ pub(crate) fn convert_inner(
         // clip/mask/filter applied to the `<image>` would be resolved against
         // the oversized image. See https://github.com/linebender/resvg/issues/1034
         let bbox = rect.to_rect();
-        g2.bounding_box = OnceLock::from(Some(bbox));
-        g2.stroke_bounding_box = OnceLock::from(Some(bbox));
+        let mut bounding_boxes = GroupBoundingBoxes {
+            bounding_box: OnceLock::from(Some(bbox)),
+            stroke_bounding_box: OnceLock::from(Some(bbox)),
+            ..GroupBoundingBoxes::default()
+        };
         if let Some(abs) = bbox.transform(g2.abs_transform) {
-            g2.abs_bounding_box = OnceLock::from(Some(abs));
-            g2.abs_stroke_bounding_box = OnceLock::from(Some(abs));
+            bounding_boxes.abs_bounding_box = OnceLock::from(Some(abs));
+            bounding_boxes.abs_stroke_bounding_box = OnceLock::from(Some(abs));
         }
+        g2.bounding_boxes = OnceLock::from(Box::new(bounding_boxes));
 
         parent.children.push(Node::Group(Box::new(g2)));
     } else {
