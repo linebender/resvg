@@ -917,7 +917,7 @@ impl Node {
     pub fn id(&self) -> &str {
         match self {
             Node::Group(e) => e.id.as_str(),
-            Node::Path(e) => e.id.as_str(),
+            Node::Path(e) => &e.id,
             Node::Image(e) => e.id.as_str(),
             Node::Text(e) => e.id.as_str(),
         }
@@ -1316,7 +1316,7 @@ impl Default for PaintOrder {
 /// A path element.
 #[derive(Clone, Debug)]
 pub struct Path {
-    pub(crate) id: String,
+    pub(crate) id: Box<str>,
     pub(crate) visible: bool,
     pub(crate) fill: Option<Fill>,
     pub(crate) stroke: Option<Stroke>,
@@ -1339,7 +1339,7 @@ pub(crate) struct PathBoundingBoxes {
 impl Path {
     pub(crate) fn new_simple(data: Arc<tiny_skia_path::Path>) -> Self {
         Self::new(
-            String::new(),
+            Box::default(),
             true,
             None,
             None,
@@ -1351,7 +1351,7 @@ impl Path {
     }
 
     pub(crate) fn new(
-        id: String,
+        id: Box<str>,
         visible: bool,
         fill: Option<Fill>,
         stroke: Option<Stroke>,

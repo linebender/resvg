@@ -812,7 +812,7 @@ fn convert_image_inner(
                     g.id = child2.id().to_string();
                     match child2 {
                         Node::Group(g2) => g2.id.clear(),
-                        Node::Path(path) => path.id.clear(),
+                        Node::Path(path) => path.id = Box::default(),
                         Node::Image(image) => image.id.clear(),
                         Node::Text(text) => text.id.clear(),
                     }
