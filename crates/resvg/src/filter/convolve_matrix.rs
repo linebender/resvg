@@ -1,7 +1,7 @@
 // Copyright 2020 the Resvg Authors
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use super::{ImageRefMut, f32_bound};
+use super::ImageRefMut;
 use rgb::RGBA8;
 use usvg::filter::{ConvolveMatrix, EdgeMode};
 
@@ -79,15 +79,15 @@ pub fn apply(matrix: &ConvolveMatrix, src: ImageRefMut) {
             new_a = new_a / matrix.divisor().get() + matrix.bias();
         }
 
-        let bounded_new_a = f32_bound(0.0, new_a, 1.0);
+        let bounded_new_a = f32::clamp(new_a, 0.0, 1.0);
 
         let calc = |x| {
             let x = x / matrix.divisor().get() + matrix.bias() * new_a;
 
             let x = if matrix.preserve_alpha() {
-                f32_bound(0.0, x, 1.0) * bounded_new_a
+                f32::clamp(x, 0.0, 1.0) * bounded_new_a
             } else {
-                f32_bound(0.0, x, bounded_new_a)
+                f32::clamp(x, 0.0, bounded_new_a)
             };
 
             (x * 255.0 + 0.5) as u8
