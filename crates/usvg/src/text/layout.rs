@@ -1463,27 +1463,39 @@ pub(crate) fn shape_text(
     glyphs
 }
 
-pub(crate) type ShapingFonts = HashMap<ID, harfrust::Font>;
+pub(crate) type ShapingFonts = HashMap<ID, ShapingFont>;
 
-fn shaping_font(
+pub(crate) struct ShapingFont {
+    font: harfrust::Font,
+    plans: Vec<harfrust::ShapePlan>,
+}
+
+fn shaping_font<'a>(
     id: ID,
     fontdb: &fontdb::Database,
-    shaping_fonts: &mut ShapingFonts,
-) -> Option<harfrust::Font> {
-    if let Some(font) = shaping_fonts.get(&id) {
-        return Some(font.clone());
-    }
+    shaping_fonts: &'a mut ShapingFonts,
+) -> Option<&'a mut ShapingFont> {
+    use std::collections::hash_map::Entry;
 
-    // Share the font data if it is already in memory, otherwise copy it.
-    let font = if let Some((fontdb::Source::Binary(data), face_index)) = fontdb.face_source(id) {
-        harfrust::Font::new(data, face_index)
-    } else {
-        fontdb.with_face_data(id, |data, face_index| {
-            harfrust::Font::new(data.to_vec(), face_index)
-        })?
-    }?;
-    shaping_fonts.insert(id, font.clone());
-    Some(font)
+    match shaping_fonts.entry(id) {
+        Entry::Occupied(entry) => Some(entry.into_mut()),
+        Entry::Vacant(entry) => {
+            // Share the font data if it is already in memory, otherwise copy it.
+            let font =
+                if let Some((fontdb::Source::Binary(data), face_index)) = fontdb.face_source(id) {
+                    harfrust::Font::new(data, face_index)
+                } else {
+                    fontdb.with_face_data(id, |data, face_index| {
+                        harfrust::Font::new(data.to_vec(), face_index)
+                    })?
+                }?;
+
+            Some(entry.insert(ShapingFont {
+                font,
+                plans: Vec::new(),
+            }))
+        }
+    }
 }
 
 /// Converts a text into a list of glyph IDs.
@@ -1501,11 +1513,14 @@ fn shape_text_with_font(
     shaping_fonts: &mut ShapingFonts,
 ) -> Option<Vec<Glyph>> {
     use harfrust::font::Variation;
-    use harfrust::{Buffer, Feature, ShaperFont, Tag};
+    use harfrust::{Buffer, Feature, ShapePlan, ShapePlanKey, ShaperFont, Tag};
 
     use crate::text::OPSZ;
 
-    let hr_font = shaping_font(font.id, fontdb, shaping_fonts)?;
+    let ShapingFont {
+        font: hr_font,
+        plans,
+    } = shaping_font(font.id, fontdb, shaping_fonts)?;
 
     // Build the list of variations to apply
     let mut variations: Vec<Variation> = variations
@@ -1541,7 +1556,7 @@ fn shape_text_with_font(
 
     // A shaper instance is only needed to apply variations.
     let hr_font = if variations.is_empty() {
-        hr_font
+        hr_font.clone()
     } else {
         hr_font.instance_builder().variations(&variations).build()
     };
@@ -1576,10 +1591,27 @@ fn shape_text_with_font(
         // TODO: explicitly set language?
         buffer.guess_segment_properties();
 
+        let key = ShapePlanKey::new(&hr_font, buffer.script(), direction)
+            .language(buffer.language())
+            .features(&features);
+        let plan = match plans.iter().position(|plan| key.matches(plan)) {
+            Some(index) => &plans[index],
+            None => {
+                plans.push(ShapePlan::new(
+                    &hr_font,
+                    direction,
+                    buffer.script(),
+                    buffer.language(),
+                    &features,
+                ));
+                plans.last()?
+            }
+        };
+
         harfrust::shape(
             &shaper,
             &mut buffer,
-            ShapeOptions::new().features(&features),
+            ShapeOptions::new().features(&features).plan(Some(plan)),
         )
         .ok()?;
 
