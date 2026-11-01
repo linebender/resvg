@@ -701,10 +701,7 @@ fn convert_displacement_map(fe: SvgNode, scale: Size, primitives: &[Primitive]) 
 fn convert_drop_shadow(fe: SvgNode, scale: Size, primitives: &[Primitive]) -> Kind {
     let (std_dev_x, std_dev_y) = convert_std_dev_attr(fe, scale, "2 2");
 
-    let (color, opacity) = fe
-        .attribute(AId::FloodColor)
-        .unwrap_or_else(svgtypes::Color::black)
-        .split_alpha();
+    let (color, opacity) = convert_flood_color(fe).split_alpha();
 
     let flood_opacity = fe
         .attribute::<Opacity>(AId::FloodOpacity)
@@ -722,10 +719,7 @@ fn convert_drop_shadow(fe: SvgNode, scale: Size, primitives: &[Primitive]) -> Ki
 }
 
 fn convert_flood(fe: SvgNode) -> Kind {
-    let (color, opacity) = fe
-        .attribute(AId::FloodColor)
-        .unwrap_or_else(svgtypes::Color::black)
-        .split_alpha();
+    let (color, opacity) = convert_flood_color(fe).split_alpha();
 
     let flood_opacity = fe
         .attribute::<Opacity>(AId::FloodOpacity)
@@ -735,6 +729,16 @@ fn convert_flood(fe: SvgNode) -> Kind {
         color,
         opacity: opacity * flood_opacity,
     })
+}
+
+fn convert_flood_color(fe: SvgNode) -> svgtypes::Color {
+    let color = if fe.attribute(AId::FloodColor) == Some("currentColor") {
+        fe.find_attribute(AId::Color)
+    } else {
+        fe.attribute(AId::FloodColor)
+    };
+
+    color.unwrap_or_else(svgtypes::Color::black)
 }
 
 fn convert_gaussian_blur(fe: SvgNode, scale: Size, primitives: &[Primitive]) -> Kind {
