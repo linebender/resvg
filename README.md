@@ -1,10 +1,10 @@
 ## resvg
-![Build Status](https://github.com/linebender/resvg/workflows/Build/badge.svg)
-[![Crates.io](https://img.shields.io/crates/v/resvg.svg)](https://crates.io/crates/resvg)
+[![Build Status](https://github.com/linebender/resvg/actions/workflows/main.yml/badge.svg)](https://github.com/linebender/resvg/actions)
+[![crates.io](https://img.shields.io/crates/v/resvg.svg)](https://crates.io/crates/resvg)
 [![Documentation](https://docs.rs/resvg/badge.svg)](https://docs.rs/resvg)
-[![Rust 1.85.0+](https://img.shields.io/badge/rust-1.85.0+-orange.svg)](https://www.rust-lang.org)
+[![Rust 1.85.0+](https://img.shields.io/badge/rust-1.85.0+-orange.svg)](https://rust-lang.org/)
 
-*resvg* is an [SVG](https://en.wikipedia.org/wiki/Scalable_Vector_Graphics) rendering library.
+*resvg* is an [SVG](https://en.wikipedia.org/wiki/SVG) rendering library.
 
 It can be used as a Rust library, as a C library, and as a CLI application to render static SVG files.
 
@@ -83,7 +83,7 @@ on ARM macOS - the produced image will be identical. Each pixel would have the s
 
 ## SVG support
 
-`resvg` aims to only support the [static](http://www.w3.org/TR/SVG11/feature#SVG-static)
+`resvg` aims to only support the [static](https://www.w3.org/TR/SVG11/feature#SVG-static)
 SVG subset; i.e. no `a`, `script`, `view` or `cursor` elements, no events and no animations.
 
 [SVG 2](https://www.w3.org/TR/SVG2/) support is being worked on.
@@ -113,8 +113,8 @@ Such libraries are: wxSvg, LunaSVG and nanosvg.
 
 Licensed under either of
 
-- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or <http://www.apache.org/licenses/LICENSE-2.0>)
-- MIT license ([LICENSE-MIT](LICENSE-MIT) or <http://opensource.org/licenses/MIT>)
+- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or <https://www.apache.org/licenses/LICENSE-2.0>)
+- MIT license ([LICENSE-MIT](LICENSE-MIT) or <https://opensource.org/license/mit>)
 
 at your option.
 
@@ -126,11 +126,5 @@ The [Rust code of conduct] applies.
 Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in the work by you, as defined in the Apache-2.0 license, shall be licensed as above, without any additional terms or conditions.
 
 [usvg]: https://github.com/linebender/resvg/tree/main/crates/usvg
-[rustybuzz]: https://github.com/harfbuzz/rustybuzz
 [tiny-skia]: https://github.com/linebender/tiny-skia
-[ttf-parser]: https://github.com/harfbuzz/ttf-parser
-[roxmltree]: https://github.com/RazrFalcon/roxmltree
-[simplecss]: https://github.com/linebender/simplecss
-[fontdb]: https://github.com/RazrFalcon/fontdb
-[pico-args]: https://github.com/RazrFalcon/pico-args
-[Rust Code of Conduct]: https://www.rust-lang.org/policies/code-of-conduct
+[Rust code of conduct]: https://rust-lang.org/policies/code-of-conduct/
