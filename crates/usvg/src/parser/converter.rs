@@ -607,8 +607,8 @@ fn resolve_svg_size(svg: &SvgNode, opt: &Options) -> (Result<Size, Error>, bool)
         }
     } else {
         Size::from_wh(
-            svg.convert_user_length(AId::Width, &state, def),
-            svg.convert_user_length(AId::Height, &state, def),
+            units::convert_user_length(width, *svg, AId::Width, &state),
+            units::convert_user_length(height, *svg, AId::Height, &state),
         )
     };
 
