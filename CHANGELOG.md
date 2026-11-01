@@ -10,6 +10,8 @@ This changelog also contains important changes in dependencies.
 
 ### Fixed
 
+- `Options::default_size` is now used for an `svg` element with relative `width` or `height`
+  and no `viewBox`.
 - Filter primitive subregions with `primitiveUnits="objectBoundingBox"` are now resolved against
   the element's bounding box, and unspecified values default to the filter region. (#1188)
 - `feDisplacementMap` no longer applies `scale` twice, and now reads the displacement map
