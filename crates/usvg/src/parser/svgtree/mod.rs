@@ -1,7 +1,7 @@
 // Copyright 2021 the Resvg Authors
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::num::NonZeroU32;
 use std::str::FromStr;
 
@@ -149,7 +149,7 @@ impl ShortRange {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
 pub(crate) struct NodeId(NonZeroU32);
 
 impl NodeId {
@@ -489,6 +489,7 @@ impl<'a, 'input: 'a> SvgNode<'a, 'input> {
             curr: self.id(),
             is_first: true,
             is_finished: false,
+            links: Default::default(),
         }
     }
 }
@@ -614,6 +615,7 @@ pub struct HrefIter<'a, 'input: 'a> {
     curr: NodeId,
     is_first: bool,
     is_finished: bool,
+    links: HashSet<NodeId>,
 }
 
 impl<'a, 'input: 'a> Iterator for HrefIter<'a, 'input> {
@@ -626,11 +628,22 @@ impl<'a, 'input: 'a> Iterator for HrefIter<'a, 'input> {
 
         if self.is_first {
             self.is_first = false;
-            return Some(self.doc.get(self.curr));
+            let link = self.doc.get(self.curr);
+            self.links.insert(link.id());
+            return Some(link);
         }
 
         if let Some(link) = self.doc.get(self.curr).node_attribute(AId::Href) {
-            if link.id() == self.curr || link.id() == self.origin {
+            let new_link_id = link.id();
+            if self.links.contains(&new_link_id) {
+                log::warn!(
+                    "Element '#{}' cannot reference itself via 'xlink:href' - the href is creating a loop.",
+                    self.doc.get(self.origin).element_id()
+                );
+                self.is_finished = true;
+                return None;
+            }
+            if new_link_id == self.curr || new_link_id == self.origin {
                 log::warn!(
                     "Element '#{}' cannot reference itself via 'xlink:href'.",
                     self.doc.get(self.origin).element_id()
@@ -639,7 +652,8 @@ impl<'a, 'input: 'a> Iterator for HrefIter<'a, 'input> {
                 return None;
             }
 
-            self.curr = link.id();
+            self.curr = new_link_id;
+            self.links.insert(self.curr);
             Some(self.doc.get(self.curr))
         } else {
             None
