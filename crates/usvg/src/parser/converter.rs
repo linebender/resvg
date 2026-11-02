@@ -6,6 +6,7 @@ use std::hash::{Hash, Hasher};
 use std::str::FromStr;
 use std::sync::Arc;
 
+use crate::parser::svgtree::NodeId;
 #[cfg(feature = "text")]
 use crate::{FontVariation, GlyphId};
 #[cfg(feature = "text")]
@@ -74,6 +75,8 @@ pub struct Cache {
     mask_index: usize,
     filter_index: usize,
     image_index: usize,
+
+    pub(crate) cache_clippath: (bool, HashSet<NodeId>),
 }
 
 macro_rules! font_lookup {
@@ -123,6 +126,7 @@ impl Cache {
             mask_index: 0,
             filter_index: 0,
             image_index: 0,
+            cache_clippath: (true, HashSet::new()),
         }
     }
 
@@ -738,7 +742,6 @@ pub(crate) fn convert_clip_path_elements(
             super::use_node::convert(node, state, cache, parent);
             continue;
         }
-
         if let Some(g) = convert_group(node, state, false, cache, parent, &|cache, g| {
             convert_clip_path_elements_impl(tag_name, node, state, cache, g);
         }) {
@@ -863,7 +866,17 @@ pub(crate) fn convert_group(
 
     let mut clip_path = None;
     if let Some(link) = node.attribute::<SvgNode>(AId::ClipPath) {
+        let mut enabled = false;
+        if cache.cache_clippath.0 {
+            enabled = true;
+            cache.cache_clippath.0 = false; // mark unsuable
+            cache.cache_clippath.1.clear();
+        }
+
         clip_path = super::clippath::convert(link, state, object_bbox, cache);
+        if enabled {
+            cache.cache_clippath.0 = true; // mark usable
+        }
         if clip_path.is_none() {
             return None;
         }
@@ -1112,6 +1125,7 @@ pub fn svg_paint_order_to_usvg(order: svgtypes::PaintOrder) -> PaintOrder {
 impl SvgNode<'_, '_> {
     pub(crate) fn resolve_transform(&self, transform_aid: AId, state: &State) -> Transform {
         let mut transform: Transform = self.attribute(transform_aid).unwrap_or_default();
+
         let transform_origin = self
             .attribute::<TransformOrigin>(AId::TransformOrigin)
             .or_else(|| {

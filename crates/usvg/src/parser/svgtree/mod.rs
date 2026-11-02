@@ -149,7 +149,7 @@ impl ShortRange {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
 pub(crate) struct NodeId(NonZeroU32);
 
 impl NodeId {
@@ -237,7 +237,7 @@ impl PartialEq for SvgNode<'_, '_> {
 
 impl<'a, 'input: 'a> SvgNode<'a, 'input> {
     #[inline]
-    fn id(&self) -> NodeId {
+    pub(crate) fn id(&self) -> NodeId {
         self.id
     }
 

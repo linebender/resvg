@@ -78,7 +78,13 @@ pub(crate) fn convert(
 
     let mut clip_state = state.clone();
     clip_state.parent_clip_path = Some(node);
-    converter::convert_clip_path_elements(node, &clip_state, cache, &mut clip.root);
+    let is_enabled = !cache.cache_clippath.0;
+    if !is_enabled || (is_enabled && !cache.cache_clippath.1.contains(&node.id())) {
+        if is_enabled {
+            cache.cache_clippath.1.insert(node.id());
+        }
+        converter::convert_clip_path_elements(node, &clip_state, cache, &mut clip.root);
+    }
 
     if clip.root.has_children() {
         clip.root.calculate_bounding_boxes();
