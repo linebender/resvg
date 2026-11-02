@@ -625,8 +625,8 @@ fn flattened_text_should_inherit_absolute_transform() {
 
     assert_ne!(path.bounding_box(), path.abs_bounding_box());
     assert_eq!(
-        path.bounding_box().transform(t).unwrap(),
-        path.abs_bounding_box()
+        path.bounding_box().unwrap().transform(t).unwrap(),
+        path.abs_bounding_box().unwrap()
     );
 }
 
@@ -656,7 +656,7 @@ fn use_node_abs_transform() {
     assert_eq!(path_node.abs_transform().get_scale(), (0.5, 0.5));
     assert_eq!(
         path_node.abs_bounding_box(),
-        Rect::from_xywh(20.0, 30.0, 50.0, 50.0).unwrap()
+        Rect::from_xywh(20.0, 30.0, 50.0, 50.0)
     );
 }
 
@@ -672,7 +672,7 @@ fn nested_svg_abs_bounding_box() {
     let tree = usvg::Tree::from_str(&svg, &usvg::Options::default()).unwrap();
     assert_eq!(
         tree.node_by_id("path").unwrap().abs_bounding_box(),
-        Rect::from_xywh(10.0, 20.0, 10.0, 10.0).unwrap()
+        Some(Rect::from_xywh(10.0, 20.0, 10.0, 10.0).unwrap())
     );
 }
 

@@ -76,9 +76,7 @@ fn parse<'input>(
     let mut id_map = HashMap::new();
     for node in xml.descendants() {
         if let Some(id) = node.attribute("id") {
-            if !id_map.contains_key(id) {
-                id_map.insert(id, node);
-            }
+            id_map.entry(id).or_insert(node);
         }
     }
 
@@ -90,7 +88,8 @@ fn parse<'input>(
         kind: NodeKind::Root,
     });
 
-    let style_sheet = resolve_css(xml, injected_stylesheet);
+    let style_texts = style_texts(xml);
+    let style_sheet = resolve_css(&style_texts, injected_stylesheet);
 
     parse_xml_node_children(
         xml.root(),
@@ -113,20 +112,35 @@ fn parse<'input>(
         None => return Err(roxmltree::Error::NoRootNode),
     }
 
-    // Collect all elements with `id` attribute.
+    // Collect all elements with `id` attribute, and all elements that
+    // can be referenced recursively.
     let mut links = HashMap::new();
+    let mut patterns = Vec::new();
+    let mut clip_paths = Vec::new();
+    let mut masks = Vec::new();
+    let mut filters = Vec::new();
+    let mut fe_images = Vec::new();
     for node in doc.descendants() {
         if let Some(id) = node.attribute::<&str>(AId::Id) {
             links.insert(id.to_string(), node.id);
         }
+
+        match node.tag_name() {
+            Some(EId::Pattern) => patterns.push(node.id),
+            Some(EId::ClipPath) => clip_paths.push(node.id),
+            Some(EId::Mask) => masks.push(node.id),
+            Some(EId::Filter) => filters.push(node.id),
+            Some(EId::FeImage) => fe_images.push(node.id),
+            _ => {}
+        }
     }
     doc.links = links;
 
-    fix_recursive_patterns(&mut doc);
-    fix_recursive_links(EId::ClipPath, AId::ClipPath, &mut doc);
-    fix_recursive_links(EId::Mask, AId::Mask, &mut doc);
-    fix_recursive_links(EId::Filter, AId::Filter, &mut doc);
-    fix_recursive_fe_image(&mut doc);
+    fix_recursive_patterns(&patterns, &mut doc);
+    fix_recursive_links(&clip_paths, AId::ClipPath, &mut doc);
+    fix_recursive_links(&masks, AId::Mask, &mut doc);
+    fix_recursive_links(&filters, AId::Filter, &mut doc);
+    fix_recursive_fe_image(&fe_images, &mut doc);
 
     Ok(doc)
 }
@@ -294,21 +308,14 @@ pub(crate) fn parse_svg_element<'input>(
         }
     }
 
-    let mut insert_attribute = |aid, value: &str, important: bool| {
+    let mut insert_attribute = |aid, value: roxmltree::StringStorage<'input>, important: bool| {
         // Check that attribute already exists.
         let idx = doc.attrs[attrs_start_idx..]
             .iter_mut()
             .position(|a| a.name == aid);
 
         // Append an attribute as usual.
-        let added = append_attribute(
-            parent_id,
-            tag_name,
-            aid,
-            roxmltree::StringStorage::new_owned(value),
-            important,
-            doc,
-        );
+        let added = append_attribute(parent_id, tag_name, aid, value, important, doc);
 
         // Check that attribute was actually added, because it could be skipped.
         if added {
@@ -343,74 +350,32 @@ pub(crate) fn parse_svg_element<'input>(
         }
     };
 
-    let mut write_declaration = |declaration: &Declaration| {
-        // TODO: perform XML attribute normalization
-        let imp = declaration.important;
-        let val = declaration.value;
-
-        if declaration.name == "marker" {
-            insert_attribute(AId::MarkerStart, val, imp);
-            insert_attribute(AId::MarkerMid, val, imp);
-            insert_attribute(AId::MarkerEnd, val, imp);
-        } else if declaration.name == "font" {
-            if let Ok(shorthand) = FontShorthand::from_str(val) {
-                // First we need to reset all values to their default.
-                insert_attribute(AId::FontStyle, "normal", imp);
-                insert_attribute(AId::FontVariant, "normal", imp);
-                insert_attribute(AId::FontWeight, "normal", imp);
-                insert_attribute(AId::FontStretch, "normal", imp);
-                insert_attribute(AId::LineHeight, "normal", imp);
-                insert_attribute(AId::FontSizeAdjust, "none", imp);
-                insert_attribute(AId::FontKerning, "auto", imp);
-                insert_attribute(AId::FontVariantCaps, "normal", imp);
-                insert_attribute(AId::FontVariantLigatures, "normal", imp);
-                insert_attribute(AId::FontVariantNumeric, "normal", imp);
-                insert_attribute(AId::FontVariantEastAsian, "normal", imp);
-                insert_attribute(AId::FontVariantPosition, "normal", imp);
-
-                // Then, we set the properties that have been declared.
-                shorthand
-                    .font_stretch
-                    .map(|s| insert_attribute(AId::FontStretch, s, imp));
-                shorthand
-                    .font_weight
-                    .map(|s| insert_attribute(AId::FontWeight, s, imp));
-                shorthand
-                    .font_variant
-                    .map(|s| insert_attribute(AId::FontVariant, s, imp));
-                shorthand
-                    .font_style
-                    .map(|s| insert_attribute(AId::FontStyle, s, imp));
-                insert_attribute(AId::FontSize, shorthand.font_size, imp);
-                insert_attribute(AId::FontFamily, shorthand.font_family, imp);
-            } else {
-                log::warn!(
-                    "Failed to parse {} value: '{}'",
-                    AId::Font,
-                    declaration.value
-                );
-            }
-        } else if let Some(aid) = AId::from_str(declaration.name) {
-            // Parse only the presentation attributes.
-            if aid.is_presentation() {
-                insert_attribute(aid, val, imp);
-            }
-        }
-    };
-
     // Apply CSS.
     for rule in &style_sheet.rules {
         if rule.selector.matches(&XmlNode(xml_node)) {
             for declaration in &rule.declarations {
-                write_declaration(declaration);
+                write_declaration(
+                    declaration,
+                    roxmltree::StringStorage::new_owned,
+                    &mut insert_attribute,
+                );
             }
         }
     }
 
     // Split a `style` attribute.
-    if let Some(value) = xml_node.attribute("style") {
-        for declaration in simplecss::DeclarationTokenizer::from(value) {
-            write_declaration(&declaration);
+    if let Some(style) = xml_node.attribute_node("style") {
+        match style.value_storage() {
+            roxmltree::StringStorage::Borrowed(value) => write_declarations(
+                value,
+                roxmltree::StringStorage::Borrowed,
+                &mut insert_attribute,
+            ),
+            roxmltree::StringStorage::Owned(_) => write_declarations(
+                style.value(),
+                roxmltree::StringStorage::new_owned,
+                &mut insert_attribute,
+            ),
         }
     }
 
@@ -427,6 +392,79 @@ pub(crate) fn parse_svg_element<'input>(
     );
 
     Ok(node_id)
+}
+
+fn write_declarations<'a, 'input>(
+    text: &'a str,
+    storage: fn(&'a str) -> roxmltree::StringStorage<'input>,
+    insert: &mut impl FnMut(AId, roxmltree::StringStorage<'input>, bool),
+) {
+    for declaration in simplecss::DeclarationTokenizer::from(text) {
+        write_declaration(&declaration, storage, insert);
+    }
+}
+
+fn write_declaration<'a, 'input>(
+    declaration: &Declaration<'a>,
+    storage: fn(&'a str) -> roxmltree::StringStorage<'input>,
+    insert: &mut impl FnMut(AId, roxmltree::StringStorage<'input>, bool),
+) {
+    // TODO: perform XML attribute normalization
+    let imp = declaration.important;
+    let val = declaration.value;
+
+    if declaration.name == "marker" {
+        insert(AId::MarkerStart, storage(val), imp);
+        insert(AId::MarkerMid, storage(val), imp);
+        insert(AId::MarkerEnd, storage(val), imp);
+    } else if declaration.name == "font" {
+        if let Ok(shorthand) = FontShorthand::from_str(val) {
+            // First we need to reset all values to their default.
+            for (aid, value) in [
+                (AId::FontStyle, "normal"),
+                (AId::FontVariant, "normal"),
+                (AId::FontWeight, "normal"),
+                (AId::FontStretch, "normal"),
+                (AId::LineHeight, "normal"),
+                (AId::FontSizeAdjust, "none"),
+                (AId::FontKerning, "auto"),
+                (AId::FontVariantCaps, "normal"),
+                (AId::FontVariantLigatures, "normal"),
+                (AId::FontVariantNumeric, "normal"),
+                (AId::FontVariantEastAsian, "normal"),
+                (AId::FontVariantPosition, "normal"),
+            ] {
+                insert(aid, roxmltree::StringStorage::Borrowed(value), imp);
+            }
+
+            // Then, we set the properties that have been declared.
+            if let Some(s) = shorthand.font_stretch {
+                insert(AId::FontStretch, storage(s), imp);
+            }
+            if let Some(s) = shorthand.font_weight {
+                insert(AId::FontWeight, storage(s), imp);
+            }
+            if let Some(s) = shorthand.font_variant {
+                insert(AId::FontVariant, storage(s), imp);
+            }
+            if let Some(s) = shorthand.font_style {
+                insert(AId::FontStyle, storage(s), imp);
+            }
+            insert(AId::FontSize, storage(shorthand.font_size), imp);
+            insert(AId::FontFamily, storage(shorthand.font_family), imp);
+        } else {
+            log::warn!(
+                "Failed to parse {} value: '{}'",
+                AId::Font,
+                declaration.value
+            );
+        }
+    } else if let Some(aid) = AId::from_str(declaration.name) {
+        // Parse only the presentation attributes.
+        if aid.is_presentation() {
+            insert(aid, storage(val), imp);
+        }
+    }
 }
 
 fn append_attribute<'input>(
@@ -656,8 +694,25 @@ fn parse_svg_use_element<'input>(
     )
 }
 
+/// The child text content of each CSS `style` element.
+fn style_texts(xml: &roxmltree::Document) -> Vec<String> {
+    xml.descendants()
+        .filter(|n| n.has_tag_name("style"))
+        .filter(|n| {
+            n.attribute("type")
+                .is_none_or(|t| t.is_empty() || t.eq_ignore_ascii_case("text/css"))
+        })
+        .map(|n| {
+            n.children()
+                .filter(|c| c.is_text())
+                .filter_map(|c| c.text())
+                .collect()
+        })
+        .collect()
+}
+
 fn resolve_css<'a>(
-    xml: &'a roxmltree::Document<'a>,
+    style_texts: &'a [String],
     style_sheet: Option<&'a str>,
 ) -> simplecss::StyleSheet<'a> {
     let mut sheet = simplecss::StyleSheet::new();
@@ -668,18 +723,7 @@ fn resolve_css<'a>(
         sheet.parse_more(style_sheet);
     }
 
-    for node in xml.descendants().filter(|n| n.has_tag_name("style")) {
-        match node.attribute("type") {
-            Some("text/css") => {}
-            Some(_) => continue,
-            None => {}
-        }
-
-        let text = match node.text() {
-            Some(v) => v,
-            None => continue,
-        };
-
+    for text in style_texts {
         sheet.parse_more(text);
     }
 
@@ -717,24 +761,20 @@ impl simplecss::Element for XmlNode<'_, '_> {
     }
 }
 
-fn fix_recursive_patterns(doc: &mut Document) {
-    while let Some(node_id) = find_recursive_pattern(AId::Fill, doc) {
+fn fix_recursive_patterns(patterns: &[NodeId], doc: &mut Document) {
+    while let Some(node_id) = find_recursive_pattern(AId::Fill, patterns, doc) {
         let idx = doc.get(node_id).attribute_id(AId::Fill).unwrap();
         doc.attrs[idx].value = roxmltree::StringStorage::Borrowed("none");
     }
 
-    while let Some(node_id) = find_recursive_pattern(AId::Stroke, doc) {
+    while let Some(node_id) = find_recursive_pattern(AId::Stroke, patterns, doc) {
         let idx = doc.get(node_id).attribute_id(AId::Stroke).unwrap();
         doc.attrs[idx].value = roxmltree::StringStorage::Borrowed("none");
     }
 }
 
-fn find_recursive_pattern(aid: AId, doc: &mut Document) -> Option<NodeId> {
-    for pattern_node in doc
-        .root()
-        .descendants()
-        .filter(|n| n.tag_name() == Some(EId::Pattern))
-    {
+fn find_recursive_pattern(aid: AId, patterns: &[NodeId], doc: &Document) -> Option<NodeId> {
+    for pattern_node in patterns.iter().map(|id| doc.get(*id)) {
         for node in pattern_node.descendants() {
             let value = match node.attribute(aid) {
                 Some(v) => v,
@@ -773,19 +813,15 @@ fn find_recursive_pattern(aid: AId, doc: &mut Document) -> Option<NodeId> {
     None
 }
 
-fn fix_recursive_links(eid: EId, aid: AId, doc: &mut Document) {
-    while let Some(node_id) = find_recursive_link(eid, aid, doc) {
+fn fix_recursive_links(nodes: &[NodeId], aid: AId, doc: &mut Document) {
+    while let Some(node_id) = find_recursive_link(nodes, aid, doc) {
         let idx = doc.get(node_id).attribute_id(aid).unwrap();
         doc.attrs[idx].value = roxmltree::StringStorage::Borrowed("none");
     }
 }
 
-fn find_recursive_link(eid: EId, aid: AId, doc: &Document) -> Option<NodeId> {
-    for node in doc
-        .root()
-        .descendants()
-        .filter(|n| n.tag_name() == Some(eid))
-    {
+fn find_recursive_link(nodes: &[NodeId], aid: AId, doc: &Document) -> Option<NodeId> {
+    for node in nodes.iter().map(|id| doc.get(*id)) {
         for child in node.descendants() {
             if let Some(link) = child.node_attribute(aid) {
                 if link == node {
@@ -818,13 +854,9 @@ fn find_recursive_link(eid: EId, aid: AId, doc: &Document) -> Option<NodeId> {
 /// </filter>
 /// <rect id="rect1" x="36" y="36" width="120" height="120" fill="green" filter="url(#filter1)"/>
 /// ```
-fn fix_recursive_fe_image(doc: &mut Document) {
+fn fix_recursive_fe_image(fe_images: &[NodeId], doc: &mut Document) {
     let mut ids = Vec::new();
-    for fe_node in doc
-        .root()
-        .descendants()
-        .filter(|n| n.tag_name() == Some(EId::FeImage))
-    {
+    for fe_node in fe_images.iter().map(|id| doc.get(*id)) {
         if let Some(link) = fe_node.node_attribute(AId::Href) {
             if let Some(filter_uri) = link.attribute::<&str>(AId::Filter) {
                 let filter_id = fe_node.parent().unwrap().element_id();

@@ -11,7 +11,7 @@ use crate::{ClipPath, Group, NonEmptyString, NonZeroRect, Transform, Units};
 pub(crate) fn convert(
     node: SvgNode,
     state: &converter::State,
-    object_bbox: Option<NonZeroRect>,
+    object_bbox: &dyn Fn() -> Option<NonZeroRect>,
     cache: &mut converter::Cache,
 ) -> Option<Arc<ClipPath>> {
     // A `clip-path` attribute must reference a `clipPath` element.
@@ -39,7 +39,7 @@ pub(crate) fn convert(
     }
 
     if units == Units::ObjectBoundingBox {
-        let object_bbox = match object_bbox {
+        let object_bbox = match object_bbox() {
             Some(v) => v,
             None => {
                 log::warn!("Clipping of zero-sized shapes is not allowed.");
@@ -87,7 +87,6 @@ pub(crate) fn convert(
     }
 
     if clip.root.has_children() {
-        clip.root.calculate_bounding_boxes();
         let clip = Arc::new(clip);
         cache.clip_paths.insert(id_copy, clip.clone());
         Some(clip)

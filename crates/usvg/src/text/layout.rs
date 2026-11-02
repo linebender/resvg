@@ -165,13 +165,13 @@ pub struct Span {
     pub positioned_glyphs: Vec<PositionedGlyph>,
     /// An underline text decoration of the span.
     /// Needs to be rendered before all glyphs.
-    pub underline: Option<Path>,
+    pub underline: Option<Box<Path>>,
     /// An overline text decoration of the span.
     /// Needs to be rendered before all glyphs.
-    pub overline: Option<Path>,
+    pub overline: Option<Box<Path>>,
     /// A line-through text decoration of the span.
     /// Needs to be rendered after all glyphs.
-    pub line_through: Option<Path>,
+    pub line_through: Option<Box<Path>>,
 }
 
 #[derive(Clone, Debug)]
@@ -204,9 +204,9 @@ pub(crate) fn layout_text(
     text_node: &Text,
     resolver: &FontResolver,
     fontdb: &mut Arc<fontdb::Database>,
+    fonts_cache: &mut FontsCache,
+    shaping_fonts: &mut ShapingFonts,
 ) -> Option<(Vec<Span>, NonZeroRect)> {
-    let mut fonts_cache: FontsCache = HashMap::new();
-
     for chunk in &text_node.chunks {
         for span in &chunk.spans {
             if !fonts_cache.contains_key(&span.font) {
@@ -219,7 +219,7 @@ pub(crate) fn layout_text(
         }
     }
 
-    let mut spans = vec![];
+    let mut spans = Vec::with_capacity(text_node.chunks.iter().map(|c| c.spans.len()).sum());
     let mut char_offset = 0;
     let mut last_x = 0.0;
     let mut last_y = 0.0;
@@ -230,7 +230,7 @@ pub(crate) fn layout_text(
             TextFlow::Path(_) => (0.0, 0.0),
         };
 
-        let mut clusters = process_chunk(chunk, &fonts_cache, resolver, fontdb);
+        let mut clusters = process_chunk(chunk, &fonts_cache, resolver, fontdb, shaping_fonts);
         if clusters.is_empty() {
             char_offset += chunk.text.chars().count();
             continue;
@@ -294,7 +294,7 @@ pub(crate) fn layout_text(
                     convert_decoration(offset, span, font, decoration, &decoration_spans, span_ts)
                 {
                     bbox = bbox.expand(path.data.bounds());
-                    underline = Some(path);
+                    underline = Some(Box::new(path));
                 }
             }
 
@@ -308,7 +308,7 @@ pub(crate) fn layout_text(
                     convert_decoration(offset, span, font, decoration, &decoration_spans, span_ts)
                 {
                     bbox = bbox.expand(path.data.bounds());
-                    overline = Some(path);
+                    overline = Some(Box::new(path));
                 }
             }
 
@@ -322,7 +322,7 @@ pub(crate) fn layout_text(
                     convert_decoration(offset, span, font, decoration, &decoration_spans, span_ts)
                 {
                     bbox = bbox.expand(path.data.bounds());
-                    line_through = Some(path);
+                    line_through = Some(Box::new(path));
                 }
             }
 
@@ -491,8 +491,8 @@ pub(crate) fn convert_decoration(
     let mut path_data = builder.finish()?;
     path_data = path_data.transform(transform)?;
 
-    Path::new(
-        String::new(),
+    Some(Path::new(
+        Box::default(),
         span.visible,
         decoration.fill.take(),
         decoration.stroke.take(),
@@ -500,7 +500,7 @@ pub(crate) fn convert_decoration(
         ShapeRendering::default(),
         Arc::new(path_data),
         Transform::default(),
-    )
+    ))
 }
 
 /// A text decoration span.
@@ -899,6 +899,7 @@ fn process_chunk(
     fonts_cache: &FontsCache,
     resolver: &FontResolver,
     fontdb: &mut Arc<fontdb::Database>,
+    shaping_fonts: &mut ShapingFonts,
 ) -> Vec<GlyphCluster> {
     // The way this function works is a bit tricky.
     //
@@ -953,6 +954,7 @@ fn process_chunk(
             span.font_optical_sizing,
             resolver,
             fontdb,
+            shaping_fonts,
         );
 
         // Do nothing with the first run.
@@ -1366,6 +1368,7 @@ pub(crate) fn shape_text(
     font_optical_sizing: crate::FontOpticalSizing,
     resolver: &FontResolver,
     fontdb: &mut Arc<fontdb::Database>,
+    shaping_fonts: &mut ShapingFonts,
 ) -> Vec<Glyph> {
     let mut glyphs = shape_text_with_font(
         text,
@@ -1376,6 +1379,7 @@ pub(crate) fn shape_text(
         font_size,
         font_optical_sizing,
         fontdb,
+        shaping_fonts,
     )
     .unwrap_or_default();
 
@@ -1410,6 +1414,7 @@ pub(crate) fn shape_text(
                 font_size,
                 font_optical_sizing,
                 fontdb,
+                shaping_fonts,
             )
             .unwrap_or_default();
 
@@ -1458,6 +1463,41 @@ pub(crate) fn shape_text(
     glyphs
 }
 
+pub(crate) type ShapingFonts = HashMap<ID, ShapingFont>;
+
+pub(crate) struct ShapingFont {
+    font: harfrust::Font,
+    plans: Vec<harfrust::ShapePlan>,
+}
+
+fn shaping_font<'a>(
+    id: ID,
+    fontdb: &fontdb::Database,
+    shaping_fonts: &'a mut ShapingFonts,
+) -> Option<&'a mut ShapingFont> {
+    use std::collections::hash_map::Entry;
+
+    match shaping_fonts.entry(id) {
+        Entry::Occupied(entry) => Some(entry.into_mut()),
+        Entry::Vacant(entry) => {
+            // Share the font data if it is already in memory, otherwise copy it.
+            let font =
+                if let Some((fontdb::Source::Binary(data), face_index)) = fontdb.face_source(id) {
+                    harfrust::Font::new(data, face_index)
+                } else {
+                    fontdb.with_face_data(id, |data, face_index| {
+                        harfrust::Font::new(data.to_vec(), face_index)
+                    })?
+                }?;
+
+            Some(entry.insert(ShapingFont {
+                font,
+                plans: Vec::new(),
+            }))
+        }
+    }
+}
+
 /// Converts a text into a list of glyph IDs.
 ///
 /// This function will do the BIDI reordering and text shaping.
@@ -1470,115 +1510,143 @@ fn shape_text_with_font(
     font_size: f32,
     font_optical_sizing: crate::FontOpticalSizing,
     fontdb: &fontdb::Database,
+    shaping_fonts: &mut ShapingFonts,
 ) -> Option<Vec<Glyph>> {
-    fontdb.with_face_data(font.id, |font_data, face_index| -> Option<Vec<Glyph>> {
-        use harfrust::{Feature, ShaperData, ShaperInstance, Tag, UnicodeBuffer, Variation};
+    use harfrust::font::Variation;
+    use harfrust::{Buffer, Feature, ShapePlan, ShapePlanKey, ShaperFont, Tag};
 
-        use crate::text::OPSZ;
+    use crate::text::OPSZ;
 
-        let hr_font = harfrust::FontRef::from_index(font_data, face_index).ok()?;
+    let ShapingFont {
+        font: hr_font,
+        plans,
+    } = shaping_font(font.id, fontdb, shaping_fonts)?;
 
-        // Build the list of variations to apply
-        let mut variations: Vec<Variation> = variations
-            .iter()
-            .map(|v| Variation {
-                tag: Tag::from_be_bytes(v.tag),
-                value: v.value,
-            })
-            .collect();
+    // Build the list of variations to apply
+    let mut variations: Vec<Variation> = variations
+        .iter()
+        .map(|v| Variation {
+            tag: Tag::from_be_bytes(v.tag),
+            value: v.value,
+        })
+        .collect();
 
-        // Automatic optical sizing: if font-optical-sizing is auto and the font has
-        // an 'opsz' axis that isn't explicitly set, auto-set it to match font size.
-        // This matches browser behavior (CSS font-optical-sizing: auto).
-        if font_optical_sizing == crate::FontOpticalSizing::Auto {
-            let has_explicit_opsz = variations.iter().any(|v| v.tag == *b"opsz");
-            if !has_explicit_opsz && hr_font.axes().get_by_tag(OPSZ).is_some() {
-                variations.push(Variation {
-                    tag: OPSZ,
-                    value: font_size,
-                });
+    // Automatic optical sizing: if font-optical-sizing is auto and the font has
+    // an 'opsz' axis that isn't explicitly set, auto-set it to match font size.
+    // This matches browser behavior (CSS font-optical-sizing: auto).
+    if font_optical_sizing == crate::FontOpticalSizing::Auto {
+        let has_explicit_opsz = variations.iter().any(|v| v.tag == *b"opsz");
+        let has_opsz_axis = hr_font.tables().fvar().is_ok_and(|fvar| {
+            fvar.axes()
+                .is_ok_and(|axes| axes.iter().any(|axis| axis.axis_tag() == OPSZ))
+        });
+        if !has_explicit_opsz && has_opsz_axis {
+            variations.push(Variation {
+                tag: OPSZ,
+                value: font_size,
+            });
+        }
+    }
+
+    let bidi_info = unicode_bidi::BidiInfo::new(text, Some(unicode_bidi::Level::ltr()));
+    let paragraph = &bidi_info.paragraphs[0];
+    let line = paragraph.range.clone();
+
+    let mut glyphs = Vec::new();
+
+    // A shaper instance is only needed to apply variations.
+    let hr_font = if variations.is_empty() {
+        hr_font.clone()
+    } else {
+        hr_font.instance_builder().variations(&variations).build()
+    };
+    let shaper = ShaperFont::new(&hr_font);
+
+    let mut features = Vec::new();
+    if small_caps {
+        features.push(Feature::new(Tag::new(b"smcp"), 1, ..));
+    }
+    if !apply_kerning {
+        features.push(Feature::new(Tag::new(b"kern"), 0, ..));
+    }
+
+    let (levels, runs) = bidi_info.visual_runs(paragraph, line);
+    for run in runs.iter() {
+        let sub_text = &text[run.clone()];
+        if sub_text.is_empty() {
+            continue;
+        }
+
+        let ltr = levels[run.start].is_ltr();
+        let direction = if ltr {
+            harfrust::Direction::LeftToRight
+        } else {
+            harfrust::Direction::RightToLeft
+        };
+
+        let mut buffer = Buffer::new();
+        buffer.push_str(sub_text);
+        buffer.set_direction(direction);
+
+        // TODO: explicitly set language?
+        buffer.guess_segment_properties();
+
+        let key = ShapePlanKey::new(&hr_font, buffer.script(), direction)
+            .language(buffer.language())
+            .features(&features);
+        let plan = match plans.iter().position(|plan| key.matches(plan)) {
+            Some(index) => &plans[index],
+            None => {
+                plans.push(ShapePlan::new(
+                    &hr_font,
+                    direction,
+                    buffer.script(),
+                    buffer.language(),
+                    &features,
+                ));
+                plans.last()?
             }
-        }
+        };
 
-        let bidi_info = unicode_bidi::BidiInfo::new(text, Some(unicode_bidi::Level::ltr()));
-        let paragraph = &bidi_info.paragraphs[0];
-        let line = paragraph.range.clone();
+        harfrust::shape(
+            &shaper,
+            &mut buffer,
+            ShapeOptions::new().features(&features).plan(Some(plan)),
+        )
+        .ok()?;
 
-        let mut glyphs = Vec::new();
+        let positions = buffer.glyph_positions();
+        let infos = buffer.glyph_infos();
 
-        // A shaper instance is only needed to apply variations.
-        let instance_data = (!variations.is_empty())
-            .then(|| ShaperInstance::from_variations(&hr_font, &variations));
-        let shaper_data = ShaperData::new(&hr_font);
-        let shaper = shaper_data
-            .shaper(&hr_font)
-            .instance(instance_data.as_ref())
-            .build();
+        for i in 0..buffer.len() {
+            let pos = positions[i];
+            let info = infos[i];
+            let idx = run.start + info.cluster as usize;
 
-        let mut features = Vec::new();
-        if small_caps {
-            features.push(Feature::new(Tag::new(b"smcp"), 1, ..));
-        }
-        if !apply_kerning {
-            features.push(Feature::new(Tag::new(b"kern"), 0, ..));
-        }
+            let start = info.cluster as usize;
 
-        let (levels, runs) = bidi_info.visual_runs(paragraph, line);
-        for run in runs.iter() {
-            let sub_text = &text[run.clone()];
-            if sub_text.is_empty() {
-                continue;
-            }
-
-            let ltr = levels[run.start].is_ltr();
-            let direction = if ltr {
-                harfrust::Direction::LeftToRight
+            let end = if ltr {
+                i.checked_add(1)
             } else {
-                harfrust::Direction::RightToLeft
-            };
-
-            let mut buffer = UnicodeBuffer::new();
-            buffer.push_str(sub_text);
-            buffer.set_direction(direction);
-
-            // TODO: explicitly set language?
-            buffer.guess_segment_properties();
-
-            let output = shaper.shape(buffer, ShapeOptions::new().features(&features));
-
-            let positions = output.glyph_positions();
-            let infos = output.glyph_infos();
-
-            for i in 0..output.len() {
-                let pos = positions[i];
-                let info = infos[i];
-                let idx = run.start + info.cluster as usize;
-
-                let start = info.cluster as usize;
-
-                let end = if ltr {
-                    i.checked_add(1)
-                } else {
-                    i.checked_sub(1)
-                }
-                .and_then(|last| infos.get(last))
-                .map_or(sub_text.len(), |info| info.cluster as usize);
-
-                glyphs.push(Glyph {
-                    byte_idx: ByteIndex::new(idx),
-                    cluster_len: end.checked_sub(start).unwrap_or(0), // TODO: can fail?
-                    text: sub_text[start..end].to_string(),
-                    id: GlyphId(info.glyph_id),
-                    dx: pos.x_offset,
-                    dy: pos.y_offset,
-                    width: pos.x_advance,
-                    font: font.clone(),
-                });
+                i.checked_sub(1)
             }
-        }
+            .and_then(|last| infos.get(last))
+            .map_or(sub_text.len(), |info| info.cluster as usize);
 
-        Some(glyphs)
-    })?
+            glyphs.push(Glyph {
+                byte_idx: ByteIndex::new(idx),
+                cluster_len: end.checked_sub(start).unwrap_or(0), // TODO: can fail?
+                text: sub_text[start..end].to_string(),
+                id: GlyphId(info.glyph_id),
+                dx: pos.x_offset,
+                dy: pos.y_offset,
+                width: pos.x_advance,
+                font: font.clone(),
+            });
+        }
+    }
+
+    Some(glyphs)
 }
 
 /// An iterator over glyph clusters.

@@ -1,8 +1,7 @@
 // Copyright 2018 the Resvg Authors
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use std::collections::{HashMap, HashSet};
-use std::hash::{Hash, Hasher};
+use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -23,7 +22,7 @@ use super::{Error, Options, marker};
 use crate::flatten::BitmapImage;
 use crate::parser::paint_server::process_paint;
 #[cfg(feature = "text")]
-use crate::text::flatten::DatabaseExt;
+use crate::text::flatten::{ColorTables, DatabaseExt};
 use crate::*;
 
 #[derive(Clone)]
@@ -33,6 +32,9 @@ pub struct State<'a> {
     /// Stores the resolved fill and stroke of a use node
     /// or a path element (for markers)
     pub(crate) context_element: Option<(Option<Fill>, Option<Stroke>)>,
+    /// The transform and bounding box of the path element whose markers
+    /// are being converted.
+    pub(crate) context_path: Option<(Transform, Option<NonZeroRect>)>,
     pub(crate) fe_image_link: bool,
     /// A viewBox of the parent SVG element.
     pub(crate) view_box: NonZeroRect,
@@ -43,8 +45,7 @@ pub struct State<'a> {
     pub(crate) opt: &'a Options<'a>,
 }
 
-#[derive(Clone)]
-pub struct Cache {
+pub struct Cache<'a> {
     /// This fontdb is initialized from [`Options::fontdb`] and then populated
     /// over the course of conversion.
     #[cfg(feature = "text")]
@@ -60,18 +61,27 @@ pub struct Cache {
     cache_raster: HashMap<(ID, GlyphId), Option<BitmapImage>>,
     #[cfg(feature = "text")]
     cache_has_opsz: HashMap<ID, bool>,
+    #[cfg(feature = "text")]
+    cache_color_tables: HashMap<ID, ColorTables>,
+    #[cfg(feature = "text")]
+    pub(crate) fonts: crate::text::layout::FontsCache,
+    #[cfg(feature = "text")]
+    pub(crate) shaping_fonts: crate::text::layout::ShapingFonts,
 
     pub clip_paths: HashMap<String, Arc<ClipPath>>,
     pub masks: HashMap<String, Arc<Mask>>,
     pub filters: HashMap<String, Arc<filter::Filter>>,
     pub paint: HashMap<String, Paint>,
 
+    /// Generated IDs must not collide with the IDs of this document's elements.
+    svg_doc: &'a svgtree::Document<'a>,
+
     // used for ID generation
-    all_ids: HashSet<u64>,
     linear_gradient_index: usize,
     radial_gradient_index: usize,
     pattern_index: usize,
     clip_path_index: usize,
+    text_path_index: usize,
     mask_index: usize,
     filter_index: usize,
     image_index: usize,
@@ -80,9 +90,13 @@ pub struct Cache {
 }
 
 macro_rules! font_lookup {
-    ($method_name:ident, $cache_map:ident, $font_variant:ident, $return_type:ty) => {
+    ($method_name:ident, $cache_map:ident, $font_variant:ident, $table:ident, $return_type:ty) => {
         #[cfg(feature = "text")]
         pub(crate) fn $method_name(&mut self, font: ID, glyph: GlyphId) -> Option<$return_type> {
+            if !self.color_tables(font).$table {
+                return None;
+            }
+
             let key = (font, glyph);
             match self.$cache_map.get(&key) {
                 Some(cache_hit) => cache_hit.clone(),
@@ -96,8 +110,11 @@ macro_rules! font_lookup {
     };
 }
 
-impl Cache {
-    pub(crate) fn new(#[cfg(feature = "text")] fontdb: Arc<Database>) -> Self {
+impl<'a> Cache<'a> {
+    pub(crate) fn new(
+        svg_doc: &'a svgtree::Document<'a>,
+        #[cfg(feature = "text")] fontdb: Arc<Database>,
+    ) -> Self {
         Self {
             #[cfg(feature = "text")]
             fontdb,
@@ -112,17 +129,24 @@ impl Cache {
             cache_raster: HashMap::new(),
             #[cfg(feature = "text")]
             cache_has_opsz: HashMap::new(),
+            #[cfg(feature = "text")]
+            cache_color_tables: HashMap::new(),
+            #[cfg(feature = "text")]
+            fonts: HashMap::new(),
+            #[cfg(feature = "text")]
+            shaping_fonts: HashMap::new(),
 
             clip_paths: HashMap::new(),
             masks: HashMap::new(),
             filters: HashMap::new(),
             paint: HashMap::new(),
 
-            all_ids: HashSet::new(),
+            svg_doc,
             linear_gradient_index: 0,
             radial_gradient_index: 0,
             pattern_index: 0,
             clip_path_index: 0,
+            text_path_index: 0,
             mask_index: 0,
             filter_index: 0,
             image_index: 0,
@@ -135,8 +159,7 @@ impl Cache {
         loop {
             self.linear_gradient_index += 1;
             let new_id = format!("linearGradient{}", self.linear_gradient_index);
-            let new_hash = string_hash(&new_id);
-            if !self.all_ids.contains(&new_hash) {
+            if self.svg_doc.element_by_id(&new_id).is_none() {
                 return NonEmptyString::new(new_id).unwrap();
             }
         }
@@ -146,8 +169,7 @@ impl Cache {
         loop {
             self.radial_gradient_index += 1;
             let new_id = format!("radialGradient{}", self.radial_gradient_index);
-            let new_hash = string_hash(&new_id);
-            if !self.all_ids.contains(&new_hash) {
+            if self.svg_doc.element_by_id(&new_id).is_none() {
                 return NonEmptyString::new(new_id).unwrap();
             }
         }
@@ -157,8 +179,7 @@ impl Cache {
         loop {
             self.pattern_index += 1;
             let new_id = format!("pattern{}", self.pattern_index);
-            let new_hash = string_hash(&new_id);
-            if !self.all_ids.contains(&new_hash) {
+            if self.svg_doc.element_by_id(&new_id).is_none() {
                 return NonEmptyString::new(new_id).unwrap();
             }
         }
@@ -168,8 +189,17 @@ impl Cache {
         loop {
             self.clip_path_index += 1;
             let new_id = format!("clipPath{}", self.clip_path_index);
-            let new_hash = string_hash(&new_id);
-            if !self.all_ids.contains(&new_hash) {
+            if self.svg_doc.element_by_id(&new_id).is_none() {
+                return NonEmptyString::new(new_id).unwrap();
+            }
+        }
+    }
+
+    pub(crate) fn gen_text_path_id(&mut self) -> NonEmptyString {
+        loop {
+            self.text_path_index += 1;
+            let new_id = format!("textPathPath{}", self.text_path_index);
+            if self.svg_doc.element_by_id(&new_id).is_none() {
                 return NonEmptyString::new(new_id).unwrap();
             }
         }
@@ -179,8 +209,7 @@ impl Cache {
         loop {
             self.mask_index += 1;
             let new_id = format!("mask{}", self.mask_index);
-            let new_hash = string_hash(&new_id);
-            if !self.all_ids.contains(&new_hash) {
+            if self.svg_doc.element_by_id(&new_id).is_none() {
                 return NonEmptyString::new(new_id).unwrap();
             }
         }
@@ -190,8 +219,7 @@ impl Cache {
         loop {
             self.filter_index += 1;
             let new_id = format!("filter{}", self.filter_index);
-            let new_hash = string_hash(&new_id);
-            if !self.all_ids.contains(&new_hash) {
+            if self.svg_doc.element_by_id(&new_id).is_none() {
                 return NonEmptyString::new(new_id).unwrap();
             }
         }
@@ -201,15 +229,22 @@ impl Cache {
         loop {
             self.image_index += 1;
             let new_id = format!("image{}", self.image_index);
-            let new_hash = string_hash(&new_id);
-            if !self.all_ids.contains(&new_hash) {
+            if self.svg_doc.element_by_id(&new_id).is_none() {
                 return NonEmptyString::new(new_id).unwrap();
             }
         }
     }
 
-    font_lookup!(fontdb_svg, cache_svg, svg, Node);
-    font_lookup!(fontdb_raster, cache_raster, raster, BitmapImage);
+    font_lookup!(fontdb_svg, cache_svg, svg, svg, Node);
+    font_lookup!(fontdb_raster, cache_raster, raster, bitmaps, BitmapImage);
+
+    #[cfg(feature = "text")]
+    fn color_tables(&mut self, font: ID) -> ColorTables {
+        *self
+            .cache_color_tables
+            .entry(font)
+            .or_insert_with(|| self.fontdb.color_tables(font))
+    }
 
     #[cfg(feature = "text")]
     pub(crate) fn fontdb_outline(
@@ -236,6 +271,10 @@ impl Cache {
         glyph: GlyphId,
         variations: &[FontVariation],
     ) -> Option<Tree> {
+        if !self.color_tables(font).colr {
+            return None;
+        }
+
         let key = (font, glyph, variations.to_vec());
         match self.cache_colr.get(&key) {
             Some(cache_hit) => cache_hit.clone(),
@@ -256,13 +295,6 @@ impl Cache {
         self.cache_has_opsz.insert(font, has_opsz);
         has_opsz
     }
-}
-
-// TODO: is there a simpler way?
-fn string_hash(s: &str) -> u64 {
-    let mut h = std::collections::hash_map::DefaultHasher::new();
-    s.hash(&mut h);
-    h.finish()
 }
 
 impl<'a, 'input: 'a> SvgNode<'a, 'input> {
@@ -422,6 +454,7 @@ pub(crate) fn convert_doc(svg_doc: &svgtree::Document, opt: &Options) -> Result<
     let state = State {
         parent_clip_path: None,
         context_element: None,
+        context_path: None,
         parent_markers: Vec::new(),
         fe_image_link: false,
         view_box: view_box.rect,
@@ -430,28 +463,10 @@ pub(crate) fn convert_doc(svg_doc: &svgtree::Document, opt: &Options) -> Result<
     };
 
     let mut cache = Cache::new(
+        svg_doc,
         #[cfg(feature = "text")]
         opt.fontdb.clone(),
     );
-
-    for node in svg_doc.descendants() {
-        if let Some(tag) = node.tag_name() {
-            if matches!(
-                tag,
-                EId::ClipPath
-                    | EId::Filter
-                    | EId::LinearGradient
-                    | EId::Mask
-                    | EId::Pattern
-                    | EId::RadialGradient
-                    | EId::Image
-            ) {
-                if !node.element_id().is_empty() {
-                    cache.all_ids.insert(string_hash(node.element_id()));
-                }
-            }
-        }
-    }
 
     // The root transform wraps the viewBox mapping, so its origin is resolved
     // against the viewport rather than the viewBox.
@@ -475,7 +490,6 @@ pub(crate) fn convert_doc(svg_doc: &svgtree::Document, opt: &Options) -> Result<
         g.transform = root_ts;
         g.abs_transform = root_ts;
         convert_children(svg_doc.root(), &state, &mut cache, &mut g);
-        g.calculate_bounding_boxes();
         tree.root.children.push(Node::Group(Box::new(g)));
     }
 
@@ -496,7 +510,6 @@ pub(crate) fn convert_doc(svg_doc: &svgtree::Document, opt: &Options) -> Result<
     tree.root.collect_clip_paths(&mut tree.clip_paths);
     tree.root.collect_masks(&mut tree.masks);
     tree.root.collect_filters(&mut tree.filters);
-    tree.root.calculate_bounding_boxes();
 
     // The fontdb might have been mutated and we want to apply these changes to
     // the tree's fontdb.
@@ -525,7 +538,7 @@ fn background_path(background_color: svgtypes::Color, area: Rect) -> Option<Path
         ..Default::default()
     };
 
-    let mut path = Path::new_simple(Arc::new(path))?;
+    let mut path = Path::new_simple(Arc::new(path));
     path.fill = Some(fill);
 
     Some(path)
@@ -535,6 +548,7 @@ fn resolve_svg_size(svg: &SvgNode, opt: &Options) -> (Result<Size, Error>, bool)
     let mut state = State {
         parent_clip_path: None,
         context_element: None,
+        context_path: None,
         parent_markers: Vec::new(),
         fe_image_link: false,
         view_box: NonZeroRect::from_xywh(0.0, 0.0, 100.0, 100.0).unwrap(),
@@ -609,8 +623,11 @@ fn resolve_svg_size(svg: &SvgNode, opt: &Options) -> (Result<Size, Error>, bool)
 ///
 /// Simply iterates over all nodes and calculates a bounding box.
 fn calculate_svg_bbox(tree: &mut Tree) {
-    let bbox = tree.root.abs_bounding_box();
-    if let Some(size) = Size::from_wh(bbox.right(), bbox.bottom()) {
+    let size = tree
+        .root
+        .abs_bounding_box()
+        .and_then(|bbox| Size::from_wh(bbox.right(), bbox.bottom()));
+    if let Some(size) = size {
         tree.size = size;
     }
 }
@@ -835,7 +852,6 @@ pub(crate) fn convert_group(
     };
 
     let abs_transform = parent.abs_transform.pre_concat(transform);
-    let dummy = Rect::from_xywh(0.0, 0.0, 0.0, 0.0).unwrap();
     let mut g = Group {
         id,
         transform,
@@ -847,19 +863,11 @@ pub(crate) fn convert_group(
         mask: None,
         filters: Vec::new(),
         is_context_element: false,
-        bounding_box: dummy,
-        abs_bounding_box: dummy,
-        stroke_bounding_box: dummy,
-        abs_stroke_bounding_box: dummy,
-        layer_bounding_box: NonZeroRect::from_xywh(0.0, 0.0, 1.0, 1.0).unwrap(),
-        abs_layer_bounding_box: NonZeroRect::from_xywh(0.0, 0.0, 1.0, 1.0).unwrap(),
-        children: Vec::new(),
+        ..Group::empty()
     };
     collect_children(cache, &mut g);
 
-    // We need to know group's bounding box before converting
-    // clipPaths, masks and filters.
-    let object_bbox = g.calculate_object_bbox();
+    let object_bbox = || g.bounding_box().and_then(|r| r.to_non_zero_rect());
 
     // `mask` and `filter` cannot be set on `clipPath` children.
     // But `clip-path` can.
@@ -873,7 +881,7 @@ pub(crate) fn convert_group(
             cache.cache_clippath.1.clear();
         }
 
-        clip_path = super::clippath::convert(link, state, object_bbox, cache);
+        clip_path = super::clippath::convert(link, state, &object_bbox, cache);
         if enabled {
             cache.cache_clippath.0 = true; // mark usable
         }
@@ -885,7 +893,7 @@ pub(crate) fn convert_group(
     let mut mask = None;
     if state.parent_clip_path.is_none() {
         if let Some(link) = node.attribute::<SvgNode>(AId::Mask) {
-            mask = super::mask::convert(link, state, object_bbox, cache);
+            mask = super::mask::convert(link, state, &object_bbox, cache);
             if mask.is_none() {
                 return None;
             }
@@ -898,7 +906,7 @@ pub(crate) fn convert_group(
             if node.attribute(AId::Filter) == Some("none") {
                 // Do nothing.
             } else if node.has_attribute(AId::Filter) {
-                if let Ok(f) = super::filter::convert(node, state, object_bbox, cache) {
+                if let Ok(f) = super::filter::convert(node, state, object_bbox(), cache) {
                     filters = f;
                 } else {
                     // A filter that not a link or a filter with a link to a non existing element.
@@ -940,9 +948,6 @@ pub(crate) fn convert_group(
     g.mask = mask;
     g.filters = filters;
 
-    // Must be called after we set Group::filters
-    g.calculate_bounding_boxes();
-
     Some(g)
 }
 
@@ -980,8 +985,8 @@ fn convert_path(
     }
 
     if let Some(fill) = fill.as_mut() {
-        if let Some(ContextElement::PathNode(context_transform, context_bbox)) =
-            fill.context_element
+        if let (Some(ContextElement::PathNode), Some((context_transform, context_bbox))) =
+            (fill.context_element, state.context_path)
         {
             process_paint(
                 &mut fill.paint,
@@ -989,7 +994,7 @@ fn convert_path(
                 context_transform,
                 context_bbox.map(|r| r.to_rect()),
                 path_transform,
-                tiny_skia_path.bounds(),
+                Some(tiny_skia_path.bounds()),
                 cache,
             );
             fill.context_element = None;
@@ -997,8 +1002,8 @@ fn convert_path(
     }
 
     if let Some(stroke) = stroke.as_mut() {
-        if let Some(ContextElement::PathNode(context_transform, context_bbox)) =
-            stroke.context_element
+        if let (Some(ContextElement::PathNode), Some((context_transform, context_bbox))) =
+            (stroke.context_element, state.context_path)
         {
             process_paint(
                 &mut stroke.paint,
@@ -1006,7 +1011,7 @@ fn convert_path(
                 context_transform,
                 context_bbox.map(|r| r.to_rect()),
                 path_transform,
-                tiny_skia_path.bounds(),
+                Some(tiny_skia_path.bounds()),
                 cache,
             );
             stroke.context_element = None;
@@ -1027,16 +1032,17 @@ fn convert_path(
             .and_then(|r| r.to_non_zero_rect());
 
         let fill = fill.clone().map(|mut f| {
-            f.context_element = Some(ContextElement::PathNode(path_transform, bbox));
+            f.context_element = Some(ContextElement::PathNode);
             f
         });
 
         let stroke = stroke.clone().map(|mut s| {
-            s.context_element = Some(ContextElement::PathNode(path_transform, bbox));
+            s.context_element = Some(ContextElement::PathNode);
             s
         });
 
         marker_state.context_element = Some((fill, stroke));
+        marker_state.context_path = Some((path_transform, bbox));
 
         marker::convert(
             node,
@@ -1045,15 +1051,14 @@ fn convert_path(
             cache,
             &mut marker_group,
         );
-        marker_group.calculate_bounding_boxes();
         marker = Some(marker_group);
     }
 
     // Nodes generated by markers must not have an ID. Otherwise we would have duplicates.
     let id = if state.parent_markers.is_empty() {
-        node.element_id().to_string()
+        node.element_id().into()
     } else {
-        String::new()
+        Box::default()
     };
 
     let path = Path::new(
@@ -1066,11 +1071,6 @@ fn convert_path(
         tiny_skia_path,
         path_transform,
     );
-
-    let path = match path {
-        Some(v) => v,
-        None => return,
-    };
 
     match (raw_paint_order.order, marker) {
         ([PaintOrderKind::Markers, _, _], Some(markers_node)) => {
@@ -1096,7 +1096,7 @@ fn append_single_paint_path(paint_order_kind: PaintOrderKind, path: &Path, paren
             if path.fill.is_some() {
                 let mut fill_path = path.clone();
                 fill_path.stroke = None;
-                fill_path.id = String::new();
+                fill_path.id = Box::default();
                 parent.children.push(Node::Path(Box::new(fill_path)));
             }
         }
@@ -1104,7 +1104,7 @@ fn append_single_paint_path(paint_order_kind: PaintOrderKind, path: &Path, paren
             if path.stroke.is_some() {
                 let mut stroke_path = path.clone();
                 stroke_path.fill = None;
-                stroke_path.id = String::new();
+                stroke_path.id = Box::default();
                 parent.children.push(Node::Path(Box::new(stroke_path)));
             }
         }

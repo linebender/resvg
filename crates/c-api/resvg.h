@@ -14,9 +14,9 @@
 #include <stdint.h>
 
 #define RESVG_MAJOR_VERSION 0
-#define RESVG_MINOR_VERSION 48
-#define RESVG_PATCH_VERSION 1
-#define RESVG_VERSION "0.48.1"
+#define RESVG_MINOR_VERSION 49
+#define RESVG_PATCH_VERSION 0
+#define RESVG_VERSION "0.49.0"
 
 /**
  * @brief List of possible errors.
@@ -456,6 +456,7 @@ bool resvg_get_node_transform(const resvg_render_tree *tree,
  * @return `false` if a node with such an ID does not exist
  * @return `false` if ID isn't a UTF-8 string.
  * @return `false` if ID is an empty string
+ * @return `false` if the node has no bounding box, e.g. an empty group
  */
 bool resvg_get_node_bbox(const resvg_render_tree *tree, const char *id, resvg_rect *bbox);
 
@@ -468,6 +469,7 @@ bool resvg_get_node_bbox(const resvg_render_tree *tree, const char *id, resvg_re
  * @return `false` if a node with such an ID does not exist
  * @return `false` if ID isn't a UTF-8 string.
  * @return `false` if ID is an empty string
+ * @return `false` if the node has no bounding box, e.g. an empty group
  */
 bool resvg_get_node_stroke_bbox(const resvg_render_tree *tree, const char *id, resvg_rect *bbox);
 

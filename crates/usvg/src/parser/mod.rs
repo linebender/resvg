@@ -162,10 +162,15 @@ impl crate::Tree {
             ..Default::default()
         };
 
-        let doc =
-            roxmltree::Document::parse_with_options(text, xml_opt).map_err(Error::ParsingFailed)?;
+        // The XML document is no longer needed once `svgtree` is built, so drop it
+        // before the conversion to lower the peak memory usage.
+        let doc = {
+            let xml = roxmltree::Document::parse_with_options(text, xml_opt)
+                .map_err(Error::ParsingFailed)?;
+            svgtree::Document::parse_tree(&xml, opt.style_sheet.as_deref())?
+        };
 
-        Self::from_xmltree(&doc, opt)
+        self::converter::convert_doc(&doc, opt)
     }
 
     /// Parses `Tree` from `roxmltree::Document`.

@@ -58,18 +58,17 @@ fn push_outline_paths(
 ) {
     let builder = mem::replace(builder, tiny_skia_path::PathBuilder::new());
 
-    if let Some(path) = builder.finish().and_then(|p| {
-        Path::new(
-            String::new(),
+    if let Some(data) = builder.finish() {
+        let path = Path::new(
+            Box::default(),
             span.visible,
             span.fill.clone(),
             span.stroke.clone(),
             span.paint_order,
             rendering_mode,
-            Arc::new(p),
+            Arc::new(data),
             abs_transform,
-        )
-    }) {
+        );
         new_children.push(Node::Path(Box::new(path)));
     }
 }
@@ -84,13 +83,13 @@ pub(crate) fn flatten(text: &mut Text, cache: &mut Cache) -> Option<(Group, NonZ
         if let Some(path) = span.overline.as_ref() {
             let mut path = path.clone();
             path.rendering_mode = rendering_mode;
-            new_children.push(Node::Path(Box::new(path)));
+            new_children.push(Node::Path(path));
         }
 
         if let Some(path) = span.underline.as_ref() {
             let mut path = path.clone();
             path.rendering_mode = rendering_mode;
-            new_children.push(Node::Path(Box::new(path)));
+            new_children.push(Node::Path(path));
         }
 
         // Instead of always processing each glyph separately, we always collect
@@ -113,7 +112,6 @@ pub(crate) fn flatten(text: &mut Text, cache: &mut Cache) -> Option<(Group, NonZ
                 // TODO: Probably need to update abs_transform of children? Same
                 // for SVG and bitmap glyphs.
                 group.children.push(Node::Group(Box::new(tree.root)));
-                group.calculate_bounding_boxes();
 
                 new_children.push(Node::Group(Box::new(group)));
             }
@@ -132,7 +130,6 @@ pub(crate) fn flatten(text: &mut Text, cache: &mut Cache) -> Option<(Group, NonZ
                     ..Group::empty()
                 };
                 group.children.push(node);
-                group.calculate_bounding_boxes();
 
                 new_children.push(Node::Group(Box::new(group)));
             }
@@ -164,7 +161,6 @@ pub(crate) fn flatten(text: &mut Text, cache: &mut Cache) -> Option<(Group, NonZ
                     ..Group::empty()
                 };
                 group.children.push(Node::Image(Box::new(img.image)));
-                group.calculate_bounding_boxes();
 
                 new_children.push(Node::Group(Box::new(group)));
             } else {
@@ -188,7 +184,7 @@ pub(crate) fn flatten(text: &mut Text, cache: &mut Cache) -> Option<(Group, NonZ
         if let Some(path) = span.line_through.as_ref() {
             let mut path = path.clone();
             path.rendering_mode = rendering_mode;
-            new_children.push(Node::Path(Box::new(path)));
+            new_children.push(Node::Path(path));
         }
     }
 
@@ -201,8 +197,7 @@ pub(crate) fn flatten(text: &mut Text, cache: &mut Cache) -> Option<(Group, NonZ
         group.children.push(child);
     }
 
-    group.calculate_bounding_boxes();
-    let stroke_bbox = group.stroke_bounding_box().to_non_zero_rect()?;
+    let stroke_bbox = group.stroke_bounding_box()?.to_non_zero_rect()?;
     Some((group, stroke_bbox))
 }
 
@@ -241,9 +236,18 @@ pub(crate) trait DatabaseExt {
         variations: &[crate::FontVariation],
     ) -> Option<tiny_skia_path::Path>;
     fn has_opsz_axis(&self, id: ID) -> bool;
+    fn color_tables(&self, id: ID) -> ColorTables;
     fn raster(&self, id: ID, glyph_id: GlyphId) -> Option<BitmapImage>;
     fn svg(&self, id: ID, glyph_id: GlyphId) -> Option<Node>;
     fn colr(&self, id: ID, glyph_id: GlyphId, variations: &[crate::FontVariation]) -> Option<Tree>;
+}
+
+/// The tables a font can contain non-outline glyphs in.
+#[derive(Clone, Copy, Default)]
+pub(crate) struct ColorTables {
+    pub(crate) colr: bool,
+    pub(crate) svg: bool,
+    pub(crate) bitmaps: bool,
 }
 
 #[derive(Clone)]
@@ -294,6 +298,19 @@ impl DatabaseExt for Database {
         })
         .flatten()
         .unwrap_or(false)
+    }
+
+    fn color_tables(&self, id: ID) -> ColorTables {
+        self.with_face_data(id, |data, face_index| -> Option<ColorTables> {
+            let font = skrifa::FontRef::from_index(data, face_index).ok()?;
+            Some(ColorTables {
+                colr: font.colr().is_ok(),
+                svg: font.svg().is_ok(),
+                bitmaps: !font.bitmap_strikes().is_empty(),
+            })
+        })
+        .flatten()
+        .unwrap_or_default()
     }
 
     fn raster(&self, id: ID, glyph_id: GlyphId) -> Option<BitmapImage> {
@@ -358,7 +375,7 @@ impl DatabaseExt for Database {
         self.with_face_data(id, |data, face_index| -> Option<Node> {
             let font = skrifa::FontRef::from_index(data, face_index).ok()?;
             let svg_table = font.svg().ok()?;
-            let image_data = svg_table.glyph_data(glyph_id.into()).ok()??;
+            let image_data = svg_table.glyph_data(glyph_id.into())?;
             let tree = Tree::from_data(image_data, &Options::default()).ok()?;
 
             // Twitter Color Emoji seems to always have one SVG record per glyph,
