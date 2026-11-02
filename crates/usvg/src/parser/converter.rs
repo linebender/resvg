@@ -1125,7 +1125,6 @@ pub fn svg_paint_order_to_usvg(order: svgtypes::PaintOrder) -> PaintOrder {
 impl SvgNode<'_, '_> {
     pub(crate) fn resolve_transform(&self, transform_aid: AId, state: &State) -> Transform {
         let mut transform: Transform = self.attribute(transform_aid).unwrap_or_default();
-
         let transform_origin = self
             .attribute::<TransformOrigin>(AId::TransformOrigin)
             .or_else(|| {
