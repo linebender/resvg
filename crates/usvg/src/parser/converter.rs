@@ -877,7 +877,7 @@ pub(crate) fn convert_group(
         let mut enabled = false;
         if cache.cache_clippath.0 {
             enabled = true;
-            cache.cache_clippath.0 = false; // mark unsuable
+            cache.cache_clippath.0 = false; // mark unusable
             cache.cache_clippath.1.clear();
         }
 
