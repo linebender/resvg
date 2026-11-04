@@ -98,6 +98,10 @@ pub struct Options<'a> {
     /// A CSS stylesheet that should be injected into the SVG. Can be used to overwrite
     /// certain attributes.
     pub style_sheet: Option<String>,
+
+    /// The maximum nesting allowed while parsing. If this limit is exceeded,
+    /// the parser will return an error.
+    pub max_depth: u32,
 }
 
 impl Default for Options<'_> {
@@ -119,6 +123,7 @@ impl Default for Options<'_> {
             #[cfg(feature = "text")]
             fontdb: Arc::new(fontdb::Database::new()),
             style_sheet: None,
+            max_depth: 1024,
         }
     }
 }

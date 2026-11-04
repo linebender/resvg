@@ -18,8 +18,9 @@ impl<'input> Document<'input> {
     pub fn parse_tree(
         xml: &roxmltree::Document<'input>,
         injected_stylesheet: Option<&'input str>,
+        max_depth: u32,
     ) -> Result<Document<'input>, Error> {
-        parse(xml, injected_stylesheet)
+        parse(xml, injected_stylesheet, max_depth)
     }
 
     pub(crate) fn append(&mut self, parent_id: NodeId, kind: NodeKind) -> NodeId {
@@ -65,6 +66,7 @@ impl<'input> Document<'input> {
 fn parse<'input>(
     xml: &roxmltree::Document<'input>,
     injected_stylesheet: Option<&'input str>,
+    max_depth: u32,
 ) -> Result<Document<'input>, Error> {
     let mut doc = Document {
         nodes: Vec::new(),
@@ -98,6 +100,7 @@ fn parse<'input>(
         &style_sheet,
         false,
         0,
+        max_depth,
         &mut doc,
         &id_map,
     )?;
@@ -164,6 +167,7 @@ fn parse_xml_node_children<'input>(
     style_sheet: &simplecss::StyleSheet,
     ignore_ids: bool,
     depth: u32,
+    max_depth: u32,
     doc: &mut Document<'input>,
     id_map: &HashMap<&str, roxmltree::Node<'_, 'input>>,
 ) -> Result<(), Error> {
@@ -175,6 +179,7 @@ fn parse_xml_node_children<'input>(
             style_sheet,
             ignore_ids,
             depth,
+            max_depth,
             doc,
             id_map,
         )?;
@@ -190,10 +195,11 @@ fn parse_xml_node<'input>(
     style_sheet: &simplecss::StyleSheet,
     ignore_ids: bool,
     depth: u32,
+    max_depth: u32,
     doc: &mut Document<'input>,
     id_map: &HashMap<&str, roxmltree::Node<'_, 'input>>,
 ) -> Result<(), Error> {
-    if depth > 1024 {
+    if depth > max_depth {
         return Err(Error::NodesLimitReached);
     }
 
@@ -216,7 +222,16 @@ fn parse_xml_node<'input>(
     if tag_name == EId::Text {
         super::text::parse_svg_text_element(node, node_id, style_sheet, doc)?;
     } else if tag_name == EId::Use {
-        parse_svg_use_element(node, origin, node_id, style_sheet, depth + 1, doc, id_map)?;
+        parse_svg_use_element(
+            node,
+            origin,
+            node_id,
+            style_sheet,
+            depth + 1,
+            max_depth,
+            doc,
+            id_map,
+        )?;
     } else {
         parse_xml_node_children(
             node,
@@ -225,6 +240,7 @@ fn parse_xml_node<'input>(
             style_sheet,
             ignore_ids,
             depth + 1,
+            max_depth,
             doc,
             id_map,
         )?;
@@ -622,6 +638,7 @@ fn parse_svg_use_element<'input>(
     parent_id: NodeId,
     style_sheet: &simplecss::StyleSheet,
     depth: u32,
+    max_depth: u32,
     doc: &mut Document<'input>,
     id_map: &HashMap<&str, roxmltree::Node<'_, 'input>>,
 ) -> Result<(), Error> {
@@ -689,6 +706,7 @@ fn parse_svg_use_element<'input>(
         style_sheet,
         true,
         depth + 1,
+        max_depth,
         doc,
         id_map,
     )
