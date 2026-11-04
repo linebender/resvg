@@ -1481,14 +1481,18 @@ fn shaping_font<'a>(
         Entry::Occupied(entry) => Some(entry.into_mut()),
         Entry::Vacant(entry) => {
             // Share the font data if it is already in memory, otherwise copy it.
-            let font =
-                if let Some((fontdb::Source::Binary(data), face_index)) = fontdb.face_source(id) {
+            let font = match fontdb.face_source(id) {
+                Some((fontdb::Source::Binary(data), face_index)) => {
                     harfrust::Font::new(data, face_index)
-                } else {
-                    fontdb.with_face_data(id, |data, face_index| {
-                        harfrust::Font::new(data.to_vec(), face_index)
-                    })?
-                }?;
+                }
+                #[cfg(feature = "memmap-fonts")]
+                Some((fontdb::Source::SharedFile(_, data), face_index)) => {
+                    harfrust::Font::new(data, face_index)
+                }
+                _ => fontdb.with_face_data(id, |data, face_index| {
+                    harfrust::Font::new(data.to_vec(), face_index)
+                })?,
+            }?;
 
             Some(entry.insert(ShapingFont {
                 font,
