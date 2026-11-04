@@ -94,32 +94,13 @@ impl PositionedGlyph {
         &self,
         x: f32,
         y: f32,
-        x_min: f32,
-        y_min: f32,
+        bearing_x: f32,
+        bearing_y: f32,
         pixels_per_em: f32,
         height: f32,
     ) -> Transform {
-        // In contrast to CBDT, we also need to look at the outline bbox of the glyph and add a shift if necessary.
-        let bbox_x_shift = -x_min;
-
-        let bbox_y_shift = if y_min.approx_zero_ulps(4) {
-            // For unknown reasons, using Apple Color Emoji will lead to a vertical shift on MacOS, but this shift
-            // doesn't seem to be coming from the font and most likely is somehow hardcoded. On Windows,
-            // this shift will not be applied. However, if this shift is not applied the emojis are a bit
-            // too high up when being together with other text, so we try to imitate this.
-            // See also https://github.com/harfbuzz/harfbuzz/issues/2679#issuecomment-1345595425
-            // So whenever the y-shift is 0, we approximate this vertical shift that seems to be produced by it.
-            // This value seems to be pretty close to what is happening on MacOS.
-            // We can still remove this if it turns out to be a problem, but Apple Color Emoji is pretty
-            // much the only `sbix` font out there and they all seem to have a y-shift of 0, so it
-            // makes sense to keep it.
-            0.128 * self.units_per_em as f32
-        } else {
-            -y_min
-        };
-
         self.transform()
-            .pre_concat(Transform::from_translate(bbox_x_shift, bbox_y_shift))
+            .pre_translate(bearing_x, -bearing_y)
             .pre_concat(Transform::from_scale(
                 self.units_per_em as f32 / pixels_per_em,
                 self.units_per_em as f32 / pixels_per_em,

@@ -12,7 +12,7 @@ use skrifa::bitmap::{BitmapData, BitmapFormat};
 use skrifa::outline::{DrawSettings, OutlinePen};
 use skrifa::prelude::LocationRef;
 use skrifa::raw::TableProvider as _;
-use skrifa::raw::types::BoundingBox;
+use skrifa::string::StringId;
 use svgtypes::Color;
 use tiny_skia_path::{NonZeroRect, Size, Transform};
 use xmlwriter::XmlWriter;
@@ -147,8 +147,8 @@ pub(crate) fn flatten(text: &mut Text, cache: &mut Cache) -> Option<(Group, NonZ
                     glyph.sbix_transform(
                         img.x as f32,
                         img.y as f32,
-                        img.glyph_bbox.map(|bbox| bbox.x_min).unwrap_or(0) as f32,
-                        img.glyph_bbox.map(|bbox| bbox.y_min).unwrap_or(0) as f32,
+                        img.bearing_x,
+                        img.bearing_y,
                         img.pixels_per_em as f32,
                         img.image.size.height(),
                     )
@@ -256,7 +256,8 @@ pub(crate) struct BitmapImage {
     x: i16,
     y: i16,
     pixels_per_em: u16,
-    glyph_bbox: Option<BoundingBox<i16>>,
+    bearing_x: f32,
+    bearing_y: f32,
     is_sbix: bool,
 }
 
@@ -320,18 +321,21 @@ impl DatabaseExt for Database {
 
             // We set size to unscaled to get the largest image available
             let size = skrifa::prelude::Size::unscaled();
-            let location = LocationRef::default();
             let image = bitmap_strikes.glyph_for_size(size, glyph_id.into())?;
 
             match image.data {
                 BitmapData::Png(data) => {
-                    let metrics = font.glyph_metrics(size, location);
-                    let bounding_box = metrics.bounds(glyph_id.into()).map(|bbox| BoundingBox {
-                        x_min: bbox.x_min as i16,
-                        y_min: bbox.y_min as i16,
-                        x_max: bbox.x_max as i16,
-                        y_max: bbox.y_max as i16,
-                    });
+                    // Follows vello:
+                    // https://github.com/linebender/vello/blob/717a485dabd16249fae739a755a3da3ea4a8f69a/glifo/src/glyph.rs#L1322-L1367
+                    let is_apple_color_emoji = font
+                        .localized_strings(StringId::POSTSCRIPT_NAME)
+                        .any(|name| name.chars().eq("AppleColorEmoji".chars()));
+                    let (bearing_x, bearing_y) = if is_apple_color_emoji {
+                        let units_per_em = font.head().ok()?.units_per_em();
+                        (0.0, -f32::from(units_per_em) / 8.0)
+                    } else {
+                        (image.bearing_x, image.bearing_y)
+                    };
 
                     let bitmap_image = BitmapImage {
                         image: Image {
@@ -351,7 +355,8 @@ impl DatabaseExt for Database {
                         x: image.inner_bearing_x as i16,
                         y: image.inner_bearing_y as i16,
                         pixels_per_em: image.ppem_x as u16,
-                        glyph_bbox: bounding_box,
+                        bearing_x,
+                        bearing_y,
                         is_sbix: bitmap_strikes.format() == Some(BitmapFormat::Sbix),
                     };
 
