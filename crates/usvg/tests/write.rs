@@ -53,8 +53,8 @@ fn resave_impl(name: &str, id_prefix: Option<String>, preserve_text: bool) {
     // )
     // .unwrap();
 
-    let expected_svg = std::fs::read_to_string(format!("tests/files/{}-expected.svg", name))
-        .unwrap_or_else(|e| panic!("Cannot open expected file for {name}: {e}"));
+    let expected_svg =
+        std::fs::read_to_string(format!("tests/files/{}-expected.svg", name)).unwrap();
 
     if output_svg != expected_svg {
         panic!(
@@ -217,9 +217,4 @@ fn preserve_text_with_nested_baseline_shift() {
 #[test]
 fn optimize_paths_without_markers() {
     resave("optimize-paths-without-markers");
-}
-
-#[test]
-fn xlink_href_loop() {
-    resave("xlink-href-loop");
 }

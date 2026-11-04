@@ -489,7 +489,7 @@ impl<'a, 'input: 'a> SvgNode<'a, 'input> {
             curr: self.id(),
             is_first: true,
             is_finished: false,
-            links: Default::default(),
+            visited: VisitedLinks::new(self.id()),
         }
     }
 }
@@ -607,6 +607,41 @@ impl<'a, 'input: 'a> Iterator for Descendants<'a, 'input> {
     }
 }
 
+/// The elements an `xlink:href` chain has visited so far.
+#[derive(Clone, Debug)]
+enum VisitedLinks {
+    Inline([Option<NodeId>; 4]),
+    Heap(HashSet<NodeId>),
+}
+
+impl VisitedLinks {
+    fn new(id: NodeId) -> Self {
+        VisitedLinks::Inline([Some(id), None, None, None])
+    }
+
+    /// Returns `false` if `id` was already visited.
+    fn insert(&mut self, id: NodeId) -> bool {
+        match self {
+            VisitedLinks::Inline(ids) => {
+                if ids.contains(&Some(id)) {
+                    return false;
+                }
+
+                if let Some(slot) = ids.iter_mut().find(|slot| slot.is_none()) {
+                    *slot = Some(id);
+                } else {
+                    let mut set: HashSet<NodeId> = ids.iter().flatten().copied().collect();
+                    set.insert(id);
+                    *self = VisitedLinks::Heap(set);
+                }
+
+                true
+            }
+            VisitedLinks::Heap(set) => set.insert(id),
+        }
+    }
+}
+
 /// An iterator over `xlink:href` references.
 #[derive(Clone, Debug)]
 pub struct HrefIter<'a, 'input: 'a> {
@@ -615,7 +650,7 @@ pub struct HrefIter<'a, 'input: 'a> {
     curr: NodeId,
     is_first: bool,
     is_finished: bool,
-    links: HashSet<NodeId>,
+    visited: VisitedLinks,
 }
 
 impl<'a, 'input: 'a> Iterator for HrefIter<'a, 'input> {
@@ -628,33 +663,21 @@ impl<'a, 'input: 'a> Iterator for HrefIter<'a, 'input> {
 
         if self.is_first {
             self.is_first = false;
-            let link = self.doc.get(self.curr);
-            self.links.insert(link.id());
-            return Some(link);
+            return Some(self.doc.get(self.curr));
         }
 
         if let Some(link) = self.doc.get(self.curr).node_attribute(AId::Href) {
-            let new_link_id = link.id();
-            if self.links.contains(&new_link_id) {
+            if !self.visited.insert(link.id()) {
                 log::warn!(
-                    "Element '#{}' cannot reference itself via 'xlink:href' - the href is creating a loop.",
-                    self.doc.get(self.origin).element_id()
-                );
-                self.is_finished = true;
-                return None;
-            }
-            if new_link_id == self.curr || new_link_id == self.origin {
-                log::warn!(
-                    "Element '#{}' cannot reference itself via 'xlink:href'.",
+                    "Element '#{}' has a circular 'xlink:href' reference.",
                     self.doc.get(self.origin).element_id()
                 );
                 self.is_finished = true;
                 return None;
             }
 
-            self.curr = new_link_id;
-            self.links.insert(self.curr);
-            Some(self.doc.get(self.curr))
+            self.curr = link.id();
+            Some(link)
         } else {
             None
         }
