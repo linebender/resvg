@@ -230,6 +230,7 @@ fn has_char(fontdb: &Database, id: ID, c: char) -> bool {
     // Unlike for the main fonts where we use skrifa's owned font abstraction,
     // here we just call `with_face_data` repeatedly so we don't need to call `to_vec`
     // for all fallback fonts.
+    // TODO: Cache the charmaps of fallback candidates, building one for every lookup is expensive.
     fontdb
         .with_face_data(id, |data, face_index| {
             let font = skrifa::FontRef::from_index(data, face_index).ok()?;
