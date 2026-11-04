@@ -702,3 +702,41 @@ fn resolve_fr_from_referenced_radial_gradient() {
 
     assert_eq!(rg.fr().get(), 25.0);
 }
+
+#[test]
+fn text_path_start_offset_is_accurate() {
+    let mut opts = usvg::Options::default();
+    opts.fontdb_mut()
+        .load_fonts_dir(env!("CARGO_MANIFEST_DIR").to_string() + "/../resvg/tests/fonts");
+    opts.font_family = "Noto Sans".to_string();
+
+    // The first glyph starts 20 units along horizontal and vertical paths.
+    // The collinear cubic has a non-uniform parameterization.
+    for (path, x, y) in [
+        ("M20 125 H376", 40.0, 125.0),
+        ("M20 125 V481", 20.0, 145.0),
+        ("M20 125 C21 125 40 125 376 125", 40.0, 125.0),
+    ] {
+        let svg = format!(
+            r##"<svg xmlns="http://www.w3.org/2000/svg" width="500" height="500">
+            <defs><path id="p" d="{path}"/></defs>
+            <text font-size="20"><textPath href="#p" startOffset="20">Start</textPath></text>
+        </svg>"##
+        );
+        let tree = usvg::Tree::from_str(&svg, &opts).unwrap();
+        let usvg::Node::Text(text) = &tree.root().children()[0] else {
+            panic!("missing text")
+        };
+        let position = text.layouted()[0].positioned_glyphs[0].transform();
+        assert!(
+            (position.tx - x).abs() < 0.002,
+            "{path}: x = {}",
+            position.tx
+        );
+        assert!(
+            (position.ty - y).abs() < 0.002,
+            "{path}: y = {}",
+            position.ty
+        );
+    }
+}
