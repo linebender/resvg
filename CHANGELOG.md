@@ -8,6 +8,20 @@ This changelog also contains important changes in dependencies.
 
 ## [Unreleased]
 
+### Added
+
+- The `image-orientation` property, with the values `from-image` and `none`. (#961)
+
+### Changed
+
+- JPEG and PNG images are now shown upright according to their EXIF orientation, like in browsers.
+  Use `image-orientation: none` to show the stored pixels as they are. (#961)
+- The orientation is applied by the transform of the image's parent group,
+  while `usvg::Image::size` stays the size of the stored pixels.
+  Renderers that apply the EXIF orientation themselves while decoding must stop doing so. (#961)
+- The `usvg` writer resets the EXIF orientation of written JPEG and PNG images,
+  so that it isn't applied twice. (#961)
+
 ### Fixed
 
 - Filter primitive subregions with `primitiveUnits="objectBoundingBox"` are now resolved against

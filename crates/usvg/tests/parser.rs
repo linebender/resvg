@@ -702,3 +702,44 @@ fn resolve_fr_from_referenced_radial_gradient() {
 
     assert_eq!(rg.fr().get(), 25.0);
 }
+
+#[test]
+fn image_with_exif_orientation() {
+    // Stored as 100x160, rotated to 160x100 by its EXIF orientation.
+    let svg = "
+    <svg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'>
+        <image x='20' y='50' href='image-exif-orientation-6.jpg'/>
+        <image x='20' y='50' href='image-exif-orientation-6.jpg'
+               style='image-orientation:none'/>
+    </svg>
+    ";
+
+    let opt = usvg::Options {
+        resources_dir: Some("../resvg/tests/resources".into()),
+        ..usvg::Options::default()
+    };
+    let tree = usvg::Tree::from_str(svg, &opt).unwrap();
+
+    let image_group = |index: usize| {
+        let usvg::Node::Group(group) = &tree.root().children()[index] else {
+            unreachable!()
+        };
+        let usvg::Node::Image(image) = &group.children()[0] else {
+            unreachable!()
+        };
+        (group.transform(), image.size(), image.abs_bounding_box())
+    };
+
+    let (transform, size, bbox) = image_group(0);
+    assert_eq!(size, usvg::Size::from_wh(100.0, 160.0).unwrap());
+    assert_eq!(bbox, Rect::from_xywh(20.0, 50.0, 160.0, 100.0).unwrap());
+    assert_eq!(
+        transform,
+        usvg::Transform::from_row(0.0, 1.0, -1.0, 0.0, 180.0, 50.0)
+    );
+
+    let (transform, size, bbox) = image_group(1);
+    assert_eq!(size, usvg::Size::from_wh(100.0, 160.0).unwrap());
+    assert_eq!(bbox, Rect::from_xywh(20.0, 50.0, 100.0, 160.0).unwrap());
+    assert_eq!(transform, usvg::Transform::from_translate(20.0, 50.0));
+}

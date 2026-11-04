@@ -263,7 +263,10 @@ pub(crate) fn parse_svg_element<'input>(
         }
 
         // For some reason those properties are allowed only inside a `style` attribute and CSS.
-        if matches!(aid, AId::MixBlendMode | AId::Isolation | AId::FontKerning) {
+        if matches!(
+            aid,
+            AId::MixBlendMode | AId::Isolation | AId::FontKerning | AId::ImageOrientation
+        ) {
             continue;
         } else if aid == AId::ImageRendering
             && matches!(
@@ -577,6 +580,7 @@ fn resolve_inherit(parent_id: NodeId, aid: AId, doc: &mut Document) -> bool {
         AId::Direction => "ltr",
         AId::Display => "inline",
         AId::FontSize => "medium",
+        AId::ImageOrientation => "from-image",
         AId::Overflow => "visible",
         AId::StrokeDashoffset => "0",
         AId::StrokeLinecap => "butt",

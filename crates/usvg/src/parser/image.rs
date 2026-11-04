@@ -5,7 +5,8 @@ use std::sync::{Arc, OnceLock};
 
 use svgtypes::{AspectRatio, Length};
 
-use super::svgtree::{AId, SvgNode};
+use super::exif::{self, Orientation};
+use super::svgtree::{AId, FromValue, SvgNode};
 use super::{OptionLog, Options, converter};
 use crate::tree::GroupBoundingBoxes;
 use crate::{
@@ -130,6 +131,34 @@ enum ImageFormat {
     SVG,
 }
 
+/// The deprecated `<angle>` and `flip` values fall back to `from-image`.
+#[derive(Clone, Copy, PartialEq, Debug, Default)]
+enum ImageOrientation {
+    #[default]
+    FromImage,
+    None,
+}
+
+impl<'a, 'input: 'a> FromValue<'a, 'input> for ImageOrientation {
+    fn parse(_: SvgNode, _: AId, value: &str) -> Option<Self> {
+        match value {
+            "from-image" => Some(ImageOrientation::FromImage),
+            "none" => Some(ImageOrientation::None),
+            _ => None,
+        }
+    }
+}
+
+pub(crate) fn resolve_orientation(node: SvgNode, kind: &ImageKind) -> Orientation {
+    match node
+        .find_attribute(AId::ImageOrientation)
+        .unwrap_or_default()
+    {
+        ImageOrientation::FromImage => exif::orientation(kind),
+        ImageOrientation::None => Orientation::Normal,
+    }
+}
+
 pub(crate) fn convert(
     node: SvgNode,
     state: &converter::State,
@@ -157,18 +186,20 @@ pub(crate) fn convert(
     };
 
     let actual_size = kind.actual_size()?;
+    let orientation = resolve_orientation(node, &kind);
+    let natural_size = orientation.apply_to_size(actual_size);
 
     let x = node.convert_user_length(AId::X, state, Length::zero());
     let y = node.convert_user_length(AId::Y, state, Length::zero());
     let mut width = node.convert_user_length(
         AId::Width,
         state,
-        Length::new_number(actual_size.width() as f64),
+        Length::new_number(natural_size.width() as f64),
     );
     let mut height = node.convert_user_length(
         AId::Height,
         state,
-        Length::new_number(actual_size.height() as f64),
+        Length::new_number(natural_size.height() as f64),
     );
 
     match (
@@ -177,11 +208,11 @@ pub(crate) fn convert(
     ) {
         (Some(_), None) => {
             // Only width was defined, so we need to scale height accordingly.
-            height = actual_size.height() * (width / actual_size.width());
+            height = natural_size.height() * (width / natural_size.width());
         }
         (None, Some(_)) => {
             // Only height was defined, so we need to scale width accordingly.
-            width = actual_size.width() * (height / actual_size.height());
+            width = natural_size.width() * (height / natural_size.height());
         }
         _ => {}
     };
@@ -197,6 +228,7 @@ pub(crate) fn convert(
         visible,
         rendering_mode,
         aspect,
+        orientation,
         actual_size,
         rect,
         cache,
@@ -210,12 +242,14 @@ pub(crate) fn convert_inner(
     visible: bool,
     rendering_mode: ImageRendering,
     aspect: AspectRatio,
+    orientation: Orientation,
     actual_size: Size,
     rect: NonZeroRect,
     cache: &mut converter::Cache,
     parent: &mut Group,
 ) -> Option<()> {
-    let aligned_size = fit_view_box(actual_size, rect, aspect);
+    let natural_size = orientation.apply_to_size(actual_size);
+    let aligned_size = fit_view_box(natural_size, rect, aspect);
     let (aligned_x, aligned_y) = crate::aligned_pos(
         aspect.align,
         rect.x(),
@@ -226,13 +260,14 @@ pub(crate) fn convert_inner(
     let view_box = aligned_size.to_non_zero_rect(aligned_x, aligned_y);
 
     let image_ts = Transform::from_row(
-        view_box.width() / actual_size.width(),
+        view_box.width() / natural_size.width(),
         0.0,
         0.0,
-        view_box.height() / actual_size.height(),
+        view_box.height() / natural_size.height(),
         view_box.x(),
         view_box.y(),
-    );
+    )
+    .pre_concat(orientation.transform(actual_size));
 
     let abs_transform = parent.abs_transform.pre_concat(image_ts);
     let abs_bounding_box = view_box.transform(parent.abs_transform)?;

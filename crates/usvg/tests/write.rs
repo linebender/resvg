@@ -65,6 +65,48 @@ fn resave_impl(name: &str, id_prefix: Option<String>, preserve_text: bool) {
 }
 
 #[test]
+fn image_with_exif_orientation() {
+    let svg = "
+    <svg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'>
+        <image x='20' y='50' href='image-exif-orientation-6.jpg'/>
+        <image x='20' y='50' href='image-exif-orientation-6.png'/>
+        <image x='20' y='50' href='image-exif-orientation-6.jpg'
+               style='image-orientation:none'/>
+    </svg>
+    ";
+
+    let opt = usvg::Options {
+        resources_dir: Some("../resvg/tests/resources".into()),
+        ..usvg::Options::default()
+    };
+    let tree = usvg::Tree::from_str(svg, &opt).unwrap();
+    let output_svg = tree.to_string(&usvg::WriteOptions::default());
+    let resaved_tree = usvg::Tree::from_str(&output_svg, &opt).unwrap();
+
+    let image_bboxes = |tree: &usvg::Tree| {
+        let mut bboxes = Vec::new();
+        collect_image_bboxes(tree.root(), &mut bboxes);
+        bboxes
+    };
+
+    let bboxes = image_bboxes(&tree);
+    assert_eq!(bboxes.len(), 3);
+    assert_eq!(bboxes, image_bboxes(&resaved_tree));
+}
+
+fn collect_image_bboxes(group: &usvg::Group, bboxes: &mut Vec<(usvg::Transform, usvg::Rect)>) {
+    for node in group.children() {
+        match node {
+            usvg::Node::Group(group) => collect_image_bboxes(group, bboxes),
+            usvg::Node::Image(image) => {
+                bboxes.push((image.abs_transform(), image.abs_bounding_box()))
+            }
+            _ => {}
+        }
+    }
+}
+
+#[test]
 fn path_simple_case() {
     resave("path-simple-case");
 }

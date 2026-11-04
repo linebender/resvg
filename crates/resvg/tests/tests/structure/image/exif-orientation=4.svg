@@ -1,0 +1,10 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"
+     xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>EXIF orientation 4 (flip vertical)</title>
+    <desc>The image must be shown upright with a size of 160x100.</desc>
+
+    <image id="image1" x="20" y="50" xlink:href="../../../resources/image-exif-orientation-4.jpg"/>
+
+    <!-- image frame -->
+    <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>

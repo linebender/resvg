@@ -64,6 +64,7 @@ gradientUnits
 height
 href
 id
+image-orientation
 image-rendering
 in
 in2
