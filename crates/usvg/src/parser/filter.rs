@@ -828,7 +828,7 @@ fn convert_image_inner(
     let href = fe.try_attribute(AId::Href).log_none(|| {
         log::warn!("The 'feImage' element lacks the 'xlink:href' attribute. Skipped.");
     })?;
-    let img_data = super::image::get_href_data(href, state)?;
+    let img_data = super::image::get_href_data(href, state, cache)?;
     let actual_size = img_data.actual_size()?;
 
     let aspect: AspectRatio = fe.attribute(AId::PreserveAspectRatio).unwrap_or_default();

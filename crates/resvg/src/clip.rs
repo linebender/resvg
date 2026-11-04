@@ -41,9 +41,7 @@ fn draw_children(
                 }
 
                 // We could use any values here. They will not be used anyway.
-                let ctx = Context {
-                    max_bbox: tiny_skia::IntRect::from_xywh(0, 0, 1, 1).unwrap(),
-                };
+                let ctx = Context::new(tiny_skia::IntRect::from_xywh(0, 0, 1, 1).unwrap());
 
                 crate::path::fill_path(path, mode, &ctx, transform, pixmap);
             }

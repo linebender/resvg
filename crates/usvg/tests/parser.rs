@@ -702,3 +702,75 @@ fn resolve_fr_from_referenced_radial_gradient() {
 
     assert_eq!(rg.fr().get(), 25.0);
 }
+
+// A 1x1 PNG.
+const PNG_DATA_URL: &str = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+
+fn collect_image_data(parent: &usvg::Group, data: &mut Vec<std::sync::Arc<Vec<u8>>>) {
+    for node in parent.children() {
+        match node {
+            usvg::Node::Group(group) => collect_image_data(group, data),
+            usvg::Node::Image(image) => match image.kind() {
+                usvg::ImageKind::PNG(d) => data.push(d.clone()),
+                _ => panic!("expected a PNG image"),
+            },
+            _ => {}
+        }
+    }
+}
+
+#[test]
+fn image_data_is_shared_between_uses() {
+    let svg = format!(
+        "<svg xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink'>
+        <defs><image id='img' width='1' height='1' xlink:href='{PNG_DATA_URL}'/></defs>
+        <use xlink:href='#img'/>
+        <use xlink:href='#img' x='2'/>
+        <use xlink:href='#img' x='4'/>
+    </svg>"
+    );
+
+    let tree = usvg::Tree::from_str(&svg, &usvg::Options::default()).unwrap();
+    let mut data = Vec::new();
+    collect_image_data(tree.root(), &mut data);
+
+    assert_eq!(data.len(), 3);
+    assert!(std::sync::Arc::ptr_eq(&data[0], &data[1]));
+    assert!(std::sync::Arc::ptr_eq(&data[0], &data[2]));
+}
+
+#[test]
+fn image_data_with_same_href_is_shared() {
+    let svg = format!(
+        "<svg xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink'>
+        <image width='1' height='1' xlink:href='{PNG_DATA_URL}'/>
+        <image width='1' height='1' x='2' xlink:href='{PNG_DATA_URL}'/>
+    </svg>"
+    );
+
+    let tree = usvg::Tree::from_str(&svg, &usvg::Options::default()).unwrap();
+    let mut data = Vec::new();
+    collect_image_data(tree.root(), &mut data);
+
+    assert_eq!(data.len(), 2);
+    assert!(std::sync::Arc::ptr_eq(&data[0], &data[1]));
+}
+
+#[test]
+fn image_used_once_has_a_single_owner() {
+    // resvg keeps a decoded image only when its data has more than one owner,
+    // so the parser must not keep its own reference once the tree is built.
+    let svg = format!(
+        "<svg xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink'>
+        <image width='1' height='1' xlink:href='{PNG_DATA_URL}'/>
+    </svg>"
+    );
+
+    let tree = usvg::Tree::from_str(&svg, &usvg::Options::default()).unwrap();
+    let mut data = Vec::new();
+    collect_image_data(tree.root(), &mut data);
+
+    assert_eq!(data.len(), 1);
+    // One owner in the tree, one in `data`.
+    assert_eq!(std::sync::Arc::strong_count(&data[0]), 2);
+}

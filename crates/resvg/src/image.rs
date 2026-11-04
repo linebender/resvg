@@ -1,8 +1,22 @@
 // Copyright 2018 the Resvg Authors
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+/// Raster images decoded during one render.
+///
+/// usvg shares the data of an image referenced several times (e.g. through
+/// `use`), so an image whose data has more than one owner is decoded once
+/// and kept, keyed by its data pointer. Images drawn once are not kept.
+#[derive(Default)]
+pub struct DecodedImages {
+    #[cfg(feature = "raster-images")]
+    entries: std::cell::RefCell<
+        std::collections::HashMap<*const Vec<u8>, Option<std::rc::Rc<tiny_skia::Pixmap>>>,
+    >,
+}
+
 pub fn render(
     image: &usvg::Image,
+    #[allow(unused_variables)] ctx: &crate::render::Context,
     transform: tiny_skia::Transform,
     pixmap: &mut tiny_skia::PixmapMut,
 ) {
@@ -10,22 +24,19 @@ pub fn render(
         return;
     }
 
-    render_inner(image.kind(), transform, image.rendering_mode(), pixmap);
-}
-
-pub fn render_inner(
-    image_kind: &usvg::ImageKind,
-    transform: tiny_skia::Transform,
-    #[allow(unused_variables)] rendering_mode: usvg::ImageRendering,
-    pixmap: &mut tiny_skia::PixmapMut,
-) {
-    match image_kind {
+    match image.kind() {
         usvg::ImageKind::SVG(tree) => {
             render_vector(tree, transform, pixmap);
         }
         #[cfg(feature = "raster-images")]
         _ => {
-            raster_images::render_raster(image_kind, transform, rendering_mode, pixmap);
+            raster_images::render_raster(
+                image.kind(),
+                &ctx.images,
+                transform,
+                image.rendering_mode(),
+                pixmap,
+            );
         }
         #[cfg(not(feature = "raster-images"))]
         _ => {
@@ -170,13 +181,39 @@ mod raster_images {
         }
     }
 
+    fn decode_raster_cached(
+        image: &usvg::ImageKind,
+        cache: &super::DecodedImages,
+    ) -> Option<std::rc::Rc<tiny_skia::Pixmap>> {
+        let data = match image {
+            usvg::ImageKind::JPEG(data)
+            | usvg::ImageKind::PNG(data)
+            | usvg::ImageKind::GIF(data)
+            | usvg::ImageKind::WEBP(data) => data,
+            usvg::ImageKind::SVG(_) => return None,
+        };
+
+        // Only shared data can be drawn again.
+        if std::sync::Arc::strong_count(data) == 1 {
+            return decode_raster(image).map(std::rc::Rc::new);
+        }
+
+        cache
+            .entries
+            .borrow_mut()
+            .entry(std::sync::Arc::as_ptr(data))
+            .or_insert_with(|| decode_raster(image).map(std::rc::Rc::new))
+            .clone()
+    }
+
     pub(crate) fn render_raster(
         image: &usvg::ImageKind,
+        cache: &super::DecodedImages,
         transform: tiny_skia::Transform,
         rendering_mode: usvg::ImageRendering,
         pixmap: &mut tiny_skia::PixmapMut,
     ) -> Option<()> {
-        let raster = decode_raster(image)?;
+        let raster = decode_raster_cached(image, cache)?;
 
         let rect = tiny_skia::Size::from_wh(raster.width() as f32, raster.height() as f32)?
             .to_rect(0.0, 0.0)?;
@@ -191,7 +228,7 @@ mod raster_images {
         };
 
         let pattern = tiny_skia::Pattern::new(
-            raster.as_ref(),
+            (*raster).as_ref(),
             tiny_skia::SpreadMode::Pad,
             quality,
             1.0,
