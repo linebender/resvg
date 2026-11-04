@@ -21,7 +21,7 @@ mod text;
 #[cfg(feature = "text")]
 pub(crate) use converter::Cache;
 pub use image::{ImageHrefDataResolverFn, ImageHrefResolver, ImageHrefStringResolverFn};
-pub use options::Options;
+pub use options::{DEFAULT_MAX_DEPTH, Options};
 #[cfg(feature = "writer")]
 pub(crate) use svgtree::{AId, EId};
 
@@ -149,6 +149,7 @@ impl crate::Tree {
                     (opt.font_resolver.select_fallback)(c, used_fonts, db)
                 }),
             },
+            max_depth: opt.max_depth,
             ..Options::default()
         };
 

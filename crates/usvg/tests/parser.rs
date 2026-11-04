@@ -702,3 +702,57 @@ fn resolve_fr_from_referenced_radial_gradient() {
 
     assert_eq!(rg.fr().get(), 25.0);
 }
+
+fn parse_with_max_depth(svg: &str, max_depth: u32) -> Result<usvg::Tree, usvg::Error> {
+    let opt = usvg::Options {
+        max_depth,
+        ..usvg::Options::default()
+    };
+    usvg::Tree::from_str(svg, &opt)
+}
+
+#[test]
+fn max_depth_limits_nesting() {
+    let svg = "<svg xmlns='http://www.w3.org/2000/svg'>\
+        <g><g><rect width='1' height='1'/></g></g>\
+    </svg>";
+
+    assert!(parse_with_max_depth(svg, 3).is_ok());
+    assert!(matches!(
+        parse_with_max_depth(svg, 2),
+        Err(usvg::Error::ParsingFailed(
+            roxmltree::Error::NodesLimitReached
+        ))
+    ));
+}
+
+#[test]
+fn max_depth_counts_use_instances() {
+    let without_use = "<svg xmlns='http://www.w3.org/2000/svg'>\
+        <defs><rect id='r' width='1' height='1'/></defs>\
+    </svg>";
+    let with_use = "<svg xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink'>\
+        <defs><rect id='r' width='1' height='1'/></defs>\
+        <use xlink:href='#r'/>\
+    </svg>";
+
+    assert!(parse_with_max_depth(without_use, 2).is_ok());
+    assert!(matches!(
+        parse_with_max_depth(with_use, 2),
+        Err(usvg::Error::ParsingFailed(
+            roxmltree::Error::NodesLimitReached
+        ))
+    ));
+}
+
+#[test]
+fn max_depth_applies_to_nested_svg_images() {
+    let svg = "<svg xmlns='http://www.w3.org/2000/svg'>\
+        <image width='1' height='1' href=\"data:image/svg+xml,\
+            %3Csvg xmlns='http://www.w3.org/2000/svg' width='1' height='1'%3E\
+            %3Cg%3E%3Crect width='1' height='1'/%3E%3C/g%3E%3C/svg%3E\"/>\
+    </svg>";
+
+    assert!(parse_with_max_depth(svg, 2).unwrap().root().has_children());
+    assert!(!parse_with_max_depth(svg, 1).unwrap().root().has_children());
+}
