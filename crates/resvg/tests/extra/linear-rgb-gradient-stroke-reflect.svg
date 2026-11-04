@@ -1,0 +1,10 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"
+     xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>Linear RGB gradient stroke reflect</title>
+    <linearGradient id="g" color-interpolation="linearRGB" spreadMethod="reflect"
+                    gradientUnits="userSpaceOnUse" x1="20" x2="70">
+        <stop id="s1" stop-color="black"/>
+        <stop id="s2" offset="1" stop-color="white"/>
+    </linearGradient>
+    <path id="p" d="M 10,100 H 190" fill="none" stroke="url(#g)" stroke-width="100"/>
+</svg>

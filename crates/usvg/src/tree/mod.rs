@@ -12,6 +12,7 @@ pub use strict_num::{self, ApproxEqUlps, NonZeroPositiveF32, NormalizedF32, Posi
 
 pub use tiny_skia_path;
 
+pub use self::filter::ColorInterpolation;
 pub use self::geom::*;
 pub use self::text::*;
 
@@ -288,6 +289,7 @@ pub struct BaseGradient {
     pub(crate) units: Units, // used only during parsing
     pub(crate) transform: Transform,
     pub(crate) spread_method: SpreadMethod,
+    pub(crate) color_interpolation: ColorInterpolation,
     pub(crate) stops: Vec<Stop>,
 }
 
@@ -312,6 +314,13 @@ impl BaseGradient {
     /// `spreadMethod` in SVG.
     pub fn spread_method(&self) -> SpreadMethod {
         self.spread_method
+    }
+
+    /// Color space used to interpolate the gradient stops.
+    ///
+    /// `color-interpolation` in SVG. Defaults to sRGB.
+    pub fn color_interpolation(&self) -> ColorInterpolation {
+        self.color_interpolation
     }
 
     /// A list of `stop` elements.
@@ -860,6 +869,7 @@ pub struct Mask {
     pub(crate) id: NonEmptyString,
     pub(crate) rect: NonZeroRect,
     pub(crate) kind: MaskType,
+    pub(crate) color_interpolation: ColorInterpolation,
     pub(crate) mask: Option<Arc<Mask>>,
     pub(crate) root: Group,
 }
@@ -885,6 +895,13 @@ impl Mask {
     /// `mask-type` in SVG.
     pub fn kind(&self) -> MaskType {
         self.kind
+    }
+
+    /// Color space used to calculate luminance. Ignored for alpha masks.
+    ///
+    /// `color-interpolation` in SVG. Defaults to sRGB.
+    pub fn color_interpolation(&self) -> ColorInterpolation {
+        self.color_interpolation
     }
 
     /// Additional mask.

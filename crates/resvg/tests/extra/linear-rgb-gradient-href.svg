@@ -1,0 +1,12 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"
+     xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>Linear RGB gradient href</title>
+    <linearGradient id="base" color-interpolation="linearRGB">
+        <stop id="s1" stop-color="black"/>
+        <stop id="s2" offset="1" stop-color="white"/>
+    </linearGradient>
+    <linearGradient id="linked" xlink:href="#base"/>
+    <linearGradient id="explicit" xlink:href="#base" color-interpolation="linearRGB"/>
+    <rect id="r1" width="200" height="100" fill="url(#linked)"/>
+    <rect id="r2" y="100" width="200" height="100" fill="url(#explicit)"/>
+</svg>

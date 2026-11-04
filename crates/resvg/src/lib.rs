@@ -18,6 +18,7 @@ pub use tiny_skia;
 pub use usvg;
 
 mod clip;
+mod color;
 mod filter;
 mod geom;
 mod image;

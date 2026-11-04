@@ -22,8 +22,9 @@ use super::paint_server::{convert_units, resolve_number};
 use super::svgtree::{AId, EId, FromValue, SvgNode};
 
 impl<'a, 'input: 'a> FromValue<'a, 'input> for filter::ColorInterpolation {
-    fn parse(_: SvgNode, _: AId, value: &str) -> Option<Self> {
+    fn parse(_: SvgNode, aid: AId, value: &str) -> Option<Self> {
         match value {
+            "auto" if aid == AId::ColorInterpolation => Some(filter::ColorInterpolation::SRGB),
             "sRGB" => Some(filter::ColorInterpolation::SRGB),
             "linearRGB" => Some(filter::ColorInterpolation::LinearRGB),
             _ => None,

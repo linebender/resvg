@@ -1,0 +1,11 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"
+     xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>Linear RGB gradient colors</title>
+    <linearGradient id="g" color-interpolation="linearRGB">
+        <stop id="s1" stop-color="#012048"/>
+        <stop id="s2" offset="0.35" stop-color="#ff8010"/>
+        <stop id="s3" offset="0.7" stop-color="#20f040"/>
+        <stop id="s4" offset="1" stop-color="#1060ff"/>
+    </linearGradient>
+    <rect id="r" width="200" height="200" fill="url(#g)"/>
+</svg>

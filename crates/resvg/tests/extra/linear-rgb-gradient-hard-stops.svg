@@ -1,0 +1,11 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"
+     xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>Linear RGB gradient hard stops</title>
+    <linearGradient id="g" color-interpolation="linearRGB">
+        <stop id="s1" stop-color="black"/>
+        <stop id="s2" offset="0.5" stop-color="white"/>
+        <stop id="s3" offset="0.5" stop-color="red"/>
+        <stop id="s4" offset="1" stop-color="blue"/>
+    </linearGradient>
+    <rect id="r" width="200" height="200" fill="url(#g)"/>
+</svg>

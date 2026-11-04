@@ -1,0 +1,10 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"
+     xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>Linear RGB gradient alpha</title>
+    <linearGradient id="g" color-interpolation="linearRGB">
+        <stop id="s1" stop-color="red" stop-opacity="0.2"/>
+        <stop id="s2" offset="1" stop-color="blue" stop-opacity="0.8"/>
+    </linearGradient>
+    <rect id="bg" width="200" height="200" fill="#40a070"/>
+    <rect id="r" x="10" y="10" width="180" height="180" fill="url(#g)" fill-opacity="0.7"/>
+</svg>

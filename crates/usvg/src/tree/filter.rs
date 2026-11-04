@@ -135,7 +135,8 @@ pub enum Input {
 
 /// A color interpolation mode.
 ///
-/// The default is `ColorInterpolation::LinearRGB`.
+/// The default is `ColorInterpolation::LinearRGB` for filter primitives.
+/// Gradients and masks use `ColorInterpolation::SRGB` when the property is absent.
 #[allow(missing_docs)]
 #[derive(Clone, Copy, PartialEq, Debug, Default)]
 pub enum ColorInterpolation {

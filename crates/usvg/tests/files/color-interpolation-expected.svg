@@ -1,0 +1,34 @@
+<svg width="200" height="200" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+        <linearGradient id="linear" x1="0" y1="0" x2="1" y2="0" gradientUnits="userSpaceOnUse" gradientTransform="matrix(100 0 0 100 0 0)" color-interpolation="linearRGB">
+            <stop offset="0" stop-color="#000000"/>
+            <stop offset="1" stop-color="#ffffff"/>
+        </linearGradient>
+        <linearGradient id="srgb" x1="0" y1="0" x2="1" y2="0" gradientUnits="userSpaceOnUse" gradientTransform="matrix(50 0 0 100 0 100)">
+            <stop offset="0" stop-color="#000000"/>
+            <stop offset="1" stop-color="#ffffff"/>
+        </linearGradient>
+        <linearGradient id="auto" x1="0" y1="0" x2="1" y2="0" gradientUnits="userSpaceOnUse" gradientTransform="matrix(50 0 0 100 50 100)">
+            <stop offset="0" stop-color="#000000"/>
+            <stop offset="1" stop-color="#ffffff"/>
+        </linearGradient>
+        <linearGradient id="linked" x1="0" y1="0" x2="1" y2="0" gradientUnits="userSpaceOnUse" gradientTransform="matrix(100 0 0 100 100 100)">
+            <stop offset="0" stop-color="#000000"/>
+            <stop offset="1" stop-color="#ffffff"/>
+        </linearGradient>
+        <radialGradient id="radial" cx="0.5" cy="0.5" r="0.5" fx="0.5" fy="0.5" gradientUnits="userSpaceOnUse" gradientTransform="matrix(100 0 0 100 100 0)" color-interpolation="linearRGB">
+            <stop offset="0" stop-color="#000000"/>
+            <stop offset="1" stop-color="#ffffff"/>
+        </radialGradient>
+        <mask id="mask1" color-interpolation="linearRGB" maskUnits="userSpaceOnUse" x="-10" y="-10" width="120.00001" height="120.00001">
+            <path id="maskRect" fill="#808080" stroke="none" d="M 0 0 L 200 0 L 200 200 L 0 200 Z"/>
+        </mask>
+    </defs>
+    <g mask="url(#mask1)">
+        <path id="rect1" fill="url(#linear)" stroke="none" d="M 0 0 L 100 0 L 100 100 L 0 100 Z"/>
+    </g>
+    <path id="rect2" fill="url(#radial)" stroke="none" d="M 100 0 L 200 0 L 200 100 L 100 100 Z"/>
+    <path id="rect3" fill="url(#srgb)" stroke="none" d="M 0 100 L 50 100 L 50 200 L 0 200 Z"/>
+    <path id="rect4" fill="url(#auto)" stroke="none" d="M 50 100 L 100 100 L 100 200 L 50 200 Z"/>
+    <path id="rect5" fill="url(#linked)" stroke="none" d="M 100 100 L 200 100 L 200 200 L 100 200 Z"/>
+</svg>

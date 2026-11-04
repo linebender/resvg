@@ -1,0 +1,21 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"
+     xmlns:xlink="http://www.w3.org/1999/xlink">
+    <defs id="defs1" color-interpolation="linearRGB">
+        <linearGradient id="linear" color-interpolation="inherit">
+            <stop id="stop1" stop-color="black"/>
+            <stop id="stop2" offset="1" stop-color="white"/>
+        </linearGradient>
+        <radialGradient id="radial" xlink:href="#linear"/>
+        <mask id="mask1" color-interpolation="inherit">
+            <rect id="maskRect" width="200" height="200" fill="#808080"/>
+        </mask>
+        <linearGradient id="srgb" xlink:href="#linear" color-interpolation="sRGB"/>
+        <linearGradient id="auto" xlink:href="#linear" color-interpolation="auto"/>
+    </defs>
+    <linearGradient id="linked" xlink:href="#linear"/>
+    <rect id="rect1" width="100" height="100" fill="url(#linear)" mask="url(#mask1)"/>
+    <rect id="rect2" x="100" width="100" height="100" fill="url(#radial)"/>
+    <rect id="rect3" y="100" width="50" height="100" fill="url(#srgb)"/>
+    <rect id="rect4" x="50" y="100" width="50" height="100" fill="url(#auto)"/>
+    <rect id="rect5" x="100" y="100" width="100" height="100" fill="url(#linked)"/>
+</svg>

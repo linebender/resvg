@@ -41,6 +41,24 @@ pub fn apply(
         usvg::MaskType::Alpha => tiny_skia::MaskType::Alpha,
     };
 
-    let mask = tiny_skia::Mask::from_pixmap(mask_pixmap.as_ref(), mask_type);
+    let mask = if mask_type == tiny_skia::MaskType::Luminance
+        && mask.color_interpolation() == usvg::ColorInterpolation::LinearRGB
+    {
+        let mut result = tiny_skia::Mask::new(mask_pixmap.width(), mask_pixmap.height()).unwrap();
+        for (pixel, alpha) in mask_pixmap.pixels().iter().zip(result.data_mut()) {
+            if pixel.alpha() == 0 {
+                continue;
+            }
+            // Decode unpremultiplied channels before calculating luminance.
+            let a = f32::from(pixel.alpha());
+            let r = crate::color::srgb_to_linear(f32::from(pixel.red()) / a);
+            let g = crate::color::srgb_to_linear(f32::from(pixel.green()) / a);
+            let b = crate::color::srgb_to_linear(f32::from(pixel.blue()) / a);
+            *alpha = ((r * 0.2126 + g * 0.7152 + b * 0.0722) * a).round() as u8;
+        }
+        result
+    } else {
+        tiny_skia::Mask::from_pixmap(mask_pixmap.as_ref(), mask_type)
+    };
     pixmap.apply_mask(&mask);
 }
