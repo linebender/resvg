@@ -4,21 +4,9 @@
 use std::mem;
 use std::sync::Arc;
 
-use crate::GlyphId;
-use fontdb::{Database, ID};
-use skrifa::MetadataProvider;
-use skrifa::Tag;
-use skrifa::bitmap::{BitmapData, BitmapFormat};
-use skrifa::outline::{DrawSettings, OutlinePen};
-use skrifa::prelude::LocationRef;
-use skrifa::raw::TableProvider as _;
-use skrifa::string::StringId;
-use svgtypes::Color;
-use tiny_skia_path::{NonZeroRect, Size, Transform};
-use xmlwriter::XmlWriter;
+use tiny_skia_path::{NonZeroRect, Transform};
 
-use crate::text::OPSZ;
-use crate::text::colr::GlyphPainter;
+use crate::text::cache::{FontCache, with_optical_sizing};
 use crate::*;
 
 fn resolve_rendering_mode(text: &Text) -> ShapeRendering {
@@ -27,26 +15,6 @@ fn resolve_rendering_mode(text: &Text) -> ShapeRendering {
         TextRendering::OptimizeLegibility => ShapeRendering::GeometricPrecision,
         TextRendering::GeometricPrecision => ShapeRendering::GeometricPrecision,
     }
-}
-
-/// Returns the effective variation settings for a glyph: the span's explicit
-/// variations plus an automatically computed `opsz` value when
-/// `font-optical-sizing: auto` is in effect and the font has an `opsz` axis
-/// that wasn't set explicitly. This matches browser behavior
-/// (CSS font-optical-sizing: auto).
-fn effective_variations(
-    cache: &mut Cache,
-    span: &layout::Span,
-    glyph: &layout::PositionedGlyph,
-) -> Vec<FontVariation> {
-    let mut variations = span.variations.clone();
-    if span.font_optical_sizing == crate::FontOpticalSizing::Auto
-        && !variations.iter().any(|v| &v.tag == b"opsz")
-        && cache.has_opsz_axis(glyph.font)
-    {
-        variations.push(FontVariation::new(*b"opsz", glyph.font_size()));
-    }
-    variations
 }
 
 fn push_outline_paths(
@@ -73,7 +41,7 @@ fn push_outline_paths(
     }
 }
 
-pub(crate) fn flatten(text: &mut Text, cache: &mut Cache) -> Option<(Group, NonZeroRect)> {
+pub(crate) fn flatten(text: &mut Text, fonts: &mut FontCache) -> Option<(Group, NonZeroRect)> {
     let mut new_children = vec![];
 
     let abs_transform = text.abs_transform;
@@ -100,11 +68,15 @@ pub(crate) fn flatten(text: &mut Text, cache: &mut Cache) -> Option<(Group, NonZ
         // with just outlines (which is the most common case).
         let mut span_builder = tiny_skia_path::PathBuilder::new();
 
-        for glyph in &span.positioned_glyphs {
-            let variations = effective_variations(cache, span, glyph);
+        let variations = with_optical_sizing(
+            &span.variations,
+            span.font_optical_sizing,
+            span.font_size.get(),
+        );
 
+        for glyph in &span.positioned_glyphs {
             // A (best-effort conversion of a) COLR glyph.
-            if let Some(tree) = cache.fontdb_colr(glyph.font, glyph.id, &variations) {
+            if let Some(tree) = fonts.colr(glyph.font, glyph.id, variations.clone()) {
                 let mut group = Group {
                     transform: glyph.colr_transform(),
                     ..Group::empty()
@@ -116,7 +88,7 @@ pub(crate) fn flatten(text: &mut Text, cache: &mut Cache) -> Option<(Group, NonZ
                 new_children.push(Node::Group(Box::new(group)));
             }
             // An SVG glyph. Will return the usvg node containing the glyph descriptions.
-            else if let Some(node) = cache.fontdb_svg(glyph.font, glyph.id) {
+            else if let Some(node) = fonts.svg(glyph.font, glyph.id) {
                 push_outline_paths(
                     span,
                     &mut span_builder,
@@ -134,7 +106,7 @@ pub(crate) fn flatten(text: &mut Text, cache: &mut Cache) -> Option<(Group, NonZ
                 new_children.push(Node::Group(Box::new(group)));
             }
             // A bitmap glyph.
-            else if let Some(img) = cache.fontdb_raster(glyph.font, glyph.id) {
+            else if let Some(img) = fonts.raster(glyph.font, glyph.id) {
                 push_outline_paths(
                     span,
                     &mut span_builder,
@@ -164,7 +136,7 @@ pub(crate) fn flatten(text: &mut Text, cache: &mut Cache) -> Option<(Group, NonZ
 
                 new_children.push(Node::Group(Box::new(group)));
             } else {
-                let outline = cache.fontdb_outline(glyph.font, glyph.id, &variations);
+                let outline = fonts.outline(glyph.font, glyph.id, variations.clone());
 
                 if let Some(outline) = outline.and_then(|p| p.transform(glyph.outline_transform()))
                 {
@@ -199,255 +171,4 @@ pub(crate) fn flatten(text: &mut Text, cache: &mut Cache) -> Option<(Group, NonZ
 
     let stroke_bbox = group.stroke_bounding_box()?.to_non_zero_rect()?;
     Some((group, stroke_bbox))
-}
-
-#[derive(Default)]
-struct PathBuilder {
-    builder: tiny_skia_path::PathBuilder,
-}
-
-impl OutlinePen for PathBuilder {
-    fn move_to(&mut self, x: f32, y: f32) {
-        self.builder.move_to(x, y);
-    }
-
-    fn line_to(&mut self, x: f32, y: f32) {
-        self.builder.line_to(x, y);
-    }
-
-    fn quad_to(&mut self, cx0: f32, cy0: f32, x: f32, y: f32) {
-        self.builder.quad_to(cx0, cy0, x, y);
-    }
-
-    fn curve_to(&mut self, cx0: f32, cy0: f32, cx1: f32, cy1: f32, x: f32, y: f32) {
-        self.builder.cubic_to(cx0, cy0, cx1, cy1, x, y);
-    }
-
-    fn close(&mut self) {
-        self.builder.close();
-    }
-}
-
-pub(crate) trait DatabaseExt {
-    fn outline(
-        &self,
-        id: ID,
-        glyph_id: GlyphId,
-        variations: &[crate::FontVariation],
-    ) -> Option<tiny_skia_path::Path>;
-    fn has_opsz_axis(&self, id: ID) -> bool;
-    fn color_tables(&self, id: ID) -> ColorTables;
-    fn raster(&self, id: ID, glyph_id: GlyphId) -> Option<BitmapImage>;
-    fn svg(&self, id: ID, glyph_id: GlyphId) -> Option<Node>;
-    fn colr(&self, id: ID, glyph_id: GlyphId, variations: &[crate::FontVariation]) -> Option<Tree>;
-}
-
-/// The tables a font can contain non-outline glyphs in.
-#[derive(Clone, Copy, Default)]
-pub(crate) struct ColorTables {
-    pub(crate) colr: bool,
-    pub(crate) svg: bool,
-    pub(crate) bitmaps: bool,
-}
-
-#[derive(Clone)]
-pub(crate) struct BitmapImage {
-    image: Image,
-    x: i16,
-    y: i16,
-    pixels_per_em: u16,
-    bearing_x: f32,
-    bearing_y: f32,
-    is_sbix: bool,
-}
-
-impl DatabaseExt for Database {
-    #[inline(never)]
-    fn outline(
-        &self,
-        id: ID,
-        glyph_id: GlyphId,
-        variations: &[crate::FontVariation],
-    ) -> Option<tiny_skia_path::Path> {
-        self.with_face_data(id, |data, face_index| -> Option<tiny_skia_path::Path> {
-            let font = skrifa::FontRef::from_index(data, face_index).ok()?;
-            let outline = font.outline_glyphs().get(glyph_id.into())?;
-
-            let mut builder = PathBuilder::default();
-
-            let size = skrifa::prelude::Size::unscaled();
-            // An empty variation list resolves to the default value of every
-            // variation axis, which is what we want for non-variable fonts and
-            // for variable fonts used without variations.
-            let location = font.axes().location(
-                variations
-                    .iter()
-                    .map(|v| (Tag::from_be_bytes(v.tag), v.value)),
-            );
-            outline
-                .draw(DrawSettings::unhinted(size, &location), &mut builder)
-                .ok()?;
-
-            builder.builder.finish()
-        })?
-    }
-
-    fn has_opsz_axis(&self, id: ID) -> bool {
-        self.with_face_data(id, |data, face_index| -> Option<bool> {
-            let font = skrifa::FontRef::from_index(data, face_index).ok()?;
-            Some(font.axes().get_by_tag(OPSZ).is_some())
-        })
-        .flatten()
-        .unwrap_or(false)
-    }
-
-    fn color_tables(&self, id: ID) -> ColorTables {
-        self.with_face_data(id, |data, face_index| -> Option<ColorTables> {
-            let font = skrifa::FontRef::from_index(data, face_index).ok()?;
-            Some(ColorTables {
-                colr: font.colr().is_ok(),
-                svg: font.svg().is_ok(),
-                bitmaps: !font.bitmap_strikes().is_empty(),
-            })
-        })
-        .flatten()
-        .unwrap_or_default()
-    }
-
-    fn raster(&self, id: ID, glyph_id: GlyphId) -> Option<BitmapImage> {
-        self.with_face_data(id, |data, face_index| -> Option<BitmapImage> {
-            let font = skrifa::FontRef::from_index(data, face_index).ok()?;
-            let bitmap_strikes = font.bitmap_strikes();
-
-            // We set size to unscaled to get the largest image available
-            let size = skrifa::prelude::Size::unscaled();
-            let image = bitmap_strikes.glyph_for_size(size, glyph_id.into())?;
-
-            match image.data {
-                BitmapData::Png(data) => {
-                    // Follows vello:
-                    // https://github.com/linebender/vello/blob/717a485dabd16249fae739a755a3da3ea4a8f69a/glifo/src/glyph.rs#L1322-L1367
-                    let is_apple_color_emoji = font
-                        .localized_strings(StringId::POSTSCRIPT_NAME)
-                        .any(|name| name.chars().eq("AppleColorEmoji".chars()));
-                    let (bearing_x, bearing_y) = if is_apple_color_emoji {
-                        let units_per_em = font.head().ok()?.units_per_em();
-                        (0.0, -f32::from(units_per_em) / 8.0)
-                    } else {
-                        (image.bearing_x, image.bearing_y)
-                    };
-
-                    let bitmap_image = BitmapImage {
-                        image: Image {
-                            id: String::new(),
-                            visible: true,
-                            size: Size::from_wh(image.width as f32, image.height as f32)?,
-                            rendering_mode: ImageRendering::OptimizeQuality,
-                            kind: ImageKind::PNG(Arc::new(data.to_vec())),
-                            abs_transform: Transform::default(),
-                            abs_bounding_box: NonZeroRect::from_xywh(
-                                0.0,
-                                0.0,
-                                image.width as f32,
-                                image.height as f32,
-                            )?,
-                        },
-                        x: image.inner_bearing_x as i16,
-                        y: image.inner_bearing_y as i16,
-                        pixels_per_em: image.ppem_x as u16,
-                        bearing_x,
-                        bearing_y,
-                        is_sbix: bitmap_strikes.format() == Some(BitmapFormat::Sbix),
-                    };
-
-                    Some(bitmap_image)
-                }
-                // TODO: implement other bitmap formats
-                BitmapData::Bgra(_) | BitmapData::Mask(_) => None,
-            }
-        })?
-    }
-
-    fn svg(&self, id: ID, glyph_id: GlyphId) -> Option<Node> {
-        // SEE: https://docs.rs/read-fonts/latest/read_fonts/tables/svg/type.Svg.html
-
-        // TODO: Technically not 100% accurate because the SVG format in a OTF font
-        // is actually a subset/superset of a normal SVG, but it seems to work fine
-        // for Twitter Color Emoji, so might as well use what we already have.
-
-        // TODO: Glyph records can contain the data for multiple glyphs. We should
-        // add a cache so we don't need to reparse the data every time.
-        self.with_face_data(id, |data, face_index| -> Option<Node> {
-            let font = skrifa::FontRef::from_index(data, face_index).ok()?;
-            let svg_table = font.svg().ok()?;
-            let image_data = svg_table.glyph_data(glyph_id.into())?;
-            let tree = Tree::from_data(image_data, &Options::default()).ok()?;
-
-            // Twitter Color Emoji seems to always have one SVG record per glyph,
-            // while Noto Color Emoji sometimes contains multiple ones. It's kind of hacky,
-            // but the best we have for now.
-            let document_list = svg_table.svg_document_list().ok()?;
-            let doc_record = document_list.document_records().iter().find(|r| {
-                (r.start_glyph_id.get().to_u32()..=r.end_glyph_id.get().to_u32())
-                    .contains(&glyph_id.0)
-            })?;
-            let node = if doc_record.start_glyph_id == doc_record.end_glyph_id {
-                Node::Group(Box::new(tree.root))
-            } else {
-                tree.node_by_id(&format!("glyph{}", glyph_id.0))
-                    .log_none(|| {
-                        log::warn!("Failed to find SVG glyph node for glyph {}", glyph_id.0);
-                    })
-                    .cloned()?
-            };
-
-            Some(node)
-        })?
-    }
-
-    fn colr(&self, id: ID, glyph_id: GlyphId, variations: &[crate::FontVariation]) -> Option<Tree> {
-        self.with_face_data(id, |data, face_index| -> Option<Tree> {
-            let font = skrifa::FontRef::from_index(data, face_index).ok()?;
-
-            let location = font.axes().location(
-                variations
-                    .iter()
-                    .map(|v| (Tag::from_be_bytes(v.tag), v.value)),
-            );
-
-            let mut svg = XmlWriter::new(xmlwriter::Options::default());
-
-            svg.start_element("svg");
-            svg.write_attribute("xmlns", "http://www.w3.org/2000/svg");
-            svg.write_attribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
-
-            let mut path_buf = String::with_capacity(256);
-            let gradient_index = 1;
-            let clip_path_index = 1;
-
-            svg.start_element("g");
-
-            let mut glyph_painter = GlyphPainter {
-                font: &font,
-                location: LocationRef::from(&location),
-                svg: &mut svg,
-                path_buf: &mut path_buf,
-                gradient_index,
-                clip_path_index,
-                foreground_color: Color::new_rgba(0, 0, 0, 255),
-                transform: skrifa::color::Transform::default(),
-                outline_transform: skrifa::color::Transform::default(),
-                transforms_stack: vec![skrifa::color::Transform::default()],
-                clip_stack: Vec::new(),
-            };
-
-            font.color_glyphs()
-                .get(glyph_id.into())?
-                .paint(&location, &mut glyph_painter)
-                .ok()?;
-            svg.end_element();
-
-            Tree::from_data(svg.end_document().as_bytes(), &Options::default()).ok()
-        })?
-    }
 }
