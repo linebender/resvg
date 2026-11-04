@@ -540,6 +540,8 @@ use crate::render;
 #[test] fn paint_servers_linearGradient_recursive_xlink_href_1() { assert_eq!(render("tests/paint-servers/linearGradient/recursive-xlink-href-1"), 0); }
 #[test] fn paint_servers_linearGradient_recursive_xlink_href_2() { assert_eq!(render("tests/paint-servers/linearGradient/recursive-xlink-href-2"), 0); }
 #[test] fn paint_servers_linearGradient_recursive_xlink_href_3() { assert_eq!(render("tests/paint-servers/linearGradient/recursive-xlink-href-3"), 0); }
+#[test] fn paint_servers_linearGradient_recursive_xlink_href_into_loop_long_chain() { assert_eq!(render("tests/paint-servers/linearGradient/recursive-xlink-href-into-loop-long-chain"), 0); }
+#[test] fn paint_servers_linearGradient_recursive_xlink_href_into_loop() { assert_eq!(render("tests/paint-servers/linearGradient/recursive-xlink-href-into-loop"), 0); }
 #[test] fn paint_servers_linearGradient_self_recursive_xlink_href() { assert_eq!(render("tests/paint-servers/linearGradient/self-recursive-xlink-href"), 0); }
 #[test] fn paint_servers_linearGradient_single_stop_with_opacity_used_by_fill_and_stroke() { assert_eq!(render("tests/paint-servers/linearGradient/single-stop-with-opacity-used-by-fill-and-stroke"), 0); }
 #[test] fn paint_servers_linearGradient_single_stop_with_opacity_used_by_fill() { assert_eq!(render("tests/paint-servers/linearGradient/single-stop-with-opacity-used-by-fill"), 0); }
