@@ -121,6 +121,50 @@ impl Normal {
     }
 }
 
+#[inline]
+fn alpha_at_f32(img: ImageRef, fx: f32, fy: f32) -> f32 {
+    let fx = fx.clamp(0.0, (img.width - 1) as f32);
+    let fy = fy.clamp(0.0, (img.height - 1) as f32);
+    let x0 = fx.floor() as u32;
+    let y0 = fy.floor() as u32;
+    let x1 = (x0 + 1).min(img.width - 1);
+    let y1 = (y0 + 1).min(img.height - 1);
+    let dx = fx - x0 as f32;
+    let dy = fy - y0 as f32;
+
+    let a00 = img.alpha_at(x0, y0) as f32;
+    let a10 = img.alpha_at(x1, y0) as f32;
+    let a01 = img.alpha_at(x0, y1) as f32;
+    let a11 = img.alpha_at(x1, y1) as f32;
+
+    let top = a00 * (1.0 - dx) + a10 * dx;
+    let bottom = a01 * (1.0 - dx) + a11 * dx;
+    top * (1.0 - dy) + bottom * dy
+}
+
+#[inline]
+fn normal_at(img: ImageRef, x: u32, y: u32, step_x: f32, step_y: f32) -> Normal {
+    let fx = x as f32;
+    let fy = y as f32;
+
+    let a00 = alpha_at_f32(img, fx - step_x, fy - step_y);
+    let a10 = alpha_at_f32(img, fx, fy - step_y);
+    let a20 = alpha_at_f32(img, fx + step_x, fy - step_y);
+    let a01 = alpha_at_f32(img, fx - step_x, fy);
+    let a21 = alpha_at_f32(img, fx + step_x, fy);
+    let a02 = alpha_at_f32(img, fx - step_x, fy + step_y);
+    let a12 = alpha_at_f32(img, fx, fy + step_y);
+    let a22 = alpha_at_f32(img, fx + step_x, fy + step_y);
+
+    let nx = -a00 + a20 - 2.0 * a01 + 2.0 * a21 - a02 + a22;
+    let ny = -a00 - 2.0 * a10 - a20 + a02 + 2.0 * a12 + a22;
+
+    Normal {
+        factor: Vector2::new(1.0 / (4.0 * step_x), 1.0 / (4.0 * step_y)),
+        normal: Vector2::new(-nx, -ny),
+    }
+}
+
 /// Renders a diffuse lighting.
 ///
 /// - `src` pixels can have any alpha method, since only the alpha channel is used.
@@ -132,16 +176,25 @@ impl Normal {
 pub fn diffuse_lighting(
     fe: &DiffuseLighting,
     light_source: LightSource,
+    ts: usvg::Transform,
     src: ImageRef,
     dest: ImageRefMut,
 ) {
     debug_assert!(src.width == dest.width && src.height == dest.height);
 
+    let (surface_scale, step_x, step_y) = if let Some((kx, ky)) = fe.kernel_unit_length() {
+        let (sx, sy) = ts.get_scale();
+        let sz = (ts.sx * ts.sx + ts.sy * ts.sy).sqrt() / core::f32::consts::SQRT_2;
+        (fe.surface_scale() * sz, kx.get() * sx, ky.get() * sy)
+    } else {
+        (fe.surface_scale(), 1.0, 1.0)
+    };
+
     let light_factor = |normal: Normal, light_vector: Vector3| {
         let k = if normal.normal.approx_zero() {
             light_vector.z
         } else {
-            let mut n = normal.normal * (fe.surface_scale() / 255.0);
+            let mut n = normal.normal * (surface_scale / 255.0);
             n.x *= normal.factor.x;
             n.y *= normal.factor.y;
 
@@ -155,8 +208,10 @@ pub fn diffuse_lighting(
 
     apply(
         light_source,
-        fe.surface_scale(),
+        surface_scale,
         fe.lighting_color(),
+        step_x,
+        step_y,
         &light_factor,
         calc_diffuse_alpha,
         src,
@@ -175,10 +230,19 @@ pub fn diffuse_lighting(
 pub fn specular_lighting(
     fe: &SpecularLighting,
     light_source: LightSource,
+    ts: usvg::Transform,
     src: ImageRef,
     dest: ImageRefMut,
 ) {
     debug_assert!(src.width == dest.width && src.height == dest.height);
+
+    let (surface_scale, step_x, step_y) = if let Some((kx, ky)) = fe.kernel_unit_length() {
+        let (sx, sy) = ts.get_scale();
+        let sz = (ts.sx * ts.sx + ts.sy * ts.sy).sqrt() / core::f32::consts::SQRT_2;
+        (fe.surface_scale() * sz, kx.get() * sx, ky.get() * sy)
+    } else {
+        (fe.surface_scale(), 1.0, 1.0)
+    };
 
     let light_factor = |normal: Normal, light_vector: Vector3| {
         let h = light_vector + Vector3::new(0.0, 0.0, 1.0);
@@ -196,7 +260,7 @@ pub fn specular_lighting(
                 n_dot_h.powf(fe.specular_exponent())
             }
         } else {
-            let mut n = normal.normal * (fe.surface_scale() / 255.0);
+            let mut n = normal.normal * (surface_scale / 255.0);
             n.x *= normal.factor.x;
             n.y *= normal.factor.y;
 
@@ -215,8 +279,10 @@ pub fn specular_lighting(
 
     apply(
         light_source,
-        fe.surface_scale(),
+        surface_scale,
         fe.lighting_color(),
+        step_x,
+        step_y,
         &light_factor,
         calc_specular_alpha,
         src,
@@ -228,6 +294,8 @@ fn apply(
     light_source: LightSource,
     surface_scale: f32,
     lighting_color: Color,
+    step_x: f32,
+    step_y: f32,
     light_factor: &dyn Fn(Normal, Vector3) -> f32,
     calc_alpha: fn(u8, u8, u8) -> u8,
     src: ImageRef,
@@ -284,24 +352,32 @@ fn apply(
         *dest.pixel_at_mut(nx, ny) = RGBA8 { b, g, r, a };
     };
 
-    calc(0, 0, top_left_normal(src));
-    calc(width - 1, 0, top_right_normal(src));
-    calc(0, height - 1, bottom_left_normal(src));
-    calc(width - 1, height - 1, bottom_right_normal(src));
+    if step_x.approx_eq_ulps(&1.0, 4) && step_y.approx_eq_ulps(&1.0, 4) {
+        calc(0, 0, top_left_normal(src));
+        calc(width - 1, 0, top_right_normal(src));
+        calc(0, height - 1, bottom_left_normal(src));
+        calc(width - 1, height - 1, bottom_right_normal(src));
 
-    for x in 1..width - 1 {
-        calc(x, 0, top_row_normal(src, x));
-        calc(x, height - 1, bottom_row_normal(src, x));
-    }
-
-    for y in 1..height - 1 {
-        calc(0, y, left_column_normal(src, y));
-        calc(width - 1, y, right_column_normal(src, y));
-    }
-
-    for y in 1..height - 1 {
         for x in 1..width - 1 {
-            calc(x, y, interior_normal(src, x, y));
+            calc(x, 0, top_row_normal(src, x));
+            calc(x, height - 1, bottom_row_normal(src, x));
+        }
+
+        for y in 1..height - 1 {
+            calc(0, y, left_column_normal(src, y));
+            calc(width - 1, y, right_column_normal(src, y));
+        }
+
+        for y in 1..height - 1 {
+            for x in 1..width - 1 {
+                calc(x, y, interior_normal(src, x, y));
+            }
+        }
+    } else {
+        for y in 0..height {
+            for x in 0..width {
+                calc(x, y, normal_at(src, x, y, step_x, step_y));
+            }
         }
     }
 }
