@@ -198,6 +198,7 @@ use crate::render;
 #[test] fn filters_feImage_preserveAspectRatio_eq_none() { assert_eq!(render("tests/filters/feImage/preserveAspectRatio=none"), 0); }
 #[test] fn filters_feImage_recursive_links_1() { assert_eq!(render("tests/filters/feImage/recursive-links-1"), 0); }
 #[test] fn filters_feImage_recursive_links_2() { assert_eq!(render("tests/filters/feImage/recursive-links-2"), 0); }
+#[test] fn filters_feImage_recursive_links_3() { assert_eq!(render("tests/filters/feImage/recursive-links-3"), 0); }
 #[test] fn filters_feImage_self_recursive() { assert_eq!(render("tests/filters/feImage/self-recursive"), 0); }
 #[test] fn filters_feImage_shared_with_objectBoundingBox_gradient() { assert_eq!(render("tests/filters/feImage/shared-with-objectBoundingBox-gradient"), 0); }
 #[test] fn filters_feImage_simple_case() { assert_eq!(render("tests/filters/feImage/simple-case"), 0); }
@@ -461,9 +462,12 @@ use crate::render;
 #[test] fn masking_clipPath_on_the_root_svg_without_size() { assert_eq!(render("tests/masking/clipPath/on-the-root-svg-without-size"), 0); }
 #[test] fn masking_clipPath_opacity_has_no_effect() { assert_eq!(render("tests/masking/clipPath/opacity-has-no-effect"), 0); }
 #[test] fn masking_clipPath_overlapped_shapes_with_evenodd() { assert_eq!(render("tests/masking/clipPath/overlapped-shapes-with-evenodd"), 0); }
+#[test] fn masking_clipPath_recursive_indirect_on_child() { assert_eq!(render("tests/masking/clipPath/recursive-indirect-on-child"), 0); }
+#[test] fn masking_clipPath_recursive_indirect_on_self() { assert_eq!(render("tests/masking/clipPath/recursive-indirect-on-self"), 0); }
 #[test] fn masking_clipPath_recursive_on_child() { assert_eq!(render("tests/masking/clipPath/recursive-on-child"), 0); }
 #[test] fn masking_clipPath_recursive_on_self() { assert_eq!(render("tests/masking/clipPath/recursive-on-self"), 0); }
 #[test] fn masking_clipPath_recursive() { assert_eq!(render("tests/masking/clipPath/recursive"), 0); }
+#[test] fn masking_clipPath_same_clip_path_on_multiple_children() { assert_eq!(render("tests/masking/clipPath/same-clip-path-on-multiple-children"), 0); }
 #[test] fn masking_clipPath_self_recursive() { assert_eq!(render("tests/masking/clipPath/self-recursive"), 0); }
 #[test] fn masking_clipPath_simple_case() { assert_eq!(render("tests/masking/clipPath/simple-case"), 0); }
 #[test] fn masking_clipPath_stroke_has_no_effect() { assert_eq!(render("tests/masking/clipPath/stroke-has-no-effect"), 0); }
@@ -494,12 +498,15 @@ use crate::render;
 #[test] fn masking_mask_maskUnits_eq_userSpaceOnUse_with_width_only() { assert_eq!(render("tests/masking/mask/maskUnits=userSpaceOnUse-with-width-only"), 0); }
 #[test] fn masking_mask_maskUnits_eq_userSpaceOnUse_without_rect() { assert_eq!(render("tests/masking/mask/maskUnits=userSpaceOnUse-without-rect"), 0); }
 #[test] fn masking_mask_nested_objectBoundingBox() { assert_eq!(render("tests/masking/mask/nested-objectBoundingBox"), 0); }
+#[test] fn masking_mask_nested_mask_with_reference_to_parent() { assert_eq!(render("tests/masking/mask/nested-mask-with-reference-to-parent"), 0); }
 #[test] fn masking_mask_no_children() { assert_eq!(render("tests/masking/mask/no-children"), 0); }
 #[test] fn masking_mask_none() { assert_eq!(render("tests/masking/mask/none"), 0); }
 #[test] fn masking_mask_on_a_horizontal_line() { assert_eq!(render("tests/masking/mask/on-a-horizontal-line"), 0); }
 #[test] fn masking_mask_on_a_small_object() { assert_eq!(render("tests/masking/mask/on-a-small-object"), 0); }
 #[test] fn masking_mask_on_group_with_transform() { assert_eq!(render("tests/masking/mask/on-group-with-transform"), 0); }
+#[test] fn masking_mask_recursive_indirect_on_child() { assert_eq!(render("tests/masking/mask/recursive-indirect-on-child"), 0); }
 #[test] fn masking_mask_recursive_on_child() { assert_eq!(render("tests/masking/mask/recursive-on-child"), 0); }
+#[test] fn masking_mask_recursive_on_inherited_marker() { assert_eq!(render("tests/masking/mask/recursive-on-inherited-marker"), 0); }
 #[test] fn masking_mask_recursive_on_self() { assert_eq!(render("tests/masking/mask/recursive-on-self"), 0); }
 #[test] fn masking_mask_recursive() { assert_eq!(render("tests/masking/mask/recursive"), 0); }
 #[test] fn masking_mask_self_recursive() { assert_eq!(render("tests/masking/mask/self-recursive"), 0); }
@@ -559,6 +566,7 @@ use crate::render;
 #[test] fn paint_servers_pattern_attributes_via_xlink_href() { assert_eq!(render("tests/paint-servers/pattern/attributes-via-xlink-href"), 0); }
 #[test] fn paint_servers_pattern_child_with_invalid_FuncIRI() { assert_eq!(render("tests/paint-servers/pattern/child-with-invalid-FuncIRI"), 0); }
 #[test] fn paint_servers_pattern_children_via_xlink_href() { assert_eq!(render("tests/paint-servers/pattern/children-via-xlink-href"), 0); }
+#[test] fn paint_servers_pattern_defs_with_indirect_reference_to_self() { assert_eq!(render("tests/paint-servers/pattern/defs-with-indirect-reference-to-self"), 0); }
 #[test] fn paint_servers_pattern_display_eq_none_on_child() { assert_eq!(render("tests/paint-servers/pattern/display=none-on-child"), 0); }
 #[test] fn paint_servers_pattern_everything_via_xlink_href() { assert_eq!(render("tests/paint-servers/pattern/everything-via-xlink-href"), 0); }
 #[test] fn paint_servers_pattern_fractional_tile_size() { assert_eq!(render("tests/paint-servers/pattern/fractional-tile-size"), 0); }
@@ -567,6 +575,7 @@ use crate::render;
 #[test] fn paint_servers_pattern_missing_height() { assert_eq!(render("tests/paint-servers/pattern/missing-height"), 0); }
 #[test] fn paint_servers_pattern_missing_width() { assert_eq!(render("tests/paint-servers/pattern/missing-width"), 0); }
 #[test] fn paint_servers_pattern_nested_objectBoundingBox() { assert_eq!(render("tests/paint-servers/pattern/nested-objectBoundingBox"), 0); }
+#[test] fn paint_servers_pattern_nested_pattern_inheriting_recursive_fill() { assert_eq!(render("tests/paint-servers/pattern/nested-pattern-inheriting-recursive-fill"), 0); }
 #[test] fn paint_servers_pattern_no_children() { assert_eq!(render("tests/paint-servers/pattern/no-children"), 0); }
 #[test] fn paint_servers_pattern_out_of_order_referencing() { assert_eq!(render("tests/paint-servers/pattern/out-of-order-referencing"), 0); }
 #[test] fn paint_servers_pattern_overflow_eq_visible() { assert_eq!(render("tests/paint-servers/pattern/overflow=visible"), 0); }
@@ -578,7 +587,10 @@ use crate::render;
 #[test] fn paint_servers_pattern_patternUnits_eq_objectBoundingBox() { assert_eq!(render("tests/paint-servers/pattern/patternUnits=objectBoundingBox"), 0); }
 #[test] fn paint_servers_pattern_patternUnits_eq_userSpaceOnUse_with_percent() { assert_eq!(render("tests/paint-servers/pattern/patternUnits=userSpaceOnUse-with-percent"), 0); }
 #[test] fn paint_servers_pattern_preserveAspectRatio() { assert_eq!(render("tests/paint-servers/pattern/preserveAspectRatio"), 0); }
+#[test] fn paint_servers_pattern_recursive_indirect_on_child() { assert_eq!(render("tests/paint-servers/pattern/recursive-indirect-on-child"), 0); }
 #[test] fn paint_servers_pattern_recursive_on_child() { assert_eq!(render("tests/paint-servers/pattern/recursive-on-child"), 0); }
+#[test] fn paint_servers_pattern_recursive_on_inherited_fill() { assert_eq!(render("tests/paint-servers/pattern/recursive-on-inherited-fill"), 0); }
+#[test] fn paint_servers_pattern_recursive_on_inherited_stroke() { assert_eq!(render("tests/paint-servers/pattern/recursive-on-inherited-stroke"), 0); }
 #[test] fn paint_servers_pattern_self_recursive_on_child() { assert_eq!(render("tests/paint-servers/pattern/self-recursive-on-child"), 0); }
 #[test] fn paint_servers_pattern_self_recursive() { assert_eq!(render("tests/paint-servers/pattern/self-recursive"), 0); }
 #[test] fn paint_servers_pattern_shared_with_objectBoundingBox_gradient() { assert_eq!(render("tests/paint-servers/pattern/shared-with-objectBoundingBox-gradient"), 0); }
@@ -791,6 +803,7 @@ use crate::render;
 #[test] fn painting_marker_marker_on_text() { assert_eq!(render("tests/painting/marker/marker-on-text"), 0); }
 #[test] fn painting_marker_marker_with_a_negative_size() { assert_eq!(render("tests/painting/marker/marker-with-a-negative-size"), 0); }
 #[test] fn painting_marker_nested() { assert_eq!(render("tests/painting/marker/nested"), 0); }
+#[test] fn painting_marker_nested_marker_with_reference_to_parent() { assert_eq!(render("tests/painting/marker/nested-marker-with-reference-to-parent"), 0); }
 #[test] fn painting_marker_no_stroke_on_target() { assert_eq!(render("tests/painting/marker/no-stroke-on-target"), 0); }
 #[test] fn painting_marker_on_ArcTo() { assert_eq!(render("tests/painting/marker/on-ArcTo"), 0); }
 #[test] fn painting_marker_only_marker_end() { assert_eq!(render("tests/painting/marker/only-marker-end"), 0); }
@@ -825,6 +838,8 @@ use crate::render;
 #[test] fn painting_marker_recursive_3() { assert_eq!(render("tests/painting/marker/recursive-3"), 0); }
 #[test] fn painting_marker_recursive_4() { assert_eq!(render("tests/painting/marker/recursive-4"), 0); }
 #[test] fn painting_marker_recursive_5() { assert_eq!(render("tests/painting/marker/recursive-5"), 0); }
+#[test] fn painting_marker_recursive_via_mask() { assert_eq!(render("tests/painting/marker/recursive-via-mask"), 0); }
+#[test] fn painting_marker_recursive_via_pattern() { assert_eq!(render("tests/painting/marker/recursive-via-pattern"), 0); }
 #[test] fn painting_marker_target_with_subpaths_1() { assert_eq!(render("tests/painting/marker/target-with-subpaths-1"), 0); }
 #[test] fn painting_marker_target_with_subpaths_2() { assert_eq!(render("tests/painting/marker/target-with-subpaths-2"), 0); }
 #[test] fn painting_marker_the_marker_property_in_CSS() { assert_eq!(render("tests/painting/marker/the-marker-property-in-CSS"), 0); }

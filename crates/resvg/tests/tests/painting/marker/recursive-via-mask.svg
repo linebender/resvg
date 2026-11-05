@@ -1,0 +1,19 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <title>Recursive via mask</title>
+
+    <mask id="mask1" maskUnits="userSpaceOnUse" x="0" y="0" width="200" height="200">
+        <path id="path1" d="M 40 140 L 160 140" stroke="white" stroke-width="40"
+              marker-start="url(#marker1)"/>
+    </mask>
+    <marker id="marker1" refX="20" refY="20" markerWidth="40" markerHeight="40"
+            markerUnits="userSpaceOnUse">
+        <rect id="rect1" x="2" y="2" width="36" height="36" fill="white" stroke="blue"
+              stroke-width="4" mask="url(#mask1)"/>
+    </marker>
+    <rect id="rect2" x="20" y="100" width="160" height="80" fill="green" mask="url(#mask1)"/>
+    <path id="path2" d="M 100 40 L 100 90" stroke="blue" stroke-width="4"
+          marker-start="url(#marker1)"/>
+
+    <!-- image frame -->
+    <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>

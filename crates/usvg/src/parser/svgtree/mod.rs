@@ -25,6 +25,9 @@ pub struct Document<'input> {
     nodes: Vec<NodeData>,
     attrs: Vec<Attribute<'input>>,
     links: HashMap<String, NodeId>,
+    // Keyed by the element that uses a reference rather than the one that sets it, so that an
+    // inherited reference stays valid outside the cycle it closes.
+    circular_references: HashSet<(NodeId, AId)>,
 }
 
 impl<'input> Document<'input> {
@@ -277,6 +280,14 @@ impl<'a, 'input: 'a> SvgNode<'a, 'input> {
 
     /// Returns an attribute value.
     pub fn attribute<T: FromValue<'a, 'input>>(&self, aid: AId) -> Option<T> {
+        if self.has_circular_reference(aid) {
+            return None;
+        }
+
+        self.attribute_impl(aid)
+    }
+
+    fn attribute_impl<T: FromValue<'a, 'input>>(&self, aid: AId) -> Option<T> {
         let value = self
             .attributes()
             .iter()
@@ -313,12 +324,21 @@ impl<'a, 'input: 'a> SvgNode<'a, 'input> {
     ///
     /// Same as `SvgNode::attribute`, but doesn't show a warning.
     pub fn try_attribute<T: FromValue<'a, 'input>>(&self, aid: AId) -> Option<T> {
+        if self.has_circular_reference(aid) {
+            return None;
+        }
+
         let value = self
             .attributes()
             .iter()
             .find(|a| a.name == aid)
             .map(|a| a.value.as_str())?;
         T::parse(*self, aid, value)
+    }
+
+    #[inline]
+    fn has_circular_reference(&self, aid: AId) -> bool {
+        self.doc.circular_references.contains(&(self.id, aid))
     }
 
     #[inline]
@@ -348,17 +368,6 @@ impl<'a, 'input: 'a> SvgNode<'a, 'input> {
         }
     }
 
-    #[inline]
-    fn attribute_id(&self, aid: AId) -> Option<usize> {
-        match self.d.kind {
-            NodeKind::Element { ref attributes, .. } => {
-                let idx = self.attributes().iter().position(|attr| attr.name == aid)?;
-                Some(attributes.start as usize + idx)
-            }
-            _ => None,
-        }
-    }
-
     /// Finds a [`Node`] that contains the required attribute.
     ///
     /// For inheritable attributes walks over ancestors until a node with
@@ -367,7 +376,13 @@ impl<'a, 'input: 'a> SvgNode<'a, 'input> {
     /// For non-inheritable attributes checks only the current node and the parent one.
     /// As per SVG spec.
     pub fn find_attribute<T: FromValue<'a, 'input>>(&self, aid: AId) -> Option<T> {
-        self.find_attribute_impl(aid)?.attribute(aid)
+        if self.has_circular_reference(aid) {
+            return None;
+        }
+
+        // A circular reference on the declaring element doesn't apply to the ones inheriting it,
+        // which are checked on their own.
+        self.find_attribute_impl(aid)?.attribute_impl(aid)
     }
 
     fn find_attribute_impl(&self, aid: AId) -> Option<SvgNode<'a, 'input>> {
