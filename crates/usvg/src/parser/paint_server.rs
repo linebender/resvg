@@ -417,7 +417,7 @@ pub(crate) fn resolve_number(
 }
 
 fn resolve_attr<'a, 'input: 'a>(node: SvgNode<'a, 'input>, name: AId) -> SvgNode<'a, 'input> {
-    if node.has_attribute(name) {
+    if has_specified_attr(node, name) {
         return node;
     }
 
@@ -452,7 +452,7 @@ fn resolve_lg_attr<'a, 'input: 'a>(node: SvgNode<'a, 'input>, name: AId) -> SvgN
             | (AId::SpreadMethod, EId::RadialGradient)
             | (AId::GradientTransform, EId::LinearGradient)
             | (AId::GradientTransform, EId::RadialGradient) => {
-                if link.has_attribute(name) {
+                if has_specified_attr(link, name) {
                     return link;
                 }
             }
@@ -487,7 +487,7 @@ fn resolve_rg_attr<'a, 'input>(node: SvgNode<'a, 'input>, name: AId) -> SvgNode<
             | (AId::SpreadMethod, EId::RadialGradient)
             | (AId::GradientTransform, EId::LinearGradient)
             | (AId::GradientTransform, EId::RadialGradient) => {
-                if link.has_attribute(name) {
+                if has_specified_attr(link, name) {
                     return link;
                 }
             }
@@ -512,12 +512,32 @@ fn resolve_pattern_attr<'a, 'input: 'a>(
             break;
         }
 
-        if link.has_attribute(name) {
+        if has_specified_attr(link, name) {
             return link;
         }
     }
 
     node
+}
+
+/// `gradientTransform` and `patternTransform` are presentation attributes for `transform`.
+/// An empty or invalid value is ignored, so it does not block `href` inheritance.
+fn has_specified_attr(node: SvgNode, name: AId) -> bool {
+    if !matches!(name, AId::GradientTransform | AId::PatternTransform) {
+        return node.has_attribute(name);
+    }
+
+    let Some(value) = node
+        .attributes()
+        .iter()
+        .find(|attr| attr.name == name)
+        .map(|attr| attr.value.as_str())
+    else {
+        return false;
+    };
+
+    let value = value.trim();
+    !value.is_empty() && svgtypes::Transform::from_str(value).is_ok()
 }
 
 fn resolve_filter_attr<'a, 'input: 'a>(node: SvgNode<'a, 'input>, aid: AId) -> SvgNode<'a, 'input> {

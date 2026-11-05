@@ -10,6 +10,7 @@ This changelog also contains important changes in dependencies.
 
 ### Fixed
 
+- An empty, whitespace-only, or invalid `gradientTransform` / `patternTransform` no longer blocks inheritance through `href`.
 - Filter primitive subregions with `primitiveUnits="objectBoundingBox"` are now resolved against
   the element's bounding box, and unspecified values default to the filter region. (#1188)
 - `feDisplacementMap` no longer applies `scale` twice, and now reads the displacement map
