@@ -237,7 +237,7 @@ impl PartialEq for SvgNode<'_, '_> {
 
 impl<'a, 'input: 'a> SvgNode<'a, 'input> {
     #[inline]
-    fn id(&self) -> NodeId {
+    pub(crate) fn id(&self) -> NodeId {
         self.id
     }
 
