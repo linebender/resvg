@@ -60,13 +60,6 @@ pub(crate) fn convert(
         }
 
         if let Some(marker) = marker {
-            // TODO: move to svgtree
-            // Check for recursive marker.
-            if state.parent_markers.contains(&marker) {
-                log::warn!("Recursive marker detected: {}", marker.element_id());
-                continue;
-            }
-
             resolve(node, path, marker, *kind, state, cache, parent);
         }
     }
@@ -198,7 +191,7 @@ fn resolve(
         };
 
         let mut marker_state = state.clone();
-        marker_state.parent_markers.push(marker_node);
+        marker_state.inside_marker = true;
         converter::convert_children(marker_node, &marker_state, cache, &mut g);
 
         if g.has_children() {

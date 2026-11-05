@@ -60,21 +60,20 @@ pub(crate) fn resolve_fill(
     }
 
     let mut sub_opacity = Opacity::ONE;
-    let (paint, context_element) =
-        if let Some(n) = node.ancestors().find(|n| n.has_attribute(AId::Fill)) {
-            let value: &str = n.attribute(AId::Fill)?;
-            convert_paint(
-                node,
-                value,
-                AId::Fill,
-                has_bbox,
-                state,
-                &mut sub_opacity,
-                cache,
-            )?
-        } else {
-            (Paint::Color(Color::black()), None)
-        };
+    let (paint, context_element) = if node.ancestors().any(|n| n.has_attribute(AId::Fill)) {
+        let value: &str = node.find_attribute(AId::Fill)?;
+        convert_paint(
+            node,
+            value,
+            AId::Fill,
+            has_bbox,
+            state,
+            &mut sub_opacity,
+            cache,
+        )?
+    } else {
+        (Paint::Color(Color::black()), None)
+    };
 
     let fill_opacity = node
         .find_attribute::<Opacity>(AId::FillOpacity)
@@ -100,22 +99,16 @@ pub(crate) fn resolve_stroke(
     }
 
     let mut sub_opacity = Opacity::ONE;
-    let (paint, context_element) =
-        if let Some(n) = node.ancestors().find(|n| n.has_attribute(AId::Stroke)) {
-            let value: &str = n.attribute(AId::Stroke)?;
-
-            convert_paint(
-                node,
-                value,
-                AId::Stroke,
-                has_bbox,
-                state,
-                &mut sub_opacity,
-                cache,
-            )?
-        } else {
-            return None;
-        };
+    let value: &str = node.find_attribute(AId::Stroke)?;
+    let (paint, context_element) = convert_paint(
+        node,
+        value,
+        AId::Stroke,
+        has_bbox,
+        state,
+        &mut sub_opacity,
+        cache,
+    )?;
 
     let width = node.resolve_valid_length(AId::StrokeWidth, state, 1.0)?;
 

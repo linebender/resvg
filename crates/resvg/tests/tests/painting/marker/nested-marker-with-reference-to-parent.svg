@@ -1,0 +1,17 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <title>Nested marker with reference to parent</title>
+
+    <marker id="marker1" refX="40" refY="40" markerWidth="80" markerHeight="80"
+            markerUnits="userSpaceOnUse">
+        <marker id="marker2" refX="100" refY="100" markerWidth="200" markerHeight="200"
+                markerUnits="userSpaceOnUse">
+            <path id="path1" d="M 100 100 L 110 100" marker-start="url(#marker1)"/>
+        </marker>
+        <rect id="rect1" x="0" y="0" width="80" height="80" fill="green"/>
+    </marker>
+    <rect id="rect2" x="62" y="62" width="76" height="76" fill="red"/>
+    <path id="path2" d="M 100 100 L 110 100" marker-start="url(#marker2)"/>
+
+    <!-- image frame -->
+    <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>
