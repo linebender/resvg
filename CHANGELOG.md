@@ -17,7 +17,7 @@ This changelog also contains important changes in dependencies.
 
 ### Fixed
 
-- An empty, whitespace-only, or invalid `gradientTransform` / `patternTransform` no longer blocks inheritance through `href`.
+- An empty, whitespace-only, or invalid `gradientTransform` / `patternTransform` no longer blocks inheritance through `href`. (#1226)
 - Orientation of `orient="auto"` markers next to Bézier control points that coincide with their
   vertex, at the shared vertex of closed subpaths, and next to zero-length segments. (#1173)
 
