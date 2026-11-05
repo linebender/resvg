@@ -702,3 +702,39 @@ fn resolve_fr_from_referenced_radial_gradient() {
 
     assert_eq!(rg.fr().get(), 25.0);
 }
+
+#[test]
+fn default_size_with_relative_root_size() {
+    fn rect_size(svg: &str) -> (f32, f32) {
+        let opt = usvg::Options {
+            default_size: usvg::Size::from_wh(200.0, 80.0).unwrap(),
+            ..usvg::Options::default()
+        };
+        let tree = usvg::Tree::from_str(svg, &opt).unwrap();
+        let usvg::Node::Path(path) = &tree.root().children()[0] else {
+            unreachable!()
+        };
+        (path.data().bounds().width(), path.data().bounds().height())
+    }
+
+    let svg = "<svg xmlns='http://www.w3.org/2000/svg'>
+        <rect width='100%' height='50%'/>
+    </svg>";
+    assert_eq!(rect_size(svg), (200.0, 40.0));
+
+    let svg = "<svg xmlns='http://www.w3.org/2000/svg' width='50%'>
+        <rect width='100%' height='100%'/>
+    </svg>";
+    assert_eq!(rect_size(svg), (100.0, 80.0));
+
+    // Absolute lengths and a `viewBox` don't use the default size.
+    let svg = "<svg xmlns='http://www.w3.org/2000/svg' width='30' height='20'>
+        <rect width='100%' height='100%'/>
+    </svg>";
+    assert_eq!(rect_size(svg), (30.0, 20.0));
+
+    let svg = "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'>
+        <rect width='100%' height='100%'/>
+    </svg>";
+    assert_eq!(rect_size(svg), (10.0, 10.0));
+}
