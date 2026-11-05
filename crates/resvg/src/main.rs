@@ -6,6 +6,7 @@
 use std::path;
 use std::sync::Arc;
 
+use usvg::DEFAULT_MAX_DEPTH;
 use usvg::fontdb;
 
 fn main() {
@@ -588,6 +589,7 @@ fn parse_args() -> Result<Args, String> {
         image_href_resolver: usvg::ImageHrefResolver::default(),
         font_resolver: usvg::FontResolver::default(),
         fontdb: Arc::new(fontdb::Database::new()),
+        max_depth: DEFAULT_MAX_DEPTH,
         style_sheet,
     };
 
