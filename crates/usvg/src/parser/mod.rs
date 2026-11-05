@@ -3,6 +3,7 @@
 
 mod clippath;
 mod converter;
+mod exif;
 mod filter;
 mod image;
 mod marker;
@@ -20,6 +21,8 @@ mod use_node;
 mod text;
 #[cfg(feature = "text")]
 pub(crate) use converter::Cache;
+#[cfg(feature = "writer")]
+pub(crate) use exif::without_orientation;
 pub use image::{ImageHrefDataResolverFn, ImageHrefResolver, ImageHrefStringResolverFn};
 pub use options::Options;
 #[cfg(feature = "writer")]

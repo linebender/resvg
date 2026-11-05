@@ -196,6 +196,7 @@ Basically everything from [CSS Text Module Level 3](https://www.w3.org/TR/css-te
 - [x] A [`mix-blend-mode`](https://www.w3.org/TR/compositing-1/#mix-blend-mode) property.
 - [x] A `plus-lighter` variant to the [`mix-blend-mode`](https://drafts.csswg.org/compositing-2/#mix-blend-mode) property.
 - [x] An [`isolation`](https://www.w3.org/TR/compositing-1/#isolation) property.
+- [x] An [`image-orientation`](https://www.w3.org/TR/css-images-3/#the-image-orientation) property. Only `from-image` and `none` are supported.
 - [ ] `left`, `center` and `right` variants to `refX` and `refY` properties of the [`marker`](https://www.w3.org/TR/SVG2/painting.html#MarkerElement) element.
 - [x] An `auto-start-reverse` variant to [`orient`](https://www.w3.org/TR/SVG2/painting.html#OrientAttribute) property of the [`marker`](https://www.w3.org/TR/SVG2/painting.html#MarkerElement) element
 - [x] The `image-rendering` can appear as a presentation attribute with additional possible values. Currently, there is only best-effort support for "pixelated".

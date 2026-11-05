@@ -1068,6 +1068,9 @@ impl XmlWriterExt for XmlWriter {
     }
 
     fn write_image_data(&mut self, kind: &ImageKind) {
+        // The orientation is already in the group transform, so viewers must not apply it again.
+        let data_without_orientation = crate::parser::without_orientation(kind);
+
         let svg_string;
         let (mime, data) = match kind {
             ImageKind::JPEG(data) => ("jpeg", data.as_slice()),
@@ -1079,6 +1082,7 @@ impl XmlWriterExt for XmlWriter {
                 ("svg+xml", svg_string.as_bytes())
             }
         };
+        let data = data_without_orientation.as_deref().unwrap_or(data);
 
         self.write_attribute_raw("xlink:href", |buf| {
             buf.extend_from_slice(b"data:image/");

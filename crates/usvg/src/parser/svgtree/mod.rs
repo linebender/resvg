@@ -753,6 +753,7 @@ impl AId {
                 | AId::FontVariationSettings
                 | AId::GlyphOrientationHorizontal
                 | AId::GlyphOrientationVertical
+                | AId::ImageOrientation // technically not presentation
                 | AId::ImageRendering
                 | AId::Isolation // technically not presentation
                 | AId::LetterSpacing
@@ -827,6 +828,7 @@ impl AId {
                 | AId::FontStyle
                 | AId::FontVariant
                 | AId::FontWeight
+                | AId::ImageOrientation
                 | AId::ImageRendering
                 | AId::Kerning
                 | AId::LetterSpacing

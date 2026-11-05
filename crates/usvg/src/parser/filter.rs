@@ -830,6 +830,7 @@ fn convert_image_inner(
     })?;
     let img_data = super::image::get_href_data(href, state)?;
     let actual_size = img_data.actual_size()?;
+    let orientation = super::image::resolve_orientation(fe, &img_data);
 
     let aspect: AspectRatio = fe.attribute(AId::PreserveAspectRatio).unwrap_or_default();
 
@@ -840,6 +841,7 @@ fn convert_image_inner(
         true,
         rendering_mode,
         aspect,
+        orientation,
         actual_size,
         filter_subregion.translate_to(0.0, 0.0)?,
         cache,
