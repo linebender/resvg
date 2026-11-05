@@ -25,6 +25,27 @@ mod mask;
 mod path;
 mod render;
 
+/// Options for rasterizing an SVG tree.
+///
+/// These options are independent of [`usvg::Options`], which controls parsing.
+#[derive(Clone, Copy, Debug)]
+pub struct Options {
+    /// Reconstruction filter used to sample rasterized SVG pattern tiles.
+    ///
+    /// Applies to pattern fills and strokes, including nested SVG content.
+    /// Does not override the `image-rendering` property on raster images.
+    /// Defaults to [`tiny_skia::FilterQuality::Bicubic`].
+    pub pattern_filter: tiny_skia::FilterQuality,
+}
+
+impl Default for Options {
+    fn default() -> Self {
+        Self {
+            pattern_filter: tiny_skia::FilterQuality::Bicubic,
+        }
+    }
+}
+
 /// Renders a tree onto the pixmap.
 ///
 /// `transform` will be used as a root transform.
@@ -36,9 +57,24 @@ pub fn render(
     transform: tiny_skia::Transform,
     pixmap: &mut tiny_skia::PixmapMut,
 ) {
+    render_with_options(tree, transform, &Options::default(), pixmap);
+}
+
+/// Renders a tree using the specified rasterization options.
+///
+/// See [`render`] for the transform and output color space.
+pub fn render_with_options(
+    tree: &usvg::Tree,
+    transform: tiny_skia::Transform,
+    options: &Options,
+    pixmap: &mut tiny_skia::PixmapMut,
+) {
     let max_bbox = max_filter_bbox(pixmap.width(), pixmap.height());
 
-    let ctx = render::Context { max_bbox };
+    let ctx = render::Context {
+        max_bbox,
+        options: *options,
+    };
     render::render_nodes(tree.root(), &ctx, transform, pixmap);
 }
 
@@ -54,7 +90,19 @@ pub fn render(
 /// The produced content is in the sRGB color space.
 pub fn render_node(
     node: &usvg::Node,
+    transform: tiny_skia::Transform,
+    pixmap: &mut tiny_skia::PixmapMut,
+) -> Option<()> {
+    render_node_with_options(node, transform, &Options::default(), pixmap)
+}
+
+/// Renders a node using the specified rasterization options.
+///
+/// See [`render_node`] for positioning, pixmap sizing and the return value.
+pub fn render_node_with_options(
+    node: &usvg::Node,
     mut transform: tiny_skia::Transform,
+    options: &Options,
     pixmap: &mut tiny_skia::PixmapMut,
 ) -> Option<()> {
     let bbox = node.abs_layer_bounding_box()?;
@@ -63,7 +111,10 @@ pub fn render_node(
 
     transform = transform.pre_translate(-bbox.x(), -bbox.y());
 
-    let ctx = render::Context { max_bbox };
+    let ctx = render::Context {
+        max_bbox,
+        options: *options,
+    };
     render::render_node(node, &ctx, transform, pixmap);
 
     Some(())

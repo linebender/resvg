@@ -3,8 +3,10 @@
 
 use crate::OptionLog;
 
+#[derive(Clone, Copy)]
 pub struct Context {
     pub max_bbox: tiny_skia::IntRect,
+    pub options: crate::Options,
 }
 
 pub fn render_nodes(
@@ -38,7 +40,7 @@ pub fn render_node(
             );
         }
         usvg::Node::Image(image) => {
-            crate::image::render(image, transform, pixmap);
+            crate::image::render(image, &ctx.options, transform, pixmap);
         }
         usvg::Node::Text(text) => {
             render_group(text.flattened(), ctx, transform, pixmap);
@@ -76,8 +78,11 @@ fn render_group(
     let inv_rest = rest.invert()?;
 
     let max_bbox = ctx.max_bbox.to_rect().transform(inv_rest)?.round_out()?;
-    let (layer, ibbox) =
-        render_layer(group, &Context { max_bbox }, inv_rest.pre_concat(transform))?;
+    let (layer, ibbox) = render_layer(
+        group,
+        &Context { max_bbox, ..*ctx },
+        inv_rest.pre_concat(transform),
+    )?;
 
     let paint = tiny_skia::Paint {
         shader: tiny_skia::Pattern::new(
@@ -156,7 +161,7 @@ fn render_layer(
 
     if !group.filters().is_empty() {
         for filter in group.filters() {
-            crate::filter::apply(filter, transform, &mut sub_pixmap);
+            crate::filter::apply(filter, &ctx.options, transform, &mut sub_pixmap);
         }
     }
 

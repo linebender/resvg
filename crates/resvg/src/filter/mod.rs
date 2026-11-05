@@ -334,10 +334,11 @@ struct FilterResult {
 
 pub fn apply(
     filter: &usvg::filter::Filter,
+    options: &crate::Options,
     ts: tiny_skia::Transform,
     source: &mut tiny_skia::Pixmap,
 ) {
-    let result = apply_inner(filter, ts, source);
+    let result = apply_inner(filter, options, ts, source);
     let result = result.and_then(|(image, region)| apply_to_canvas(image, region, source));
 
     // Clear on error.
@@ -356,6 +357,7 @@ pub fn apply(
 
 fn apply_inner(
     filter: &usvg::filter::Filter,
+    options: &crate::Options,
     ts: usvg::Transform,
     source: &tiny_skia::Pixmap,
 ) -> Result<(Image, IntRect), Error> {
@@ -432,7 +434,7 @@ fn apply_inner(
                 let input = get_input(fe.input(), region, source, &results)?;
                 apply_tile(input, region)
             }
-            usvg::filter::Kind::Image(fe) => apply_image(fe, region, subregion, ts),
+            usvg::filter::Kind::Image(fe) => apply_image(fe, options, region, subregion, ts),
             usvg::filter::Kind::ComponentTransfer(fe) => {
                 let input = get_input(fe.input(), region, source, &results)?;
                 apply_component_transfer(fe, cs, input)
@@ -872,6 +874,7 @@ fn apply_tile(input: Image, region: IntRect) -> Result<Image, Error> {
 
 fn apply_image(
     fe: &usvg::filter::Image,
+    options: &crate::Options,
     region: IntRect,
     subregion: IntRect,
     ts: usvg::Transform,
@@ -890,6 +893,7 @@ fn apply_image(
 
     let ctx = crate::render::Context {
         max_bbox: tiny_skia::IntRect::from_xywh(0, 0, region.width(), region.height()).unwrap(),
+        options: *options,
     };
 
     crate::render::render_nodes(fe.root(), &ctx, transform, &mut pixmap.as_mut());

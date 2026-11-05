@@ -3,6 +3,7 @@
 
 pub fn render(
     image: &usvg::Image,
+    options: &crate::Options,
     transform: tiny_skia::Transform,
     pixmap: &mut tiny_skia::PixmapMut,
 ) {
@@ -10,18 +11,25 @@ pub fn render(
         return;
     }
 
-    render_inner(image.kind(), transform, image.rendering_mode(), pixmap);
+    render_inner(
+        image.kind(),
+        options,
+        transform,
+        image.rendering_mode(),
+        pixmap,
+    );
 }
 
 pub fn render_inner(
     image_kind: &usvg::ImageKind,
+    options: &crate::Options,
     transform: tiny_skia::Transform,
     #[allow(unused_variables)] rendering_mode: usvg::ImageRendering,
     pixmap: &mut tiny_skia::PixmapMut,
 ) {
     match image_kind {
         usvg::ImageKind::SVG(tree) => {
-            render_vector(tree, transform, pixmap);
+            render_vector(tree, options, transform, pixmap);
         }
         #[cfg(feature = "raster-images")]
         _ => {
@@ -36,11 +44,12 @@ pub fn render_inner(
 
 fn render_vector(
     tree: &usvg::Tree,
+    options: &crate::Options,
     transform: tiny_skia::Transform,
     pixmap: &mut tiny_skia::PixmapMut,
 ) -> Option<()> {
     let mut sub_pixmap = tiny_skia::Pixmap::new(pixmap.width(), pixmap.height()).unwrap();
-    crate::render(tree, transform, &mut sub_pixmap.as_mut());
+    crate::render_with_options(tree, transform, options, &mut sub_pixmap.as_mut());
     pixmap.draw_pixmap(
         0,
         0,
