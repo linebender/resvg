@@ -70,8 +70,46 @@ pub fn fill_path(
     paint.anti_alias = path.rendering_mode().use_shape_antialiasing();
     paint.blend_mode = blend_mode;
 
-    pixmap.fill_path(path.data(), &paint, rule, transform, None);
+    if let Some(rect) = axis_aligned_rect(path.data(), transform) {
+        // fill_rect has precise fractional coverage only with an identity
+        // transform. Move both the geometry and shader into device space.
+        paint.shader.transform(transform);
+        pixmap.fill_rect(rect, &paint, tiny_skia::Transform::identity(), None);
+    } else {
+        pixmap.fill_path(path.data(), &paint, rule, transform, None);
+    }
     Some(())
+}
+
+// A bounding box alone is not enough: triangles, curves and compound paths
+// must still use the general path rasterizer.
+fn axis_aligned_rect(
+    path: &tiny_skia::Path,
+    transform: tiny_skia::Transform,
+) -> Option<tiny_skia::Rect> {
+    use usvg::tiny_skia_path::PathVerb::{Close, Line, Move};
+
+    if transform.has_skew()
+        || !transform.is_valid()
+        || path.verbs() != [Move, Line, Line, Line, Close]
+    {
+        return None;
+    }
+
+    let [a, b, c, d] = path.points() else {
+        return None;
+    };
+    let horizontal_first = a.y == b.y && b.x == c.x && c.y == d.y && d.x == a.x;
+    let vertical_first = a.x == b.x && b.y == c.y && c.x == d.x && d.y == a.y;
+    if !horizontal_first && !vertical_first {
+        return None;
+    }
+
+    let rect = path.bounds().transform(transform)?;
+    if rect.width() == 0.0 || rect.height() == 0.0 {
+        return None;
+    }
+    Some(rect)
 }
 
 fn stroke_path(
