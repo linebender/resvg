@@ -152,6 +152,7 @@ use crate::render;
 #[test] fn filters_feDistantLight_negative_azimuth_and_elevation() { assert_eq!(render("tests/filters/feDistantLight/negative-azimuth-and-elevation"), 0); }
 #[test] fn filters_feDistantLight_only_azimuth() { assert_eq!(render("tests/filters/feDistantLight/only-azimuth"), 0); }
 #[test] fn filters_feDistantLight_only_elevation() { assert_eq!(render("tests/filters/feDistantLight/only-elevation"), 0); }
+#[test] fn filters_feDropShadow_flood_color_eq_currentColor() { assert_eq!(render("tests/filters/feDropShadow/flood-color=currentColor"), 0); }
 #[test] fn filters_feDropShadow_hsla_color() { assert_eq!(render("tests/filters/feDropShadow/hsla-color"), 0); }
 #[test] fn filters_feDropShadow_only_stdDeviation() { assert_eq!(render("tests/filters/feDropShadow/only-stdDeviation"), 0); }
 #[test] fn filters_feDropShadow_stdDeviation_eq_0() { assert_eq!(render("tests/filters/feDropShadow/stdDeviation=0"), 0); }
@@ -410,6 +411,7 @@ use crate::render;
 #[test] fn filters_filter_functions_two_urls_with_different_regions() { assert_eq!(render("tests/filters/filter-functions/two-urls-with-different-regions"), 0); }
 #[test] fn filters_filter_functions_two_urls() { assert_eq!(render("tests/filters/filter-functions/two-urls"), 0); }
 #[test] fn filters_filter_functions_url_and_grayscale() { assert_eq!(render("tests/filters/filter-functions/url-and-grayscale"), 0); }
+#[test] fn filters_flood_color_currentColor() { assert_eq!(render("tests/filters/flood-color/currentColor"), 0); }
 #[test] fn filters_flood_color_hsla_color() { assert_eq!(render("tests/filters/flood-color/hsla-color"), 0); }
 #[test] fn filters_flood_color_inheritance_1() { assert_eq!(render("tests/filters/flood-color/inheritance-1"), 0); }
 #[test] fn filters_flood_color_inheritance_2() { assert_eq!(render("tests/filters/flood-color/inheritance-2"), 0); }
