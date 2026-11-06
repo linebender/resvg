@@ -1,20 +1,15 @@
 [package]
 name = "svgtypes"
 version = "0.16.2"
-license = "Apache-2.0 OR MIT"
-edition = "2024"
-description = "SVG types parser."
-repository = "https://github.com/linebender/svgtypes"
 keywords = ["svg", "parser", "tokenizer"]
+license.workspace = true
+edition = "2024"
+rust-version = "1.85.0"
+description = "SVG types parser."
 categories = ["parser-implementations"]
+repository = "https://github.com/linebender/resvg"
 readme = "README.md"
-# Keep in sync with RUST_MIN_VER in .github/workflows/ci.yml and with the relevant README.md files.
-# and with the MSRV in the `Unreleased` section of CHANGELOG.md.
-rust-version = "1.85"
-exclude = [".github", ".clippy.toml", ".gitignore", ".typos.toml", "benches/", "codegen/", "fuzz/"]
-
-[workspace]
-members = ["benches"]
+workspace = "../.."
 
 [features]
 default = ["std"]

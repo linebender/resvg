@@ -15,6 +15,10 @@ You can find its changes [documented below](#0162-2026-11-04).
 
 This release has an [MSRV][] of 1.85.
 
+### Changed
+
+- The crate is now developed in the [resvg repository](https://github.com/linebender/resvg).
+
 ## [0.16.2][] (2026-11-04)
 
 This release has an [MSRV][] of 1.85.
@@ -326,7 +330,7 @@ Many thanks to Yevhenii Reizner for the years of hard work that he has poured in
 [@waywardmonkeys]: https://github.com/waywardmonkeys
 [@yisibl]: https://github.com/yisibl
 
-[Unreleased]: https://github.com/RazrFalcon/svgtypes/compare/v0.16.2...HEAD
+[Unreleased]: https://github.com/linebender/resvg/commits/main/crates/svgtypes
 [0.16.2]: https://github.com/RazrFalcon/svgtypes/compare/v0.16.1...v0.16.2
 [0.16.1]: https://github.com/RazrFalcon/svgtypes/compare/v0.16.0...v0.16.1
 [0.16.0]: https://github.com/RazrFalcon/svgtypes/compare/v0.15.3...v0.16.0

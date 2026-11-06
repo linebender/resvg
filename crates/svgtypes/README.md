@@ -5,9 +5,9 @@
 **A collection of parsers for [SVG](https://www.w3.org/TR/SVG2/) types.**
 
 [![Linebender Zulip, #resvg channel](https://img.shields.io/badge/Linebender-%23resvg-blue?logo=Zulip)](https://xi.zulipchat.com/#narrow/channel/465085-resvg)
-[![dependency status](https://deps.rs/repo/github/linebender/svgtypes/status.svg)](https://deps.rs/repo/github/linebender/svgtypes)
+[![dependency status](https://deps.rs/repo/github/linebender/resvg/status.svg)](https://deps.rs/repo/github/linebender/resvg)
 [![Apache 2.0 or MIT license.](https://img.shields.io/badge/license-Apache--2.0_OR_MIT-blue.svg)](#license)
-[![Build status](https://github.com/linebender/svgtypes/workflows/CI/badge.svg)](https://github.com/linebender/svgtypes/actions)
+[![Build status](https://github.com/linebender/resvg/workflows/Build/badge.svg)](https://github.com/linebender/resvg/actions)
 [![Crates.io](https://img.shields.io/crates/v/svgtypes.svg)](https://crates.io/crates/svgtypes)
 [![Docs](https://docs.rs/svgtypes/badge.svg)](https://docs.rs/svgtypes)
 ![](https://img.shields.io/badge/unsafe-forbidden-brightgreen.svg)
@@ -106,4 +106,4 @@ Please feel free to add your name to the [AUTHORS] file in any substantive pull 
 Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in the work by you, as defined in the Apache-2.0 license, shall be licensed as above, without any additional terms or conditions.
 
 [Rust Code of Conduct]: https://www.rust-lang.org/policies/code-of-conduct
-[AUTHORS]: ./AUTHORS
+[AUTHORS]: https://github.com/linebender/resvg/blob/main/AUTHORS
