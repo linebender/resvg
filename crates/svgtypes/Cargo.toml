@@ -1,0 +1,21 @@
+[package]
+name = "svgtypes"
+version = "0.16.2"
+keywords = ["svg", "parser", "tokenizer"]
+license.workspace = true
+edition = "2024"
+rust-version = "1.85.0"
+description = "SVG types parser."
+categories = ["parser-implementations"]
+repository = "https://github.com/linebender/resvg"
+readme = "README.md"
+workspace = "../.."
+
+[features]
+default = ["std"]
+std = ["kurbo/std"]
+libm = ["kurbo/libm"]
+
+[dependencies]
+siphasher = "1.0" # perfect hash implementation for color names
+kurbo = { version = "0.13", default-features = false } # ArcTo to CurveTo(s)
