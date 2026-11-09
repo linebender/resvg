@@ -672,6 +672,7 @@ use crate::render;
 #[test] fn paint_servers_stop_color_simple_case() { assert_eq!(render("tests/paint-servers/stop-color/simple-case"), 0); }
 #[test] fn paint_servers_stop_opacity_50percent() { assert_eq!(render("tests/paint-servers/stop-opacity/50percent"), 0); }
 #[test] fn paint_servers_stop_opacity_simple_case() { assert_eq!(render("tests/paint-servers/stop-opacity/simple-case"), 0); }
+#[test] fn painting_color_currentColor() { assert_eq!(render("tests/painting/color/currentColor"), 0); }
 #[test] fn painting_color_inherit() { assert_eq!(render("tests/painting/color/inherit"), 0); }
 #[test] fn painting_color_recursive_nested_context_without_color() { assert_eq!(render("tests/painting/color/recursive-nested-context-without-color"), 0); }
 #[test] fn painting_color_recursive_nested_context() { assert_eq!(render("tests/painting/color/recursive-nested-context"), 0); }

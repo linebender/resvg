@@ -10,7 +10,8 @@ This changelog also contains important changes in dependencies.
 
 ### Fixed
 
-- `flood-color="currentColor"` on `feFlood` and `feDropShadow` no longer resolves to black.
+- `flood-color="currentColor"` on `feFlood` and `feDropShadow` no longer resolves to black. (#1217)
+- `color="currentColor"` now inherits the parent's `color` instead of resolving to black. (#1217)
 - Filter primitive subregions with `primitiveUnits="objectBoundingBox"` are now resolved against
   the element's bounding box, and unspecified values default to the filter region. (#1188)
 - `feDisplacementMap` no longer applies `scale` twice, and now reads the displacement map

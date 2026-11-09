@@ -4,7 +4,6 @@
 //! A collection of SVG filters.
 
 use std::collections::HashSet;
-use std::str::FromStr;
 use std::sync::Arc;
 
 use strict_num::PositiveF32;
@@ -701,7 +700,10 @@ fn convert_displacement_map(fe: SvgNode, scale: Size, primitives: &[Primitive]) 
 fn convert_drop_shadow(fe: SvgNode, scale: Size, primitives: &[Primitive]) -> Kind {
     let (std_dev_x, std_dev_y) = convert_std_dev_attr(fe, scale, "2 2");
 
-    let (color, opacity) = convert_flood_color(fe).split_alpha();
+    let (color, opacity) = fe
+        .attribute(AId::FloodColor)
+        .unwrap_or_else(svgtypes::Color::black)
+        .split_alpha();
 
     let flood_opacity = fe
         .attribute::<Opacity>(AId::FloodOpacity)
@@ -719,7 +721,10 @@ fn convert_drop_shadow(fe: SvgNode, scale: Size, primitives: &[Primitive]) -> Ki
 }
 
 fn convert_flood(fe: SvgNode) -> Kind {
-    let (color, opacity) = convert_flood_color(fe).split_alpha();
+    let (color, opacity) = fe
+        .attribute(AId::FloodColor)
+        .unwrap_or_else(svgtypes::Color::black)
+        .split_alpha();
 
     let flood_opacity = fe
         .attribute::<Opacity>(AId::FloodOpacity)
@@ -729,16 +734,6 @@ fn convert_flood(fe: SvgNode) -> Kind {
         color,
         opacity: opacity * flood_opacity,
     })
-}
-
-fn convert_flood_color(fe: SvgNode) -> svgtypes::Color {
-    let color = if fe.attribute(AId::FloodColor) == Some("currentColor") {
-        fe.find_attribute(AId::Color)
-    } else {
-        fe.attribute(AId::FloodColor)
-    };
-
-    color.unwrap_or_else(svgtypes::Color::black)
 }
 
 fn convert_gaussian_blur(fe: SvgNode, scale: Size, primitives: &[Primitive]) -> Kind {
@@ -888,24 +883,8 @@ fn convert_specular_lighting(fe: SvgNode, primitives: &[Primitive]) -> Option<Ki
 #[inline(never)]
 fn convert_lighting_color(node: SvgNode) -> Color {
     // Color's alpha doesn't affect lighting-color. Simply skip it.
-    match node.attribute(AId::LightingColor) {
-        Some("currentColor") => {
-            node.find_attribute(AId::Color)
-                // Yes, a missing `currentColor` resolves to black and not white.
-                .unwrap_or(svgtypes::Color::black())
-                .split_alpha()
-                .0
-        }
-        Some(value) => {
-            if let Ok(c) = svgtypes::Color::from_str(value) {
-                c.split_alpha().0
-            } else {
-                log::warn!("Failed to parse lighting-color value: '{}'.", value);
-                Color::white()
-            }
-        }
-        _ => Color::white(),
-    }
+    node.attribute::<svgtypes::Color>(AId::LightingColor)
+        .map_or(Color::white(), |c| c.split_alpha().0)
 }
 
 #[inline(never)]
