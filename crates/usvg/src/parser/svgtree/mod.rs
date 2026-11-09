@@ -979,8 +979,22 @@ impl<'a, 'input: 'a> FromValue<'a, 'input> for svgtypes::PaintOrder {
 }
 
 impl<'a, 'input: 'a> FromValue<'a, 'input> for svgtypes::Color {
-    fn parse(_: SvgNode, _: AId, value: &str) -> Option<Self> {
-        Self::from_str(value).ok()
+    fn parse(node: SvgNode, aid: AId, value: &str) -> Option<Self> {
+        // TODO: Let svgtypes parse `currentColor` as part of a `<color>` type that `Paint` and
+        // `drop-shadow()` can share, instead of matching the keyword in several places.
+        if value != "currentColor" {
+            return Self::from_str(value).ok();
+        }
+
+        // In `color`, `currentColor` resolves to the inherited value.
+        let color = if aid == AId::Color {
+            node.parent_element()
+                .and_then(|parent| parent.find_attribute(AId::Color))
+        } else {
+            node.find_attribute(AId::Color)
+        };
+
+        Some(color.unwrap_or_else(Self::black))
     }
 }
 

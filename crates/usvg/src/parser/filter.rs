@@ -4,7 +4,6 @@
 //! A collection of SVG filters.
 
 use std::collections::HashSet;
-use std::str::FromStr;
 use std::sync::Arc;
 
 use strict_num::PositiveF32;
@@ -884,24 +883,8 @@ fn convert_specular_lighting(fe: SvgNode, primitives: &[Primitive]) -> Option<Ki
 #[inline(never)]
 fn convert_lighting_color(node: SvgNode) -> Color {
     // Color's alpha doesn't affect lighting-color. Simply skip it.
-    match node.attribute(AId::LightingColor) {
-        Some("currentColor") => {
-            node.find_attribute(AId::Color)
-                // Yes, a missing `currentColor` resolves to black and not white.
-                .unwrap_or(svgtypes::Color::black())
-                .split_alpha()
-                .0
-        }
-        Some(value) => {
-            if let Ok(c) = svgtypes::Color::from_str(value) {
-                c.split_alpha().0
-            } else {
-                log::warn!("Failed to parse lighting-color value: '{}'.", value);
-                Color::white()
-            }
-        }
-        _ => Color::white(),
-    }
+    node.attribute::<svgtypes::Color>(AId::LightingColor)
+        .map_or(Color::white(), |c| c.split_alpha().0)
 }
 
 #[inline(never)]
