@@ -1,7 +1,7 @@
 // Copyright 2022 the Resvg Authors
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::num::NonZeroU16;
 use std::sync::Arc;
 
@@ -906,11 +906,6 @@ fn process_chunk(
     // but some can use `ﬁ` (U+FB01) instead.
     // Meaning that during merging we have to overwrite not individual glyphs, but clusters.
 
-    // Glyph splitting assigns distinct glyphs to the same index in the original text, we need to
-    // store previously used indices to make sure we do not re-use the same index while overwriting
-    // span glyphs.
-    let mut positions = HashSet::new();
-
     let mut glyphs = Vec::new();
     for span in &chunk.spans {
         let font = match fonts.resolved.get(&span.font) {
@@ -936,44 +931,7 @@ fn process_chunk(
             continue;
         }
 
-        positions.clear();
-
-        // Overwrite span's glyphs.
-        let mut iter = tmp_glyphs.into_iter();
-        while let Some(new_glyph) = iter.next() {
-            if !span_contains(span, new_glyph.byte_idx) {
-                continue;
-            }
-
-            let Some(idx) = glyphs
-                .iter()
-                .position(|g| g.byte_idx == new_glyph.byte_idx)
-                .filter(|pos| !positions.contains(pos))
-            else {
-                continue;
-            };
-
-            positions.insert(idx);
-
-            let prev_cluster_len = glyphs[idx].cluster_len;
-            if prev_cluster_len < new_glyph.cluster_len {
-                // If the new font represents the same cluster with fewer glyphs
-                // then remove remaining glyphs.
-                for _ in 1..new_glyph.cluster_len {
-                    glyphs.remove(idx + 1);
-                }
-            } else if prev_cluster_len > new_glyph.cluster_len {
-                // If the new font represents the same cluster with more glyphs
-                // then insert them after the current one.
-                for j in 1..prev_cluster_len {
-                    if let Some(g) = iter.next() {
-                        glyphs.insert(idx + j, g);
-                    }
-                }
-            }
-
-            glyphs[idx] = new_glyph;
-        }
+        replace_span_clusters(&mut glyphs, &tmp_glyphs, span, chunk.text.len());
     }
 
     // Convert glyphs to clusters.
@@ -989,6 +947,152 @@ fn process_chunk(
     }
 
     clusters
+}
+
+/// A cluster of a shaped text: the glyphs that share a byte index.
+struct ShapedCluster {
+    /// The cluster's glyphs, as indices into the glyph list.
+    glyphs: std::ops::Range<usize>,
+    /// The bytes of the text that the cluster covers.
+    bytes: std::ops::Range<usize>,
+}
+
+fn shaped_clusters(glyphs: &[Glyph]) -> Vec<ShapedCluster> {
+    GlyphClusters::new(glyphs)
+        .map(|(range, byte_idx)| {
+            let start = byte_idx.value();
+            // Only one glyph of a cluster has its length, the others have zero.
+            let len = glyphs[range.clone()]
+                .iter()
+                .map(|g| g.cluster_len)
+                .max()
+                .unwrap_or(0);
+            ShapedCluster {
+                glyphs: range,
+                bytes: start..start + len.max(1),
+            }
+        })
+        .collect()
+}
+
+/// Maps each byte of the text to the index of the cluster that covers it.
+fn cluster_at_byte(clusters: &[ShapedCluster], text_len: usize) -> Vec<Option<usize>> {
+    let mut owners = vec![None; text_len];
+    for (i, cluster) in clusters.iter().enumerate() {
+        for owner in owners
+            .iter_mut()
+            .take(cluster.bytes.end)
+            .skip(cluster.bytes.start)
+        {
+            *owner = Some(i);
+        }
+    }
+    owners
+}
+
+/// Replaces the clusters of `glyphs` that belong to `span` with those of `new_glyphs`.
+///
+/// Both lists come from shaping the same text, so they have the same BIDI runs,
+/// but two fonts can split the text into different clusters, with a different number of glyphs.
+/// For example, one font can shape `fi` as one ligature glyph and another as two glyphs,
+/// and an emoji font can shape an emoji sequence as one glyph while a text font
+/// has one glyph per code point.
+///
+/// So clusters are matched by the bytes they cover, not by the number of glyphs:
+/// overlapping clusters of both lists are replaced together, and only when
+/// all of them start inside the span.
+fn replace_span_clusters(
+    glyphs: &mut Vec<Glyph>,
+    new_glyphs: &[Glyph],
+    span: &TextSpan,
+    text_len: usize,
+) {
+    let old_clusters = shaped_clusters(glyphs);
+    let new_clusters = shaped_clusters(new_glyphs);
+    let old_at = cluster_at_byte(&old_clusters, text_len);
+    let new_at = cluster_at_byte(&new_clusters, text_len);
+
+    let mut done = vec![false; new_clusters.len()];
+    // Pairs of glyph ranges: the old glyphs and the new glyphs that replace them.
+    let mut replacements = Vec::new();
+    for first in 0..new_clusters.len() {
+        if done[first] || !span_contains(span, ByteIndex::new(new_clusters[first].bytes.start)) {
+            continue;
+        }
+
+        // Grow the byte range until it covers whole clusters of both lists.
+        let mut bytes = new_clusters[first].bytes.clone();
+        let mut scanned = bytes.start..bytes.start;
+        let mut old_ids: Vec<usize> = Vec::new();
+        let mut new_ids = vec![first];
+        while scanned != bytes {
+            let unscanned = (bytes.start..scanned.start).chain(scanned.end..bytes.end);
+            scanned = bytes.clone();
+            for byte in unscanned {
+                if let Some(Some(i)) = old_at.get(byte) {
+                    if !old_ids.contains(i) {
+                        old_ids.push(*i);
+                    }
+                }
+                if let Some(Some(i)) = new_at.get(byte) {
+                    if !new_ids.contains(i) {
+                        new_ids.push(*i);
+                    }
+                }
+            }
+
+            for cluster in old_ids
+                .iter()
+                .map(|i| &old_clusters[*i])
+                .chain(new_ids.iter().map(|i| &new_clusters[*i]))
+            {
+                bytes.start = bytes.start.min(cluster.bytes.start);
+                bytes.end = bytes.end.max(cluster.bytes.end);
+            }
+        }
+
+        for i in &new_ids {
+            done[*i] = true;
+        }
+
+        // Keep the old glyphs if any of the clusters starts outside the span.
+        let all_in_span = old_ids
+            .iter()
+            .map(|i| &old_clusters[*i])
+            .chain(new_ids.iter().map(|i| &new_clusters[*i]))
+            .all(|cluster| span_contains(span, ByteIndex::new(cluster.bytes.start)));
+        if !all_in_span {
+            continue;
+        }
+
+        // Clusters of one BIDI run are ordered by their byte index, ascending or descending,
+        // so the clusters of a byte range are adjacent in both lists.
+        let (Some(old_glyphs), Some(new_range)) = (
+            adjacent_glyphs(&old_clusters, &old_ids),
+            adjacent_glyphs(&new_clusters, &new_ids),
+        ) else {
+            continue;
+        };
+
+        replacements.push((old_glyphs, new_range));
+    }
+
+    // Replace from the end, so that the remaining old ranges stay valid.
+    replacements.sort_by_key(|(old_range, _)| std::cmp::Reverse(old_range.start));
+    for (old_range, new_range) in replacements {
+        glyphs.splice(old_range, new_glyphs[new_range].iter().cloned());
+    }
+}
+
+/// Returns the glyph range of the selected clusters, if they are adjacent.
+fn adjacent_glyphs(clusters: &[ShapedCluster], ids: &[usize]) -> Option<std::ops::Range<usize>> {
+    let first = *ids.iter().min()?;
+    let last = *ids.iter().max()?;
+    if last - first + 1 != ids.len() {
+        return None;
+    }
+
+    Some(clusters[first].glyphs.start..clusters[last].glyphs.end)
 }
 
 fn apply_length_adjust(chunk: &TextChunk, clusters: &mut [GlyphCluster]) {

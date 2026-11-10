@@ -1423,6 +1423,7 @@ use crate::render;
 #[test] fn text_color_font_cbdt() { assert_eq!(render("tests/text/color-font/cbdt"), 0); }
 #[test] fn text_color_font_colrv0() { assert_eq!(render("tests/text/color-font/colrv0"), 0); }
 #[test] fn text_color_font_colrv1() { assert_eq!(render("tests/text/color-font/colrv1"), 0); }
+#[test] fn text_color_font_compound_emoji_in_tspan() { assert_eq!(render("tests/text/color-font/compound-emoji-in-tspan"), 0); }
 #[test] fn text_color_font_compound_emojis_and_coordinates_list() { assert_eq!(render("tests/text/color-font/compound-emojis-and-coordinates-list"), 0); }
 #[test] fn text_color_font_compound_emojis() { assert_eq!(render("tests/text/color-font/compound-emojis"), 0); }
 #[test] fn text_color_font_mixed_text_rtl() { assert_eq!(render("tests/text/color-font/mixed-text-rtl"), 0); }

@@ -18,6 +18,9 @@ This changelog also contains important changes in dependencies.
   with non-premultiplied colors. (#1157)
 - CSS in a `style` element is no longer cut off at the first XML comment or processing instruction,
   and a `type` attribute that is empty or `text/css` in any letter case is now accepted. (#1161)
+- A panic, or missing glyphs, when a `tspan` uses a font that shapes a cluster
+  with a different number of glyphs than the parent's font, such as an emoji sequence
+  after other text. Such clusters are now drawn entirely in the `tspan`'s font. (#732)
 
 ## [0.49.0] 2026-10-24
 
