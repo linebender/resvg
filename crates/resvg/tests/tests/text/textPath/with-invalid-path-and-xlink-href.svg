@@ -8,9 +8,9 @@
     <path id="path1" d="M 20 100 C 35 135 85 135 100 100 C 115 65 165 65 180 100"
           fill="none" stroke="gray"/>
 
-    <text id="text1" font-family="Noto Sans" font-size="24">
-        <textPath id="textPath1" path="q" xlink:href="path1">
-            Some long text
+    <text id="text1" font-family="Noto Sans" font-size="21">
+        <textPath id="textPath1" path="Invalid path" xlink:href="#path1">
+            Text along a svg path
         </textPath>
     </text>
 

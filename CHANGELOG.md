@@ -16,6 +16,17 @@ This changelog also contains important changes in dependencies.
   Both are ignored in a vertical writing mode. (#475)
 - `usvg::Direction`, `usvg::Text::direction` and `usvg::TextChunk::direction`.
 
+### Fixed
+
+- `flood-color="currentColor"` on `feFlood` and `feDropShadow` no longer resolves to black. (#1217)
+- `color="currentColor"` now inherits the parent's `color` instead of resolving to black. (#1217)
+- Filter primitive subregions with `primitiveUnits="objectBoundingBox"` are now resolved against
+  the element's bounding box, and unspecified values default to the filter region. (#1188)
+- `feDisplacementMap` no longer applies `scale` twice, and now reads the displacement map
+  with non-premultiplied colors. (#1157)
+- CSS in a `style` element is no longer cut off at the first XML comment or processing instruction,
+  and a `type` attribute that is empty or `text/css` in any letter case is now accepted. (#1161)
+
 ## [0.49.0] 2026-10-24
 
 This release has an MSRV of 1.85.0 for `usvg` and `resvg` and the C API.
