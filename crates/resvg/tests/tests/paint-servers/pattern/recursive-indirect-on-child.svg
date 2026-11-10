@@ -1,0 +1,18 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <title>Indirect recursion on child</title>
+
+    <pattern id="patt1" patternUnits="userSpaceOnUse" width="40" height="25">
+        <rect id="rect1" width="40" height="25" fill="url(#patt2)" stroke="green"/>
+    </pattern>
+    <pattern id="patt2" patternUnits="userSpaceOnUse" width="40" height="25">
+        <rect id="rect2" width="40" height="25" fill="url(#patt3)" stroke="green"/>
+    </pattern>
+    <pattern id="patt3" patternUnits="userSpaceOnUse" width="40" height="25">
+        <rect id="rect3" width="40" height="25" fill="url(#patt1)" stroke="green"/>
+    </pattern>
+
+    <rect id="rect4" x="20" y="20" width="160" height="160" fill="url(#patt1)" stroke="darkblue"/>
+
+    <!-- image frame -->
+    <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>

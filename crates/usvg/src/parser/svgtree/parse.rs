@@ -1,13 +1,13 @@
 // Copyright 2021 the Resvg Authors
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use roxmltree::Error;
 use simplecss::Declaration;
 use svgtypes::FontShorthand;
 
-use super::{AId, Attribute, Document, EId, NodeData, NodeId, NodeKind, ShortRange};
+use super::{AId, Attribute, Document, EId, NodeData, NodeId, NodeKind, ShortRange, SvgNode};
 
 const SVG_NS: &str = "http://www.w3.org/2000/svg";
 const XLINK_NS: &str = "http://www.w3.org/1999/xlink";
@@ -72,6 +72,7 @@ fn parse<'input>(
         nodes: Vec::new(),
         attrs: Vec::new(),
         links: HashMap::new(),
+        circular_references: HashSet::new(),
     };
 
     // build a map of id -> node for resolve_href
@@ -115,35 +116,15 @@ fn parse<'input>(
         None => return Err(roxmltree::Error::NoRootNode),
     }
 
-    // Collect all elements with `id` attribute, and all elements that
-    // can be referenced recursively.
     let mut links = HashMap::new();
-    let mut patterns = Vec::new();
-    let mut clip_paths = Vec::new();
-    let mut masks = Vec::new();
-    let mut filters = Vec::new();
-    let mut fe_images = Vec::new();
     for node in doc.descendants() {
         if let Some(id) = node.attribute::<&str>(AId::Id) {
             links.insert(id.to_string(), node.id);
         }
-
-        match node.tag_name() {
-            Some(EId::Pattern) => patterns.push(node.id),
-            Some(EId::ClipPath) => clip_paths.push(node.id),
-            Some(EId::Mask) => masks.push(node.id),
-            Some(EId::Filter) => filters.push(node.id),
-            Some(EId::FeImage) => fe_images.push(node.id),
-            _ => {}
-        }
     }
     doc.links = links;
 
-    fix_recursive_patterns(&patterns, &mut doc);
-    fix_recursive_links(&clip_paths, AId::ClipPath, &mut doc);
-    fix_recursive_links(&masks, AId::Mask, &mut doc);
-    fix_recursive_links(&filters, AId::Filter, &mut doc);
-    fix_recursive_fe_image(&fe_images, &mut doc);
+    doc.circular_references = find_circular_references(&doc);
 
     Ok(doc)
 }
@@ -779,118 +760,247 @@ impl simplecss::Element for XmlNode<'_, '_> {
     }
 }
 
-fn fix_recursive_patterns(patterns: &[NodeId], doc: &mut Document) {
-    while let Some(node_id) = find_recursive_pattern(AId::Fill, patterns, doc) {
-        let idx = doc.get(node_id).attribute_id(AId::Fill).unwrap();
-        doc.attrs[idx].value = roxmltree::StringStorage::Borrowed("none");
+fn find_circular_references(doc: &Document) -> HashSet<(NodeId, AId)> {
+    let mut search = CycleSearch::default();
+    for node in doc.descendants().filter(|n| is_resource(*n)) {
+        search.visit(node);
     }
 
-    while let Some(node_id) = find_recursive_pattern(AId::Stroke, patterns, doc) {
-        let idx = doc.get(node_id).attribute_id(AId::Stroke).unwrap();
-        doc.attrs[idx].value = roxmltree::StringStorage::Borrowed("none");
+    search.circular_references
+}
+
+#[derive(PartialEq)]
+enum Visit {
+    InProgress,
+    Done,
+}
+
+#[derive(Default)]
+struct CycleSearch {
+    visits: HashMap<NodeId, Visit>,
+    templates: HashMap<NodeId, NodeId>,
+    chain: Vec<NodeId>,
+    circular_references: HashSet<(NodeId, AId)>,
+}
+
+impl CycleSearch {
+    fn visit(&mut self, node: SvgNode) {
+        let node = self.with_content(node);
+        if self.visits.contains_key(&node.id) {
+            return;
+        }
+
+        self.visits.insert(node.id, Visit::InProgress);
+        let mut stack = vec![(node.id, references(node).into_iter())];
+        while let Some((node_id, references_left)) = stack.last_mut() {
+            match references_left.next() {
+                Some((user, aid, target)) => {
+                    let content = self.with_content(target);
+                    match self.visits.get(&content.id) {
+                        Some(Visit::InProgress) => {
+                            log::warn!(
+                                "Circular reference to '{}' via '{}' ignored.",
+                                target.element_id(),
+                                aid
+                            );
+                            self.circular_references.insert((user.id, aid));
+                        }
+                        Some(Visit::Done) => {}
+                        None => {
+                            self.visits.insert(content.id, Visit::InProgress);
+                            stack.push((content.id, references(content).into_iter()));
+                        }
+                    }
+                }
+                None => {
+                    self.visits.insert(*node_id, Visit::Done);
+                    stack.pop();
+                }
+            }
+        }
+    }
+
+    /// Returns the first element in the `xlink:href` chain of a pattern or filter that has
+    /// children, since its children are used instead. Elements sharing a template are resolved to
+    /// the same element, so its content is only walked once, and results are cached along the
+    /// chain.
+    fn with_content<'a, 'input: 'a>(&mut self, node: SvgNode<'a, 'input>) -> SvgNode<'a, 'input> {
+        if !matches!(node.tag_name(), Some(EId::Pattern | EId::Filter)) {
+            return node;
+        }
+
+        let mut current = node;
+        let content = loop {
+            if let Some(id) = self.templates.get(&current.id) {
+                break node.document().get(*id);
+            }
+
+            if current.has_children() {
+                break current;
+            }
+
+            // Resolves to `node` until the chain is done, which also ends an `xlink:href` cycle.
+            self.templates.insert(current.id, node.id);
+            self.chain.push(current.id);
+            match current.node_attribute(AId::Href) {
+                Some(link) if link.tag_name() == node.tag_name() => current = link,
+                _ => break node,
+            }
+        };
+
+        for id in self.chain.drain(..) {
+            self.templates.insert(id, content.id);
+        }
+
+        content
     }
 }
 
-fn find_recursive_pattern(aid: AId, patterns: &[NodeId], doc: &Document) -> Option<NodeId> {
-    for pattern_node in patterns.iter().map(|id| doc.get(*id)) {
-        for node in pattern_node.descendants() {
-            let value = match node.attribute(aid) {
-                Some(v) => v,
-                None => continue,
-            };
+type Reference<'a, 'input> = (SvgNode<'a, 'input>, AId, SvgNode<'a, 'input>);
 
-            if let Ok(svgtypes::Paint::FuncIRI(link_id, _)) = svgtypes::Paint::from_str(value) {
-                if link_id == pattern_node.element_id() {
-                    // If a pattern child has a link to the pattern itself
-                    // then we have to replace it with `none`.
-                    // Otherwise we will get endless loop/recursion and stack overflow.
-                    return Some(node.id);
-                } else {
-                    // Check that linked node children doesn't link this pattern.
-                    if let Some(linked_node) = doc.element_by_id(link_id) {
-                        for node2 in linked_node.descendants() {
-                            let value2 = match node2.attribute(aid) {
-                                Some(v) => v,
-                                None => continue,
-                            };
-
-                            if let Ok(svgtypes::Paint::FuncIRI(link_id2, _)) =
-                                svgtypes::Paint::from_str(value2)
-                            {
-                                if link_id2 == pattern_node.element_id() {
-                                    return Some(node2.id);
-                                }
-                            }
+/// Returns the references that are followed when rendering `node`,
+/// as `(element that uses the reference, attribute, referenced element)`.
+fn references<'a, 'input: 'a>(node: SvgNode<'a, 'input>) -> Vec<Reference<'a, 'input>> {
+    let mut references = Vec::new();
+    match node.tag_name() {
+        // Masks, filters, paint servers and markers are ignored inside clip paths.
+        Some(EId::ClipPath) => {
+            push_link(node, AId::ClipPath, EId::ClipPath, &mut references);
+            for_each_content_descendant(node, &mut |child| {
+                push_link(child, AId::ClipPath, EId::ClipPath, &mut references)
+            });
+        }
+        Some(EId::Mask) => {
+            push_link(node, AId::Mask, EId::Mask, &mut references);
+            for_each_content_descendant(node, &mut |child| push_references(child, &mut references));
+        }
+        Some(EId::Pattern) => {
+            for_each_content_descendant(node, &mut |child| push_references(child, &mut references));
+        }
+        Some(EId::Filter) => {
+            for child in node.descendants() {
+                if child.tag_name() == Some(EId::FeImage) {
+                    if let Some(link) = child.node_attribute(AId::Href) {
+                        if link.tag_name().is_some_and(|tag| {
+                            tag.is_graphic() || matches!(tag, EId::G | EId::Switch | EId::Svg)
+                        }) {
+                            references.push((child, AId::Href, link));
                         }
+                    }
+                }
+            }
+        }
+        Some(EId::Marker) => {
+            for_each_content_descendant(node, &mut |child| push_references(child, &mut references));
+        }
+        // An element referenced by `feImage`.
+        _ => {
+            push_references(node, &mut references);
+            for_each_content_descendant(node, &mut |child| push_references(child, &mut references));
+        }
+    }
+
+    references
+}
+
+/// Calls `f` for each descendant of `node`, skipping nested resources and other definitions.
+/// Those are only rendered where they are referenced, and resources are visited on their own.
+fn for_each_content_descendant<'a, 'input: 'a>(
+    node: SvgNode<'a, 'input>,
+    f: &mut impl FnMut(SvgNode<'a, 'input>),
+) {
+    for child in node.children() {
+        // A `use` stores a copy of the `symbol` it references as its child.
+        let is_definition = is_resource(child)
+            || child.tag_name() == Some(EId::Defs)
+            || (child.tag_name() == Some(EId::Symbol) && node.tag_name() != Some(EId::Use));
+        if !is_definition {
+            f(child);
+            for_each_content_descendant(child, f);
+        }
+    }
+}
+
+fn is_resource(node: SvgNode) -> bool {
+    matches!(
+        node.tag_name(),
+        Some(EId::ClipPath | EId::Mask | EId::Pattern | EId::Filter | EId::Marker)
+    )
+}
+
+fn push_references<'a, 'input: 'a>(
+    node: SvgNode<'a, 'input>,
+    references: &mut Vec<Reference<'a, 'input>>,
+) {
+    if !node.is_element() {
+        return;
+    }
+
+    push_link(node, AId::ClipPath, EId::ClipPath, references);
+    push_link(node, AId::Mask, EId::Mask, references);
+
+    if let Some(value) = node.attribute::<&str>(AId::Filter) {
+        for filter in svgtypes::FilterValueListParser::from(value).flatten() {
+            if let svgtypes::FilterValue::Url(id) = filter {
+                if let Some(link) = node.document().element_by_id(id) {
+                    if link.tag_name() == Some(EId::Filter) {
+                        references.push((node, AId::Filter, link));
                     }
                 }
             }
         }
     }
 
-    None
-}
-
-fn fix_recursive_links(nodes: &[NodeId], aid: AId, doc: &mut Document) {
-    while let Some(node_id) = find_recursive_link(nodes, aid, doc) {
-        let idx = doc.get(node_id).attribute_id(aid).unwrap();
-        doc.attrs[idx].value = roxmltree::StringStorage::Borrowed("none");
-    }
-}
-
-fn find_recursive_link(nodes: &[NodeId], aid: AId, doc: &Document) -> Option<NodeId> {
-    for node in nodes.iter().map(|id| doc.get(*id)) {
-        for child in node.descendants() {
-            if let Some(link) = child.node_attribute(aid) {
-                if link == node {
-                    // If an element child has a link to the element itself
-                    // then we have to replace it with `none`.
-                    // Otherwise we will get endless loop/recursion and stack overflow.
-                    return Some(child.id);
-                } else {
-                    // Check that linked node children doesn't link this element.
-                    for node2 in link.descendants() {
-                        if let Some(link2) = node2.node_attribute(aid) {
-                            if link2 == node {
-                                return Some(node2.id);
-                            }
-                        }
+    // Paint and markers are inherited, so they have to be resolved like during conversion.
+    for aid in [AId::Fill, AId::Stroke] {
+        if let Some(value) = node.find_attribute::<&str>(aid) {
+            if let Ok(svgtypes::Paint::FuncIRI(id, _)) = svgtypes::Paint::from_str(value) {
+                if let Some(link) = node.document().element_by_id(id) {
+                    if link.tag_name() == Some(EId::Pattern) {
+                        references.push((node, aid, link));
                     }
                 }
             }
         }
     }
 
-    None
-}
-
-/// Detects cases like:
-///
-/// ```xml
-/// <filter id="filter1">
-///   <feImage xlink:href="#rect1"/>
-/// </filter>
-/// <rect id="rect1" x="36" y="36" width="120" height="120" fill="green" filter="url(#filter1)"/>
-/// ```
-fn fix_recursive_fe_image(fe_images: &[NodeId], doc: &mut Document) {
-    let mut ids = Vec::new();
-    for fe_node in fe_images.iter().map(|id| doc.get(*id)) {
-        if let Some(link) = fe_node.node_attribute(AId::Href) {
-            if let Some(filter_uri) = link.attribute::<&str>(AId::Filter) {
-                let filter_id = fe_node.parent().unwrap().element_id();
-                for func in svgtypes::FilterValueListParser::from(filter_uri).flatten() {
-                    if let svgtypes::FilterValue::Url(url) = func {
-                        if url == filter_id {
-                            ids.push(link.id);
-                        }
-                    }
+    let is_shape = matches!(
+        node.tag_name(),
+        Some(
+            EId::Rect
+                | EId::Circle
+                | EId::Ellipse
+                | EId::Line
+                | EId::Polyline
+                | EId::Polygon
+                | EId::Path
+        )
+    );
+    // Markers are never drawn inside a clip path.
+    if is_shape
+        && !node
+            .ancestors()
+            .any(|n| n.tag_name() == Some(EId::ClipPath))
+    {
+        for aid in [AId::MarkerStart, AId::MarkerMid, AId::MarkerEnd] {
+            if let Some(link) = node.find_attribute::<SvgNode>(aid) {
+                if link.tag_name() == Some(EId::Marker) {
+                    references.push((node, aid, link));
                 }
             }
         }
     }
+}
 
-    for id in ids {
-        let idx = doc.get(id).attribute_id(AId::Filter).unwrap();
-        doc.attrs[idx].value = roxmltree::StringStorage::Borrowed("none");
+fn push_link<'a, 'input: 'a>(
+    node: SvgNode<'a, 'input>,
+    aid: AId,
+    tag_name: EId,
+    references: &mut Vec<Reference<'a, 'input>>,
+) {
+    if let Some(link) = node.node_attribute(aid) {
+        if link.tag_name() == Some(tag_name) {
+            references.push((node, aid, link));
+        }
     }
 }

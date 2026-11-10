@@ -1,0 +1,14 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <title>Recursive on an inherited fill</title>
+
+    <g id="g1" fill="url(#patt1)">
+        <pattern id="patt1" patternUnits="userSpaceOnUse" width="40" height="40">
+            <rect id="rect1" width="20" height="20" fill="green"/>
+            <rect id="rect2" x="22" y="22" width="16" height="16" stroke="blue" stroke-width="4"/>
+        </pattern>
+        <rect id="rect3" x="20" y="20" width="160" height="160" stroke="darkblue"/>
+    </g>
+
+    <!-- image frame -->
+    <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>
