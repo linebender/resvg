@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 #[cfg(feature = "text")]
 use fontdb::Database;
-use svgtypes::{Length, LengthUnit as Unit, PaintOrderKind, TransformOrigin};
+use svgtypes::{Align, AspectRatio, Length, LengthUnit as Unit, PaintOrderKind, TransformOrigin};
 use tiny_skia_path::PathBuilder;
 
 use super::svgtree::{self, AId, EId, FromValue, SvgNode};
@@ -287,14 +287,50 @@ impl SvgColorExt for svgtypes::Color {
 /// - If `Document` doesn't have a valid size - returns `Error::InvalidSize`.
 pub(crate) fn convert_doc(svg_doc: &svgtree::Document, opt: &Options) -> Result<Tree, Error> {
     let svg = svg_doc.root_element();
-    let (size, restore_viewbox) = resolve_svg_size(&svg, opt);
-    let size = size?;
-    let view_box = ViewBox {
+    let (size, mut restore_viewbox) = resolve_svg_size(&svg, opt);
+    let mut size = match opt.viewport_size {
+        Some(viewport_size) => size.unwrap_or(viewport_size),
+        None => size?,
+    };
+    let mut view_box = ViewBox {
         rect: svg
             .parse_viewbox()
             .unwrap_or_else(|| size.to_non_zero_rect(0.0, 0.0)),
         aspect: svg.attribute(AId::PreserveAspectRatio).unwrap_or_default(),
     };
+
+    if let Some(viewport_size) = opt.viewport_size {
+        if svg.parse_viewbox().is_none() {
+            let is_absolute = |aid| {
+                svg.attribute::<Length>(aid)
+                    .is_some_and(|length| length.unit != Unit::Percent)
+            };
+            let width = if is_absolute(AId::Width) {
+                size.width()
+            } else {
+                viewport_size.width()
+            };
+            let height = if is_absolute(AId::Height) {
+                size.height()
+            } else {
+                viewport_size.height()
+            };
+
+            view_box = ViewBox {
+                rect: Size::from_wh(width, height)
+                    .unwrap_or(viewport_size)
+                    .to_non_zero_rect(0.0, 0.0),
+                aspect: AspectRatio {
+                    defer: false,
+                    align: Align::None,
+                    slice: false,
+                },
+            };
+            restore_viewbox = false;
+        }
+
+        size = viewport_size;
+    }
 
     let background_color = svg
         .attribute::<&str>(AId::BackgroundColor)

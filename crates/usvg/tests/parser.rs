@@ -262,6 +262,158 @@ fn invalid_size_1() {
     assert!(result.is_err());
 }
 
+fn rect_bbox_in_viewport(root_attributes: &str) -> Rect {
+    let svg = format!(
+        "<svg {root_attributes} xmlns='http://www.w3.org/2000/svg'>
+            <rect id='rect' width='20' height='40'/>
+        </svg>"
+    );
+    let opt = usvg::Options {
+        viewport_size: usvg::Size::from_wh(100.0, 100.0),
+        ..usvg::Options::default()
+    };
+    let tree = usvg::Tree::from_str(&svg, &opt).unwrap();
+    assert_eq!(tree.size(), usvg::Size::from_wh(100.0, 100.0).unwrap());
+    tree.node_by_id("rect").unwrap().abs_bounding_box().unwrap()
+}
+
+#[test]
+fn viewport_size_meet() {
+    assert_eq!(
+        rect_bbox_in_viewport("viewBox='0 0 20 40'"),
+        Rect::from_xywh(25.0, 0.0, 50.0, 100.0).unwrap()
+    );
+}
+
+#[test]
+fn viewport_size_slice() {
+    assert_eq!(
+        rect_bbox_in_viewport("viewBox='0 0 20 40' preserveAspectRatio='xMidYMid slice'"),
+        Rect::from_xywh(0.0, -50.0, 100.0, 200.0).unwrap()
+    );
+}
+
+#[test]
+fn viewport_size_none() {
+    assert_eq!(
+        rect_bbox_in_viewport("viewBox='0 0 20 40' preserveAspectRatio='none'"),
+        Rect::from_xywh(0.0, 0.0, 100.0, 100.0).unwrap()
+    );
+}
+
+#[test]
+fn viewport_size_align() {
+    assert_eq!(
+        rect_bbox_in_viewport("viewBox='0 0 20 40' preserveAspectRatio='xMaxYMid'"),
+        Rect::from_xywh(50.0, 0.0, 50.0, 100.0).unwrap()
+    );
+}
+
+#[test]
+fn viewport_size_ignores_root_size() {
+    assert_eq!(
+        rect_bbox_in_viewport("width='10' height='10' viewBox='0 0 20 40'"),
+        Rect::from_xywh(25.0, 0.0, 50.0, 100.0).unwrap()
+    );
+}
+
+#[test]
+fn viewport_size_ignores_invalid_root_size() {
+    for root_attributes in [
+        "width='0' height='0' viewBox='0 0 20 40'",
+        "width='0' viewBox='0 0 20 40'",
+        "width='-5' height='-5' viewBox='0 0 20 40'",
+    ] {
+        assert_eq!(
+            rect_bbox_in_viewport(root_attributes),
+            Rect::from_xywh(25.0, 0.0, 50.0, 100.0).unwrap()
+        );
+    }
+
+    for root_attributes in ["width='0' height='0'", "width='0' height='40'"] {
+        assert_eq!(
+            rect_bbox_in_viewport(root_attributes),
+            Rect::from_xywh(0.0, 0.0, 20.0, 40.0).unwrap()
+        );
+    }
+}
+
+#[test]
+fn viewport_size_without_viewbox_stretches_absolute_size() {
+    for root_attributes in [
+        "width='20' height='40'",
+        "width='20' height='40' preserveAspectRatio='xMidYMid slice'",
+    ] {
+        assert_eq!(
+            rect_bbox_in_viewport(root_attributes),
+            Rect::from_xywh(0.0, 0.0, 100.0, 100.0).unwrap()
+        );
+    }
+
+    assert_eq!(
+        rect_bbox_in_viewport("width='10' height='80'"),
+        Rect::from_xywh(0.0, 0.0, 200.0, 50.0).unwrap()
+    );
+}
+
+#[test]
+fn viewport_size_without_viewbox_stretches_only_absolute_dimensions() {
+    for root_attributes in ["width='20'", "width='20' height='100%'"] {
+        assert_eq!(
+            rect_bbox_in_viewport(root_attributes),
+            Rect::from_xywh(0.0, 0.0, 100.0, 40.0).unwrap()
+        );
+    }
+
+    assert_eq!(
+        rect_bbox_in_viewport("height='50'"),
+        Rect::from_xywh(0.0, 0.0, 20.0, 80.0).unwrap()
+    );
+}
+
+#[test]
+fn viewport_size_without_viewbox_and_absolute_size() {
+    for root_attributes in ["", "width='50%' height='50%'"] {
+        assert_eq!(
+            rect_bbox_in_viewport(root_attributes),
+            Rect::from_xywh(0.0, 0.0, 20.0, 40.0).unwrap()
+        );
+    }
+}
+
+#[test]
+fn viewport_size_does_not_apply_to_nested_svg_images() {
+    let svg = "
+    <svg viewBox='0 0 20 40' xmlns='http://www.w3.org/2000/svg'>
+        <image width='20' height='40' href='image.svg'/>
+    </svg>
+    ";
+    let opt = usvg::Options {
+        resources_dir: Some("../resvg/tests/resources".into()),
+        viewport_size: usvg::Size::from_wh(300.0, 200.0),
+        ..usvg::Options::default()
+    };
+    let tree = usvg::Tree::from_str(svg, &opt).unwrap();
+    assert_eq!(tree.size(), usvg::Size::from_wh(300.0, 200.0).unwrap());
+
+    let nested_tree = find_svg_image(tree.root()).unwrap();
+    assert_eq!(
+        nested_tree.size(),
+        usvg::Size::from_wh(100.0, 100.0).unwrap()
+    );
+}
+
+fn find_svg_image(group: &usvg::Group) -> Option<&usvg::Tree> {
+    group.children().iter().find_map(|node| match node {
+        usvg::Node::Group(group) => find_svg_image(group),
+        usvg::Node::Image(image) => match image.kind() {
+            usvg::ImageKind::SVG(tree) => Some(tree),
+            _ => None,
+        },
+        _ => None,
+    })
+}
+
 #[test]
 fn tree_is_send_and_sync() {
     fn ensure_send_and_sync<T: Send + Sync>() {}
