@@ -8,6 +8,13 @@ This changelog also contains important changes in dependencies.
 
 ## [Unreleased]
 
+### Added
+
+- `usvg::Options::viewport_size` to fit an SVG into a viewport of a specific size,
+  like a browser does for an SVG image. (#779)
+- `--exact-size` option to the `resvg` CLI. Together with `--width` and `--height` it produces an image
+  of exactly that size, with the SVG fitted into it according to its `preserveAspectRatio` attribute. (#779)
+
 ### Fixed
 
 - `flood-color="currentColor"` on `feFlood` and `feDropShadow` no longer resolves to black. (#1217)

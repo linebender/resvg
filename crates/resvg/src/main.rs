@@ -143,6 +143,8 @@ OPTIONS:
 
   -w, --width LENGTH            Sets the width in pixels
   -h, --height LENGTH           Sets the height in pixels
+      --exact-size              Makes the image exactly --width by --height and fits
+                                the SVG according to its 'preserveAspectRatio' attribute
   -z, --zoom FACTOR             Zooms the image by a factor
       --dpi DPI                 Sets the resolution
                                 [default: 96] [possible values: 10..4000 (inclusive)]
@@ -225,6 +227,7 @@ ARGS:
 struct CliArgs {
     width: Option<u32>,
     height: Option<u32>,
+    exact_size: bool,
     zoom: Option<f32>,
     dpi: u32,
     background: Option<svgtypes::Color>,
@@ -278,6 +281,7 @@ fn collect_args() -> Result<CliArgs, pico_args::Error> {
     Ok(CliArgs {
         width: input.opt_value_from_fn(["-w", "--width"], parse_length)?,
         height: input.opt_value_from_fn(["-h", "--height"], parse_length)?,
+        exact_size: input.contains("--exact-size"),
         zoom: input.opt_value_from_fn(["-z", "--zoom"], parse_zoom)?,
         dpi: input.opt_value_from_fn("--dpi", parse_dpi)?.unwrap_or(96),
         background: input.opt_value_from_str("--background")?,
@@ -532,13 +536,28 @@ fn parse_args() -> Result<Args, String> {
         eprintln!("Warning: --export-area-drawing has no effect when --export-id is set.");
     }
 
+    if args.exact_size {
+        if args.width.is_none() || args.height.is_none() {
+            eprintln!("Warning: --exact-size has no effect without --width and --height.");
+        } else if args.export_id.is_some() || args.query_all || args.query_bbox {
+            eprintln!("Warning: --exact-size has no effect on --export-id and queries.");
+        }
+    }
+
     let export_id = args.export_id.as_ref().map(|v| v.to_string());
 
     let mut fit_to = FitTo::Original;
     let mut default_size = usvg::Size::from_wh(100.0, 100.0).unwrap();
+    let mut viewport_size = None;
     if let (Some(w), Some(h)) = (args.width, args.height) {
         default_size = usvg::Size::from_wh(w as f32, h as f32).unwrap();
-        fit_to = FitTo::Size(w as f32, h as f32);
+
+        let is_whole_image = export_id.is_none() && !args.query_all && !args.query_bbox;
+        if args.exact_size && is_whole_image {
+            viewport_size = Some(default_size);
+        } else {
+            fit_to = FitTo::Size(w as f32, h as f32);
+        }
     } else if let Some(w) = args.width {
         default_size = usvg::Size::from_wh(w as f32, 100.0).unwrap();
         fit_to = FitTo::Width(w as f32);
@@ -586,6 +605,7 @@ fn parse_args() -> Result<Args, String> {
         text_rendering: args.text_rendering,
         image_rendering: args.image_rendering,
         default_size,
+        viewport_size,
         image_href_resolver: usvg::ImageHrefResolver::default(),
         font_resolver: usvg::FontResolver::default(),
         fontdb: Arc::new(fontdb::Database::new()),

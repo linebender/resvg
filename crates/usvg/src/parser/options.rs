@@ -79,6 +79,16 @@ pub struct Options<'a> {
     /// Default: `(100, 100)`
     pub default_size: Size,
 
+    /// Fits the SVG into a viewport of this size.
+    ///
+    /// The tree gets exactly this size. With a `viewBox`, the `width` and `height` of the
+    /// root element are ignored and the `viewBox` is fitted according to `preserveAspectRatio`.
+    /// Without a `viewBox`, the SVG is stretched from its `width` and `height` instead,
+    /// and a relative or missing dimension is not scaled.
+    ///
+    /// Default: `None`
+    pub viewport_size: Option<Size>,
+
     /// Specifies the way `xlink:href` in `<image>` elements should be handled.
     ///
     /// Default: see type's documentation for details
@@ -120,6 +130,7 @@ impl Default for Options<'_> {
             text_rendering: TextRendering::default(),
             image_rendering: ImageRendering::default(),
             default_size: Size::from_wh(100.0, 100.0).unwrap(),
+            viewport_size: None,
             image_href_resolver: ImageHrefResolver::default(),
             #[cfg(feature = "text")]
             font_resolver: FontResolver::default(),

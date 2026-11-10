@@ -132,6 +132,7 @@ impl crate::Tree {
             text_rendering: opt.text_rendering,
             image_rendering: opt.image_rendering,
             default_size: opt.default_size,
+            viewport_size: None,
             image_href_resolver: ImageHrefResolver {
                 resolve_data: Box::new(|a, b, c| (opt.image_href_resolver.resolve_data)(a, b, c)),
                 // External images should be ignored.
