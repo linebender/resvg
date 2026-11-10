@@ -14,6 +14,14 @@ This changelog also contains important changes in dependencies.
   with user space, and filter regions are rounded out as in Skia.
 - A filter on a nearly 90° skew allocated gigabytes (from 0.49): as in Skia, such a layer now gets
   fewer pixels instead.
+- `flood-color="currentColor"` on `feFlood` and `feDropShadow` no longer resolves to black. (#1217)
+- `color="currentColor"` now inherits the parent's `color` instead of resolving to black. (#1217)
+- Filter primitive subregions with `primitiveUnits="objectBoundingBox"` are now resolved against
+  the element's bounding box, and unspecified values default to the filter region. (#1188)
+- `feDisplacementMap` no longer applies `scale` twice, and now reads the displacement map
+  with non-premultiplied colors. (#1157)
+- CSS in a `style` element is no longer cut off at the first XML comment or processing instruction,
+  and a `type` attribute that is empty or `text/css` in any letter case is now accepted. (#1161)
 
 ## [0.49.0] 2026-10-24
 

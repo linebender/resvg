@@ -6,6 +6,7 @@
 use std::path;
 use std::sync::Arc;
 
+use usvg::DEFAULT_MAX_DEPTH;
 use usvg::fontdb;
 
 fn main() {
@@ -588,6 +589,7 @@ fn parse_args() -> Result<Args, String> {
         image_href_resolver: usvg::ImageHrefResolver::default(),
         font_resolver: usvg::FontResolver::default(),
         fontdb: Arc::new(fontdb::Database::new()),
+        max_depth: DEFAULT_MAX_DEPTH,
         style_sheet,
     };
 
@@ -655,8 +657,10 @@ fn query_all_impl(parent: &usvg::Group) -> usize {
         let bbox = node
             .abs_layer_bounding_box()
             .map(|r| r.to_rect())
-            .unwrap_or(node.abs_bounding_box());
-        println!("{},{}", node.id(), format_bbox(bbox));
+            .or(node.abs_bounding_box());
+        if let Some(bbox) = bbox {
+            println!("{},{}", node.id(), format_bbox(bbox));
+        }
 
         if let usvg::Node::Group(group) = node {
             count += query_all_impl(group);
@@ -681,10 +685,11 @@ fn format_bbox(bbox: usvg::Rect) -> String {
 }
 
 fn query_bbox(tree: &usvg::Tree) -> Result<(), String> {
-    println!(
-        "{}",
-        format_bbox(tree.root().abs_layer_bounding_box().to_rect())
-    );
+    let bbox = tree
+        .root()
+        .abs_layer_bounding_box()
+        .ok_or("SVG has no content")?;
+    println!("{}", format_bbox(bbox.to_rect()));
     Ok(())
 }
 
@@ -787,7 +792,7 @@ fn trim_pixmap(
     transform: tiny_skia::Transform,
     pixmap: &tiny_skia::Pixmap,
 ) -> Option<tiny_skia::Pixmap> {
-    let content_area = tree.root().layer_bounding_box();
+    let content_area = tree.root().layer_bounding_box()?;
 
     let limit = tiny_skia::IntRect::from_xywh(0, 0, pixmap.width(), pixmap.height()).unwrap();
 

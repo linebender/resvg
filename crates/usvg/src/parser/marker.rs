@@ -127,11 +127,10 @@ fn resolve(
 
         let mut path = Path::new_simple(Arc::new(tiny_skia_path::PathBuilder::from_rect(
             clip_rect.to_rect(),
-        )))?;
+        )));
         path.fill = Some(Fill::default());
 
         clip_path.root.children.push(Node::Path(Box::new(path)));
-        clip_path.root.calculate_bounding_boxes();
 
         Some(Arc::new(clip_path))
     } else {
@@ -201,7 +200,6 @@ fn resolve(
         let mut marker_state = state.clone();
         marker_state.parent_markers.push(marker_node);
         converter::convert_children(marker_node, &marker_state, cache, &mut g);
-        g.calculate_bounding_boxes();
 
         if g.has_children() {
             parent.children.push(Node::Group(Box::new(g)));

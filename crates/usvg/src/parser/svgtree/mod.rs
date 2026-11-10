@@ -1,7 +1,7 @@
 // Copyright 2021 the Resvg Authors
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::num::NonZeroU32;
 use std::str::FromStr;
 
@@ -149,7 +149,7 @@ impl ShortRange {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
 pub(crate) struct NodeId(NonZeroU32);
 
 impl NodeId {
@@ -489,6 +489,7 @@ impl<'a, 'input: 'a> SvgNode<'a, 'input> {
             curr: self.id(),
             is_first: true,
             is_finished: false,
+            visited: VisitedLinks::new(self.id()),
         }
     }
 }
@@ -606,6 +607,41 @@ impl<'a, 'input: 'a> Iterator for Descendants<'a, 'input> {
     }
 }
 
+/// The elements an `xlink:href` chain has visited so far.
+#[derive(Clone, Debug)]
+enum VisitedLinks {
+    Inline([Option<NodeId>; 4]),
+    Heap(HashSet<NodeId>),
+}
+
+impl VisitedLinks {
+    fn new(id: NodeId) -> Self {
+        VisitedLinks::Inline([Some(id), None, None, None])
+    }
+
+    /// Returns `false` if `id` was already visited.
+    fn insert(&mut self, id: NodeId) -> bool {
+        match self {
+            VisitedLinks::Inline(ids) => {
+                if ids.contains(&Some(id)) {
+                    return false;
+                }
+
+                if let Some(slot) = ids.iter_mut().find(|slot| slot.is_none()) {
+                    *slot = Some(id);
+                } else {
+                    let mut set: HashSet<NodeId> = ids.iter().flatten().copied().collect();
+                    set.insert(id);
+                    *self = VisitedLinks::Heap(set);
+                }
+
+                true
+            }
+            VisitedLinks::Heap(set) => set.insert(id),
+        }
+    }
+}
+
 /// An iterator over `xlink:href` references.
 #[derive(Clone, Debug)]
 pub struct HrefIter<'a, 'input: 'a> {
@@ -614,6 +650,7 @@ pub struct HrefIter<'a, 'input: 'a> {
     curr: NodeId,
     is_first: bool,
     is_finished: bool,
+    visited: VisitedLinks,
 }
 
 impl<'a, 'input: 'a> Iterator for HrefIter<'a, 'input> {
@@ -630,9 +667,9 @@ impl<'a, 'input: 'a> Iterator for HrefIter<'a, 'input> {
         }
 
         if let Some(link) = self.doc.get(self.curr).node_attribute(AId::Href) {
-            if link.id() == self.curr || link.id() == self.origin {
+            if !self.visited.insert(link.id()) {
                 log::warn!(
-                    "Element '#{}' cannot reference itself via 'xlink:href'.",
+                    "Element '#{}' has a circular 'xlink:href' reference.",
                     self.doc.get(self.origin).element_id()
                 );
                 self.is_finished = true;
@@ -640,7 +677,7 @@ impl<'a, 'input: 'a> Iterator for HrefIter<'a, 'input> {
             }
 
             self.curr = link.id();
-            Some(self.doc.get(self.curr))
+            Some(link)
         } else {
             None
         }
@@ -942,8 +979,22 @@ impl<'a, 'input: 'a> FromValue<'a, 'input> for svgtypes::PaintOrder {
 }
 
 impl<'a, 'input: 'a> FromValue<'a, 'input> for svgtypes::Color {
-    fn parse(_: SvgNode, _: AId, value: &str) -> Option<Self> {
-        Self::from_str(value).ok()
+    fn parse(node: SvgNode, aid: AId, value: &str) -> Option<Self> {
+        // TODO: Let svgtypes parse `currentColor` as part of a `<color>` type that `Paint` and
+        // `drop-shadow()` can share, instead of matching the keyword in several places.
+        if value != "currentColor" {
+            return Self::from_str(value).ok();
+        }
+
+        // In `color`, `currentColor` resolves to the inherited value.
+        let color = if aid == AId::Color {
+            node.parent_element()
+                .and_then(|parent| parent.find_attribute(AId::Color))
+        } else {
+            node.find_attribute(AId::Color)
+        };
+
+        Some(color.unwrap_or_else(Self::black))
     }
 }
 

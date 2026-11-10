@@ -625,8 +625,8 @@ fn flattened_text_should_inherit_absolute_transform() {
 
     assert_ne!(path.bounding_box(), path.abs_bounding_box());
     assert_eq!(
-        path.bounding_box().transform(t).unwrap(),
-        path.abs_bounding_box()
+        path.bounding_box().unwrap().transform(t).unwrap(),
+        path.abs_bounding_box().unwrap()
     );
 }
 
@@ -656,7 +656,7 @@ fn use_node_abs_transform() {
     assert_eq!(path_node.abs_transform().get_scale(), (0.5, 0.5));
     assert_eq!(
         path_node.abs_bounding_box(),
-        Rect::from_xywh(20.0, 30.0, 50.0, 50.0).unwrap()
+        Rect::from_xywh(20.0, 30.0, 50.0, 50.0)
     );
 }
 
@@ -672,7 +672,7 @@ fn nested_svg_abs_bounding_box() {
     let tree = usvg::Tree::from_str(&svg, &usvg::Options::default()).unwrap();
     assert_eq!(
         tree.node_by_id("path").unwrap().abs_bounding_box(),
-        Rect::from_xywh(10.0, 20.0, 10.0, 10.0).unwrap()
+        Some(Rect::from_xywh(10.0, 20.0, 10.0, 10.0).unwrap())
     );
 }
 
@@ -701,4 +701,58 @@ fn resolve_fr_from_referenced_radial_gradient() {
     };
 
     assert_eq!(rg.fr().get(), 25.0);
+}
+
+fn parse_with_max_depth(svg: &str, max_depth: u32) -> Result<usvg::Tree, usvg::Error> {
+    let opt = usvg::Options {
+        max_depth,
+        ..usvg::Options::default()
+    };
+    usvg::Tree::from_str(svg, &opt)
+}
+
+#[test]
+fn max_depth_limits_nesting() {
+    let svg = "<svg xmlns='http://www.w3.org/2000/svg'>\
+        <g><g><rect width='1' height='1'/></g></g>\
+    </svg>";
+
+    assert!(parse_with_max_depth(svg, 3).is_ok());
+    assert!(matches!(
+        parse_with_max_depth(svg, 2),
+        Err(usvg::Error::ParsingFailed(
+            roxmltree::Error::NodesLimitReached
+        ))
+    ));
+}
+
+#[test]
+fn max_depth_counts_use_instances() {
+    let without_use = "<svg xmlns='http://www.w3.org/2000/svg'>\
+        <defs><rect id='r' width='1' height='1'/></defs>\
+    </svg>";
+    let with_use = "<svg xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink'>\
+        <defs><rect id='r' width='1' height='1'/></defs>\
+        <use xlink:href='#r'/>\
+    </svg>";
+
+    assert!(parse_with_max_depth(without_use, 2).is_ok());
+    assert!(matches!(
+        parse_with_max_depth(with_use, 2),
+        Err(usvg::Error::ParsingFailed(
+            roxmltree::Error::NodesLimitReached
+        ))
+    ));
+}
+
+#[test]
+fn max_depth_applies_to_nested_svg_images() {
+    let svg = "<svg xmlns='http://www.w3.org/2000/svg'>\
+        <image width='1' height='1' href=\"data:image/svg+xml,\
+            %3Csvg xmlns='http://www.w3.org/2000/svg' width='1' height='1'%3E\
+            %3Cg%3E%3Crect width='1' height='1'/%3E%3C/g%3E%3C/svg%3E\"/>\
+    </svg>";
+
+    assert!(parse_with_max_depth(svg, 2).unwrap().root().has_children());
+    assert!(!parse_with_max_depth(svg, 1).unwrap().root().has_children());
 }

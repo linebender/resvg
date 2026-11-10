@@ -2,18 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
 use crate::parser::OptionLog;
-use skrifa::instance::LocationRef;
-use skrifa::prelude::Size;
-use skrifa::raw::types::Point;
-use skrifa::{
-    MetadataProvider,
-    color::{Brush, ColorStop, Extend, Transform},
-    outline::DrawSettings,
-};
+use skrifa::DrawMemory;
+use skrifa::font::glyph::color::{Brush, ColorStop, CompositeMode, Extend, PaintSink};
+use skrifa::font::glyph::outline::{DrawOptions, PathSink};
+use skrifa::raw::types::{BoundingBox, GlyphId, Matrix, Point};
 use std::fmt::Write as _;
 use svgtypes::Color;
-
-use super::transform::{skrifa_to_tsp_transform, tsp_to_skrifa_transform};
 
 struct Builder<'a> {
     path: &'a mut String,
@@ -59,7 +53,7 @@ impl<'a> Builder<'a> {
     }
 }
 
-impl skrifa::outline::OutlinePen for Builder<'_> {
+impl PathSink for Builder<'_> {
     fn move_to(&mut self, x: f32, y: f32) {
         self.add_point(x, y);
         write!(self.path, "M {} {} ", x, y).unwrap();
@@ -90,7 +84,7 @@ impl skrifa::outline::OutlinePen for Builder<'_> {
 
 trait XmlWriterExt {
     fn write_color_attribute(&mut self, name: &str, ts: Color);
-    fn write_transform_attribute(&mut self, name: &str, ts: Transform);
+    fn write_transform_attribute(&mut self, name: &str, ts: Matrix<f32>);
     fn write_spread_method_attribute(&mut self, method: Extend);
 }
 
@@ -102,8 +96,8 @@ impl XmlWriterExt for xmlwriter::XmlWriter {
         );
     }
 
-    fn write_transform_attribute(&mut self, name: &str, ts: Transform) {
-        if ts == Transform::default() {
+    fn write_transform_attribute(&mut self, name: &str, ts: Matrix<f32>) {
+        if ts == Matrix::default() {
             return;
         }
 
@@ -131,17 +125,15 @@ impl XmlWriterExt for xmlwriter::XmlWriter {
 
 // NOTE: This is only a best-effort translation of COLR into SVG.
 pub(crate) struct GlyphPainter<'a> {
-    pub(crate) font: &'a skrifa::FontRef<'a>,
-    /// The variation location to draw outlines at.
-    pub(crate) location: LocationRef<'a>,
+    pub(crate) font: &'a skrifa::Font,
     pub(crate) svg: &'a mut xmlwriter::XmlWriter,
     pub(crate) path_buf: &'a mut String,
     pub(crate) gradient_index: usize,
     pub(crate) clip_path_index: usize,
     pub(crate) foreground_color: Color,
-    pub(crate) transform: Transform,
-    pub(crate) outline_transform: Transform,
-    pub(crate) transforms_stack: Vec<Transform>,
+    pub(crate) transform: Matrix<f32>,
+    pub(crate) outline_transform: Matrix<f32>,
+    pub(crate) transforms_stack: Vec<Matrix<f32>>,
     /// The bounding box of every active clip, in the root coordinate space.
     /// `None` means the clip is empty (or its bounds are unknown).
     pub(crate) clip_stack: Vec<Option<tiny_skia_path::Rect>>,
@@ -261,17 +253,22 @@ impl<'a> GlyphPainter<'a> {
     }
 }
 
-fn paint_transform(outline_transform: Transform, transform: Transform) -> Transform {
-    let outline_transform = skrifa_to_tsp_transform(outline_transform);
-    let gradient_transform = skrifa_to_tsp_transform(transform);
+fn to_tsp_transform(ts: Matrix<f32>) -> tiny_skia_path::Transform {
+    let [sx, ky, kx, sy, tx, ty] = ts.elements();
+    tiny_skia_path::Transform::from_row(sx, ky, kx, sy, tx, ty)
+}
 
-    let gradient_transform = outline_transform
+fn paint_transform(outline_transform: Matrix<f32>, transform: Matrix<f32>) -> Matrix<f32> {
+    let outline_transform = to_tsp_transform(outline_transform);
+    let gradient_transform = to_tsp_transform(transform);
+
+    let ts = outline_transform
         .invert()
         .log_none(|| log::warn!("Failed to calculate transform for gradient in glyph."))
         .unwrap_or_default()
         .pre_concat(gradient_transform);
 
-    tsp_to_skrifa_transform(gradient_transform)
+    Matrix::from_elements([ts.sx, ts.ky, ts.kx, ts.sy, ts.tx, ts.ty])
 }
 
 /// Returns the bounding box of `rect` transformed by `ts`.
@@ -329,15 +326,14 @@ impl GlyphPainter<'_> {
     /// (an empty path on failure), records the current transform as the
     /// outline transform and returns the outline's conservative bounding box
     /// in the glyph's local coordinate space.
-    fn outline_glyph(&mut self, glyph_id: skrifa::GlyphId) -> Option<tiny_skia_path::Rect> {
+    fn outline_glyph(&mut self, glyph_id: GlyphId) -> Option<tiny_skia_path::Rect> {
         self.path_buf.clear();
 
         let mut bounds = None;
         let outlined = if let Some(outliner) = self.font.outline_glyphs().get(glyph_id) {
             let mut builder = Builder::new(self.path_buf);
-            let size = Size::unscaled();
             let ok = outliner
-                .draw(DrawSettings::unhinted(size, self.location), &mut builder)
+                .draw(&DrawOptions::default(), DrawMemory::Scratch, &mut builder)
                 .is_ok();
             if ok {
                 builder.finish();
@@ -397,7 +393,7 @@ impl GlyphPainter<'_> {
         let lookup = || -> Option<Color> {
             // We always use the first palette. `ColorPalettes` handles
             // per-palette record offsets internally.
-            let palettes = self.font.color_palettes();
+            let palettes = self.font.palettes();
             let palette = palettes.get(0)?;
             let color = palette.colors().get(palette_index as usize)?;
             Some(Color {
@@ -421,8 +417,8 @@ impl GlyphPainter<'_> {
     }
 }
 
-impl<'a> skrifa::color::ColorPainter for GlyphPainter<'a> {
-    fn push_transform(&mut self, transform: Transform) {
+impl PaintSink for GlyphPainter<'_> {
+    fn push_transform(&mut self, transform: Matrix<f32>) {
         self.transforms_stack.push(self.transform);
         self.transform = self.transform * transform;
     }
@@ -435,8 +431,8 @@ impl<'a> skrifa::color::ColorPainter for GlyphPainter<'a> {
 
     fn fill_glyph(
         &mut self,
-        glyph_id: skrifa::GlyphId,
-        brush_transform: Option<Transform>,
+        glyph_id: GlyphId,
+        brush_transform: Option<Matrix<f32>>,
         brush: Brush<'_>,
     ) {
         // Fill the glyph outline directly instead of the default
@@ -453,7 +449,7 @@ impl<'a> skrifa::color::ColorPainter for GlyphPainter<'a> {
         }
     }
 
-    fn push_clip_glyph(&mut self, glyph_id: skrifa::GlyphId) {
+    fn push_clip_glyph(&mut self, glyph_id: GlyphId) {
         let bounds = self.outline_glyph(glyph_id);
 
         // Clip with the outline. This must always open a clip group - even
@@ -463,11 +459,11 @@ impl<'a> skrifa::color::ColorPainter for GlyphPainter<'a> {
         self.clip_with_path(&path);
 
         let root_bounds =
-            bounds.and_then(|b| map_rect(b, skrifa_to_tsp_transform(self.outline_transform)));
+            bounds.and_then(|b| map_rect(b, to_tsp_transform(self.outline_transform)));
         self.clip_stack.push(root_bounds);
     }
 
-    fn push_clip_box(&mut self, clip_box: skrifa::raw::types::BoundingBox<f32>) {
+    fn push_clip_box(&mut self, clip_box: BoundingBox<f32>) {
         let x_min = clip_box.x_min;
         let x_max = clip_box.x_max;
         let y_min = clip_box.y_min;
@@ -483,7 +479,7 @@ impl<'a> skrifa::color::ColorPainter for GlyphPainter<'a> {
         self.clip_with_path(&clip_path);
 
         let bounds = tiny_skia_path::Rect::from_ltrb(x_min, y_min, x_max, y_max)
-            .and_then(|b| map_rect(b, skrifa_to_tsp_transform(self.outline_transform)));
+            .and_then(|b| map_rect(b, to_tsp_transform(self.outline_transform)));
         self.clip_stack.push(bounds);
     }
 
@@ -532,13 +528,12 @@ impl<'a> skrifa::color::ColorPainter for GlyphPainter<'a> {
         .unwrap();
 
         // The covering rectangle is in the root coordinate space.
-        self.outline_transform = Transform::default();
+        self.outline_transform = Matrix::default();
 
         self.paint_brush(brush);
     }
 
-    fn push_layer(&mut self, composite_mode: skrifa::color::CompositeMode) {
-        use skrifa::color::CompositeMode;
+    fn push_layer(&mut self, composite_mode: CompositeMode) {
         // TODO: Need to figure out how to represent the other blend modes in SVG.
         let composite_mode = match composite_mode {
             CompositeMode::SrcOver => "normal",

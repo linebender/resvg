@@ -145,11 +145,14 @@ use crate::render;
 #[test] fn filters_feDiffuseLighting_surfaceScale_eq_1_33() { assert_eq!(render("tests/filters/feDiffuseLighting/surfaceScale=1.33"), 0); }
 #[test] fn filters_feDiffuseLighting_surfaceScale_eq_5() { assert_eq!(render("tests/filters/feDiffuseLighting/surfaceScale=5"), 0); }
 #[test] fn filters_feDiffuseLighting_tiny_element_with_spot_light() { assert_eq!(render("tests/filters/feDiffuseLighting/tiny-element-with-spot-light"), 0); }
+#[test] fn filters_feDisplacementMap_semi_transparent_map() { assert_eq!(render("tests/filters/feDisplacementMap/semi-transparent-map"), 0); }
 #[test] fn filters_feDisplacementMap_simple_case() { assert_eq!(render("tests/filters/feDisplacementMap/simple-case"), 0); }
+#[test] fn filters_feDisplacementMap_uniform_map() { assert_eq!(render("tests/filters/feDisplacementMap/uniform-map"), 0); }
 #[test] fn filters_feDistantLight_default_attributes() { assert_eq!(render("tests/filters/feDistantLight/default-attributes"), 0); }
 #[test] fn filters_feDistantLight_negative_azimuth_and_elevation() { assert_eq!(render("tests/filters/feDistantLight/negative-azimuth-and-elevation"), 0); }
 #[test] fn filters_feDistantLight_only_azimuth() { assert_eq!(render("tests/filters/feDistantLight/only-azimuth"), 0); }
 #[test] fn filters_feDistantLight_only_elevation() { assert_eq!(render("tests/filters/feDistantLight/only-elevation"), 0); }
+#[test] fn filters_feDropShadow_flood_color_eq_currentColor() { assert_eq!(render("tests/filters/feDropShadow/flood-color=currentColor"), 0); }
 #[test] fn filters_feDropShadow_hsla_color() { assert_eq!(render("tests/filters/feDropShadow/hsla-color"), 0); }
 #[test] fn filters_feDropShadow_only_stdDeviation() { assert_eq!(render("tests/filters/feDropShadow/only-stdDeviation"), 0); }
 #[test] fn filters_feDropShadow_stdDeviation_eq_0() { assert_eq!(render("tests/filters/feDropShadow/stdDeviation=0"), 0); }
@@ -161,6 +164,7 @@ use crate::render;
 #[test] fn filters_feFlood_complex_transform() { assert_eq!(render("tests/filters/feFlood/complex-transform"), 0); }
 #[test] fn filters_feFlood_default_values() { assert_eq!(render("tests/filters/feFlood/default-values"), 0); }
 #[test] fn filters_feFlood_partial_subregion() { assert_eq!(render("tests/filters/feFlood/partial-subregion"), 0); }
+#[test] fn filters_feFlood_partial_subregion_with_primitiveUnits_eq_objectBoundingBox() { assert_eq!(render("tests/filters/feFlood/partial-subregion-with-primitiveUnits=objectBoundingBox"), 0); }
 #[test] fn filters_feFlood_seagreen() { assert_eq!(render("tests/filters/feFlood/seagreen"), 0); }
 #[test] fn filters_feFlood_subregion_inheritance() { assert_eq!(render("tests/filters/feFlood/subregion-inheritance"), 0); }
 #[test] fn filters_feFlood_subregion_with_primitiveUnits_eq_objectBoundingBox() { assert_eq!(render("tests/filters/feFlood/subregion-with-primitiveUnits=objectBoundingBox"), 0); }
@@ -325,6 +329,7 @@ use crate::render;
 #[test] fn filters_filter_on_a_vertical_line() { assert_eq!(render("tests/filters/filter/on-a-vertical-line"), 0); }
 #[test] fn filters_filter_on_an_empty_group_1() { assert_eq!(render("tests/filters/filter/on-an-empty-group-1"), 0); }
 #[test] fn filters_filter_on_an_empty_group_2() { assert_eq!(render("tests/filters/filter/on-an-empty-group-2"), 0); }
+#[test] fn filters_filter_on_group_with_an_empty_filtered_child() { assert_eq!(render("tests/filters/filter/on-group-with-an-empty-filtered-child"), 0); }
 #[test] fn filters_filter_on_group_with_child_outside_of_canvas() { assert_eq!(render("tests/filters/filter/on-group-with-child-outside-of-canvas"), 0); }
 #[test] fn filters_filter_on_the_root_svg() { assert_eq!(render("tests/filters/filter/on-the-root-svg"), 0); }
 #[test] fn filters_filter_on_zero_sized_shape() { assert_eq!(render("tests/filters/filter/on-zero-sized-shape"), 0); }
@@ -337,6 +342,7 @@ use crate::render;
 #[test] fn filters_filter_some_attributes_via_xlink_href() { assert_eq!(render("tests/filters/filter/some-attributes-via-xlink-href"), 0); }
 #[test] fn filters_filter_subregion_and_primitiveUnits_eq_objectBoundingBox_1() { assert_eq!(render("tests/filters/filter/subregion-and-primitiveUnits=objectBoundingBox-1"), 0); }
 #[test] fn filters_filter_subregion_and_primitiveUnits_eq_objectBoundingBox_2() { assert_eq!(render("tests/filters/filter/subregion-and-primitiveUnits=objectBoundingBox-2"), 0); }
+#[test] fn filters_filter_subregion_and_primitiveUnits_eq_objectBoundingBox_3() { assert_eq!(render("tests/filters/filter/subregion-and-primitiveUnits=objectBoundingBox-3"), 0); }
 #[test] fn filters_filter_subregion_bigger_that_region() { assert_eq!(render("tests/filters/filter/subregion-bigger-that-region"), 0); }
 #[test] fn filters_filter_transform_on_filter() { assert_eq!(render("tests/filters/filter/transform-on-filter"), 0); }
 #[test] fn filters_filter_transform_on_shape_with_filter_region() { assert_eq!(render("tests/filters/filter/transform-on-shape-with-filter-region"), 0); }
@@ -405,6 +411,7 @@ use crate::render;
 #[test] fn filters_filter_functions_two_urls_with_different_regions() { assert_eq!(render("tests/filters/filter-functions/two-urls-with-different-regions"), 0); }
 #[test] fn filters_filter_functions_two_urls() { assert_eq!(render("tests/filters/filter-functions/two-urls"), 0); }
 #[test] fn filters_filter_functions_url_and_grayscale() { assert_eq!(render("tests/filters/filter-functions/url-and-grayscale"), 0); }
+#[test] fn filters_flood_color_currentColor() { assert_eq!(render("tests/filters/flood-color/currentColor"), 0); }
 #[test] fn filters_flood_color_hsla_color() { assert_eq!(render("tests/filters/flood-color/hsla-color"), 0); }
 #[test] fn filters_flood_color_inheritance_1() { assert_eq!(render("tests/filters/flood-color/inheritance-1"), 0); }
 #[test] fn filters_flood_color_inheritance_2() { assert_eq!(render("tests/filters/flood-color/inheritance-2"), 0); }
@@ -535,6 +542,8 @@ use crate::render;
 #[test] fn paint_servers_linearGradient_recursive_xlink_href_1() { assert_eq!(render("tests/paint-servers/linearGradient/recursive-xlink-href-1"), 0); }
 #[test] fn paint_servers_linearGradient_recursive_xlink_href_2() { assert_eq!(render("tests/paint-servers/linearGradient/recursive-xlink-href-2"), 0); }
 #[test] fn paint_servers_linearGradient_recursive_xlink_href_3() { assert_eq!(render("tests/paint-servers/linearGradient/recursive-xlink-href-3"), 0); }
+#[test] fn paint_servers_linearGradient_recursive_xlink_href_into_loop_long_chain() { assert_eq!(render("tests/paint-servers/linearGradient/recursive-xlink-href-into-loop-long-chain"), 0); }
+#[test] fn paint_servers_linearGradient_recursive_xlink_href_into_loop() { assert_eq!(render("tests/paint-servers/linearGradient/recursive-xlink-href-into-loop"), 0); }
 #[test] fn paint_servers_linearGradient_self_recursive_xlink_href() { assert_eq!(render("tests/paint-servers/linearGradient/self-recursive-xlink-href"), 0); }
 #[test] fn paint_servers_linearGradient_single_stop_with_opacity_used_by_fill_and_stroke() { assert_eq!(render("tests/paint-servers/linearGradient/single-stop-with-opacity-used-by-fill-and-stroke"), 0); }
 #[test] fn paint_servers_linearGradient_single_stop_with_opacity_used_by_fill() { assert_eq!(render("tests/paint-servers/linearGradient/single-stop-with-opacity-used-by-fill"), 0); }
@@ -554,6 +563,7 @@ use crate::render;
 #[test] fn paint_servers_pattern_children_via_xlink_href() { assert_eq!(render("tests/paint-servers/pattern/children-via-xlink-href"), 0); }
 #[test] fn paint_servers_pattern_display_eq_none_on_child() { assert_eq!(render("tests/paint-servers/pattern/display=none-on-child"), 0); }
 #[test] fn paint_servers_pattern_everything_via_xlink_href() { assert_eq!(render("tests/paint-servers/pattern/everything-via-xlink-href"), 0); }
+#[test] fn paint_servers_pattern_fractional_tile_size() { assert_eq!(render("tests/paint-servers/pattern/fractional-tile-size"), 0); }
 #[test] fn paint_servers_pattern_invalid_patternTransform() { assert_eq!(render("tests/paint-servers/pattern/invalid-patternTransform"), 0); }
 #[test] fn paint_servers_pattern_invalid_patternUnits_and_patternContentUnits() { assert_eq!(render("tests/paint-servers/pattern/invalid-patternUnits-and-patternContentUnits"), 0); }
 #[test] fn paint_servers_pattern_missing_height() { assert_eq!(render("tests/paint-servers/pattern/missing-height"), 0); }
@@ -662,6 +672,7 @@ use crate::render;
 #[test] fn paint_servers_stop_color_simple_case() { assert_eq!(render("tests/paint-servers/stop-color/simple-case"), 0); }
 #[test] fn paint_servers_stop_opacity_50percent() { assert_eq!(render("tests/paint-servers/stop-opacity/50percent"), 0); }
 #[test] fn paint_servers_stop_opacity_simple_case() { assert_eq!(render("tests/paint-servers/stop-opacity/simple-case"), 0); }
+#[test] fn painting_color_currentColor() { assert_eq!(render("tests/painting/color/currentColor"), 0); }
 #[test] fn painting_color_inherit() { assert_eq!(render("tests/painting/color/inherit"), 0); }
 #[test] fn painting_color_recursive_nested_context_without_color() { assert_eq!(render("tests/painting/color/recursive-nested-context-without-color"), 0); }
 #[test] fn painting_color_recursive_nested_context() { assert_eq!(render("tests/painting/color/recursive-nested-context"), 0); }
@@ -673,8 +684,10 @@ use crate::render;
 #[test] fn painting_context_in_use() { assert_eq!(render("tests/painting/context/in-use"), 0); }
 #[test] fn painting_context_on_shape_with_zero_size_bbox() { assert_eq!(render("tests/painting/context/on-shape-with-zero-size-bbox"), 0); }
 #[test] fn painting_context_with_gradient_and_gradient_transform() { assert_eq!(render("tests/painting/context/with-gradient-and-gradient-transform"), 0); }
+#[test] fn painting_context_with_gradient_in_nested_use() { assert_eq!(render("tests/painting/context/with-gradient-in-nested-use"), 0); }
 #[test] fn painting_context_with_gradient_in_use() { assert_eq!(render("tests/painting/context/with-gradient-in-use"), 0); }
 #[test] fn painting_context_with_gradient_on_marker() { assert_eq!(render("tests/painting/context/with-gradient-on-marker"), 0); }
+#[test] fn painting_context_with_gradient_on_text_decoration_in_use() { assert_eq!(render("tests/painting/context/with-gradient-on-text-decoration-in-use"), 0); }
 #[test] fn painting_context_with_pattern_and_transform_in_use() { assert_eq!(render("tests/painting/context/with-pattern-and-transform-in-use"), 0); }
 #[test] fn painting_context_with_pattern_in_use() { assert_eq!(render("tests/painting/context/with-pattern-in-use"), 0); }
 #[test] fn painting_context_with_pattern_objectBoundingBox_in_use() { assert_eq!(render("tests/painting/context/with-pattern-objectBoundingBox-in-use"), 0); }
@@ -1176,8 +1189,10 @@ use crate::render;
 #[test] fn structure_style_attribute_selector() { assert_eq!(render("tests/structure/style/attribute-selector"), 0); }
 #[test] fn structure_style_class_selector() { assert_eq!(render("tests/structure/style/class-selector"), 0); }
 #[test] fn structure_style_combined_selectors() { assert_eq!(render("tests/structure/style/combined-selectors"), 0); }
+#[test] fn structure_style_comment_between_rules() { assert_eq!(render("tests/structure/style/comment-between-rules"), 0); }
 #[test] fn structure_style_current_color_fill_before_color() { assert_eq!(render("tests/structure/style/current-color-fill-before-color"), 0); }
 #[test] fn structure_style_current_color_stroke_before_color() { assert_eq!(render("tests/structure/style/current-color-stroke-before-color"), 0); }
+#[test] fn structure_style_empty_type() { assert_eq!(render("tests/structure/style/empty-type"), 0); }
 #[test] fn structure_style_external_CSS() { assert_eq!(render("tests/structure/style/external-CSS"), 0); }
 #[test] fn structure_style_iD_selector() { assert_eq!(render("tests/structure/style/iD-selector"), 0); }
 #[test] fn structure_style_important() { assert_eq!(render("tests/structure/style/important"), 0); }
@@ -1191,6 +1206,7 @@ use crate::render;
 #[test] fn structure_style_type_selector() { assert_eq!(render("tests/structure/style/type-selector"), 0); }
 #[test] fn structure_style_universal_selector() { assert_eq!(render("tests/structure/style/universal-selector"), 0); }
 #[test] fn structure_style_unresolved_class_selector() { assert_eq!(render("tests/structure/style/unresolved-class-selector"), 0); }
+#[test] fn structure_style_uppercase_type() { assert_eq!(render("tests/structure/style/uppercase-type"), 0); }
 #[test] fn structure_style_attribute_comments() { assert_eq!(render("tests/structure/style-attribute/comments"), 0); }
 #[test] fn structure_style_attribute_non_presentational_attribute() { assert_eq!(render("tests/structure/style-attribute/non-presentational-attribute"), 0); }
 #[test] fn structure_style_attribute_simple_case() { assert_eq!(render("tests/structure/style-attribute/simple-case"), 0); }
@@ -1663,6 +1679,7 @@ use crate::render;
 #[test] fn text_textPath_with_big_letter_spacing() { assert_eq!(render("tests/text/textPath/with-big-letter-spacing"), 0); }
 #[test] fn text_textPath_with_coordinates_on_text() { assert_eq!(render("tests/text/textPath/with-coordinates-on-text"), 0); }
 #[test] fn text_textPath_with_coordinates_on_textPath() { assert_eq!(render("tests/text/textPath/with-coordinates-on-textPath"), 0); }
+#[test] fn text_textPath_with_error_path() { assert_eq!(render("tests/text/textPath/with-error-path"), 0); }
 #[test] fn text_textPath_with_filter() { assert_eq!(render("tests/text/textPath/with-filter"), 0); }
 #[test] fn text_textPath_with_invalid_path_and_xlink_href() { assert_eq!(render("tests/text/textPath/with-invalid-path-and-xlink-href"), 0); }
 #[test] fn text_textPath_with_letter_spacing() { assert_eq!(render("tests/text/textPath/with-letter-spacing"), 0); }

@@ -12,7 +12,7 @@ use crate::{Group, Mask, MaskType, Node, NonEmptyString, NonZeroRect, Transform,
 pub(crate) fn convert(
     node: SvgNode,
     state: &converter::State,
-    object_bbox: Option<NonZeroRect>,
+    object_bbox: &dyn Fn() -> Option<NonZeroRect>,
     cache: &mut converter::Cache,
 ) -> Option<Arc<Mask>> {
     // A `mask` attribute must reference a `mask` element.
@@ -51,7 +51,7 @@ pub(crate) fn convert(
 
     let mut mask_all = false;
     if units == Units::ObjectBoundingBox {
-        if let Some(bbox) = object_bbox {
+        if let Some(bbox) = object_bbox() {
             rect = rect.bbox_transform(bbox);
         } else {
             // When mask units are `objectBoundingBox` and bbox is zero-sized - the whole
@@ -109,7 +109,7 @@ pub(crate) fn convert(
     // mask children into a group with a transform.
     let mut subroot = None;
     if content_units == Units::ObjectBoundingBox {
-        let object_bbox = match object_bbox {
+        let object_bbox = match object_bbox() {
             Some(v) => v,
             None => {
                 log::warn!("Masking of zero-sized shapes is not allowed.");
@@ -137,12 +137,10 @@ pub(crate) fn convert(
         }
     }
 
-    if let Some(mut subroot) = subroot {
-        subroot.calculate_bounding_boxes();
+    if let Some(subroot) = subroot {
         mask.root.children.push(Node::Group(Box::new(subroot)));
     }
 
-    mask.root.calculate_bounding_boxes();
     super::paint_server::update_paint_servers(
         &mut mask.root,
         Transform::default(),

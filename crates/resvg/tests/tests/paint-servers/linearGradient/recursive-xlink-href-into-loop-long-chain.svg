@@ -1,0 +1,20 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"
+     xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>Long recursive `xlink:href` chain leading into a loop</title>
+
+    <linearGradient id="lg1" xlink:href="#lg2" x2="0.25">
+        <stop offset="0" stop-color="white"/>
+        <stop offset="1" stop-color="black"/>
+    </linearGradient>
+    <linearGradient id="lg2" xlink:href="#lg3"/>
+    <linearGradient id="lg3" xlink:href="#lg4"/>
+    <linearGradient id="lg4" xlink:href="#lg5"/>
+    <linearGradient id="lg5" xlink:href="#lg6"/>
+    <linearGradient id="lg6" xlink:href="#lg7"/>
+    <linearGradient id="lg7" xlink:href="#lg3" spreadMethod="reflect"/>
+
+    <rect id="rect1" x="20" y="20" width="160" height="160" fill="url(#lg1)"/>
+
+    <!-- image frame -->
+    <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>

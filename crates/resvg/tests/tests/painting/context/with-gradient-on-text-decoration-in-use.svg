@@ -1,0 +1,21 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"
+     xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>`context-fill` gradient on text decoration in use (SVG 2)</title>
+
+    <defs id="defs1">
+        <linearGradient id="lg1">
+            <stop id="stop1" offset="0" stop-color="green"/>
+            <stop id="stop2" offset="1" stop-color="blue"/>
+        </linearGradient>
+
+        <text id="text1" x="25" y="120" font-family="Noto Sans" font-size="72"
+              fill="context-fill" text-decoration="underline">
+            <tspan id="tspan1" fill="black">Text</tspan>
+        </text>
+    </defs>
+
+    <use id="use1" xlink:href="#text1" fill="url(#lg1)"/>
+
+    <!-- image frame -->
+    <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>
