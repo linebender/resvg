@@ -1158,6 +1158,10 @@ fn write_base_grad(g: &BaseGradient, opt: &WriteOptions, xml: &mut XmlWriter) {
         SpreadMethod::Repeat => xml.write_svg_attribute(AId::SpreadMethod, "repeat"),
     }
 
+    if g.color_interpolation == filter::ColorInterpolation::LinearRGB {
+        xml.write_svg_attribute(AId::ColorInterpolation, "linearRGB");
+    }
+
     for s in &g.stops {
         xml.start_svg_element(EId::Stop);
         xml.write_svg_attribute(AId::Offset, &s.offset.get());

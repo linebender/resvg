@@ -8,6 +8,11 @@ This changelog also contains important changes in dependencies.
 
 ## [Unreleased]
 
+### Added
+
+- `color-interpolation` on gradients: `linearRGB` interpolates the stops in linear light.
+  `usvg::BaseGradient::color_interpolation`.
+
 ## [0.50.0] 2026-11-11
 
 This release has an MSRV of 1.85.0 for `usvg` and `resvg` and the C API.

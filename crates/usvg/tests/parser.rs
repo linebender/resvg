@@ -770,3 +770,50 @@ fn long_clip_path_chain() {
 
     assert!(usvg::Tree::from_str(&svg, &usvg::Options::default()).is_ok());
 }
+
+#[test]
+fn gradient_color_interpolation() {
+    let svg = "
+    <svg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'>
+        <linearGradient id='lg1' color-interpolation='linearRGB'>
+            <stop offset='0' stop-color='red'/>
+            <stop offset='1' stop-color='blue'/>
+        </linearGradient>
+        <defs color-interpolation='linearRGB'>
+            <radialGradient id='rg1'>
+                <stop offset='0' stop-color='red'/>
+                <stop offset='1' stop-color='blue'/>
+            </radialGradient>
+        </defs>
+        <linearGradient id='lg2' href='#lg1' color-interpolation='auto'/>
+        <rect width='10' height='10' fill='url(#lg1)'/>
+        <rect width='10' height='10' fill='url(#rg1)'/>
+        <rect width='10' height='10' fill='url(#lg2)' color-interpolation='linearRGB'/>
+    </svg>
+    ";
+
+    let modes = |svg: &str| -> Vec<_> {
+        let tree = usvg::Tree::from_str(svg, &usvg::Options::default()).unwrap();
+        tree.root()
+            .children()
+            .iter()
+            .map(|node| {
+                let usvg::Node::Path(path) = node else {
+                    unreachable!()
+                };
+                match path.fill().unwrap().paint() {
+                    usvg::Paint::LinearGradient(lg) => lg.color_interpolation(),
+                    usvg::Paint::RadialGradient(rg) => rg.color_interpolation(),
+                    _ => unreachable!(),
+                }
+            })
+            .collect()
+    };
+
+    use usvg::filter::ColorInterpolation::{LinearRGB, SRGB};
+    assert_eq!(modes(svg), [LinearRGB, LinearRGB, SRGB]);
+
+    let tree = usvg::Tree::from_str(svg, &usvg::Options::default()).unwrap();
+    let written = tree.to_string(&usvg::WriteOptions::default());
+    assert_eq!(modes(&written), [LinearRGB, LinearRGB, SRGB]);
+}

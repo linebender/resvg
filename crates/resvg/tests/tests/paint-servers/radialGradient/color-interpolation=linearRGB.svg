@@ -1,0 +1,13 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <title>color-interpolation=linearRGB</title>
+
+    <radialGradient id="rg1" color-interpolation="linearRGB">
+        <stop offset="0" stop-color="white"/>
+        <stop offset="1" stop-color="black"/>
+    </radialGradient>
+
+    <circle id="circle1" cx="100" cy="100" r="80" fill="url(#rg1)"/>
+
+    <!-- image frame -->
+    <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>
