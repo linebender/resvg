@@ -8,6 +8,32 @@ This changelog also contains important changes in dependencies.
 
 ## [Unreleased]
 
+## [0.50.0] 2026-11-11
+
+This release has an MSRV of 1.85.0 for `usvg` and `resvg` and the C API.
+
+### Added
+
+- `Options::max_depth` and `DEFAULT_MAX_DEPTH` to configure the maximum nesting depth
+  when parsing. (#1223)
+- The `path` attribute on `textPath` (SVG 2). (#1020)
+
+### Changed
+
+- The bounding box methods of `Node`, `Group` and `Path` now return an `Option`, which is
+  `None` for nodes without a bounding box, such as empty groups. `resvg_get_node_bbox` and
+  `resvg_get_node_stroke_bbox` of the C API return `false` for such nodes, `--query-all`
+  skips them, and `--query-bbox` fails for an SVG without content. (#1167)
+- The `underline`, `overline` and `line_through` fields of `layout::Span` are now boxed. (#1200)
+- Bounding boxes of paths and groups are now calculated on first access instead of while parsing. (#1196)
+- Fonts are now loaded, resolved and prepared for shaping once per tree instead of once per text,
+  and fonts with shared data are no longer copied. (#1195, #1208, #1209, #1211, #1220, #1222)
+- Lower memory usage of the parsed tree and lower peak memory usage while parsing.
+  (#1200, #1201, #1204, #1206, #1212, #1213)
+- Faster parsing of documents with many IDs. (#1197, #1198, #1199)
+- `harfrust` updated to 0.15 and `skrifa` to 0.49. (#1156)
+- `svgtypes` is now developed in the resvg repository. (#1227)
+
 ### Fixed
 
 - `flood-color="currentColor"` on `feFlood` and `feDropShadow` no longer resolves to black. (#1217)
@@ -18,6 +44,12 @@ This changelog also contains important changes in dependencies.
   with non-premultiplied colors. (#1157)
 - CSS in a `style` element is no longer cut off at the first XML comment or processing instruction,
   and a `type` attribute that is empty or `text/css` in any letter case is now accepted. (#1161)
+- Recursive references through clip paths, masks, patterns, markers and `feImage`, including indirect
+  ones via nested elements and inherited properties, are now detected and rejected. (#1225)
+- usvg no longer hangs on an `xlink:href` chain that loops without including its first element. (#1218)
+- Placement of `sbix` bitmap glyphs. (#1221)
+- Patterns with fractional tile sizes no longer drift out of position or show seams between tiles. (#1171)
+- An empty group no longer extends the bounding box of its parent group. (#1167)
 
 ## [0.49.0] 2026-10-24
 
@@ -1449,7 +1481,8 @@ This release has an MSRV of 1.65 for `usvg` and 1.67.1 for `resvg` and the C API
 
 [#897]: https://github.com/linebender/resvg/pull/897
 
-[Unreleased]: https://github.com/linebender/resvg/compare/v0.49.0...HEAD
+[Unreleased]: https://github.com/linebender/resvg/compare/v0.50.0...HEAD
+[0.50.0]: https://github.com/linebender/resvg/compare/v0.49.0...v0.50.0
 [0.49.0]: https://github.com/linebender/resvg/compare/v0.48.1...v0.49.0
 [0.48.1]: https://github.com/linebender/resvg/compare/v0.48.0...v0.48.1
 [0.48.0]: https://github.com/linebender/resvg/compare/v0.47.0...v0.48.0
