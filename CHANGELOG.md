@@ -8,6 +8,11 @@ This changelog also contains important changes in dependencies.
 
 ## [Unreleased]
 
+### Fixed
+
+- `feTurbulence` no longer panics in debug builds on an integer overflow with
+  `stitchTiles="stitch"` and many octaves, or with very large coordinates. (#1234)
+
 ## [0.50.0] 2026-11-11
 
 This release has an MSRV of 1.85.0 for `usvg` and `resvg` and the C API.
