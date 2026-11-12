@@ -211,10 +211,14 @@ fn turbulence(
         if let Some(ref mut stitch) = stitch {
             // Update stitch values. Subtracting PerlinN before the multiplication and
             // adding it afterward simplifies to subtracting it once.
-            stitch.width *= 2;
-            stitch.wrap_x = 2 * stitch.wrap_x - PERLIN_N;
-            stitch.height *= 2;
-            stitch.wrap_y = 2 * stitch.wrap_y - PERLIN_N;
+            //
+            // The values double with every octave, so they leave the `i32` range
+            // after about 20 octaves. Wrapping keeps what release builds already do;
+            // by then an octave contributes less than the color resolution.
+            stitch.width = stitch.width.wrapping_mul(2);
+            stitch.wrap_x = stitch.wrap_x.wrapping_mul(2).wrapping_sub(PERLIN_N);
+            stitch.height = stitch.height.wrapping_mul(2);
+            stitch.wrap_y = stitch.wrap_y.wrapping_mul(2).wrapping_sub(PERLIN_N);
         }
     }
 
@@ -230,32 +234,33 @@ fn noise2(
     stitch_info: Option<StitchInfo>,
 ) -> f64 {
     let t = x + PERLIN_N as f64;
+    // `t as i32` saturates for large coordinates, so `+ 1` must not overflow.
     let mut bx0 = t as i32;
-    let mut bx1 = bx0 + 1;
+    let mut bx1 = bx0.wrapping_add(1);
     let rx0 = t - t as i64 as f64;
     let rx1 = rx0 - 1.0;
     let t = y + PERLIN_N as f64;
     let mut by0 = t as i32;
-    let mut by1 = by0 + 1;
+    let mut by1 = by0.wrapping_add(1);
     let ry0 = t - t as i64 as f64;
     let ry1 = ry0 - 1.0;
 
     // If stitching, adjust lattice points accordingly.
     if let Some(info) = stitch_info {
         if bx0 >= info.wrap_x {
-            bx0 -= info.width;
+            bx0 = bx0.wrapping_sub(info.width);
         }
 
         if bx1 >= info.wrap_x {
-            bx1 -= info.width;
+            bx1 = bx1.wrapping_sub(info.width);
         }
 
         if by0 >= info.wrap_y {
-            by0 -= info.height;
+            by0 = by0.wrapping_sub(info.height);
         }
 
         if by1 >= info.wrap_y {
-            by1 -= info.height;
+            by1 = by1.wrapping_sub(info.height);
         }
     }
 
@@ -301,4 +306,46 @@ fn s_curve(t: f64) -> f64 {
 #[inline]
 fn lerp(t: f64, a: f64, b: f64) -> f64 {
     a + t * (b - a)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn sample(x: f64, y: f64, base_freq: (f64, f64), num_octaves: u32, stitch: bool) -> f64 {
+        let (lattice_selector, gradient) = init(0);
+        turbulence(
+            0,
+            x,
+            y,
+            0.0,
+            0.0,
+            500.0,
+            500.0,
+            base_freq.0,
+            base_freq.1,
+            num_octaves,
+            false,
+            stitch,
+            &lattice_selector,
+            &gradient,
+        )
+    }
+
+    // https://github.com/linebender/resvg/issues/1185
+    #[test]
+    fn many_octaves_with_stitching_do_not_overflow() {
+        let v = sample(250.0, 250.0, (0.5, 1.0), 25, true);
+        assert!(v.is_finite());
+        // Octaves this far out contribute nothing visible.
+        let fewer = sample(250.0, 250.0, (0.5, 1.0), 20, true);
+        assert!((v - fewer).abs() < 1e-3, "{v} vs {fewer}");
+    }
+
+    #[test]
+    fn huge_coordinates_do_not_overflow() {
+        for stitch in [false, true] {
+            assert!(sample(1e12, 1e12, (1.0, 1.0), 40, stitch).is_finite());
+        }
+    }
 }
