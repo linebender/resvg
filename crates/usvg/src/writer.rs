@@ -557,6 +557,9 @@ fn write_defs(tree: &Tree, opt: &WriteOptions, xml: &mut XmlWriter, write_text_p
         if mask.kind == MaskType::Alpha {
             xml.write_svg_attribute(AId::MaskType, "alpha");
         }
+        if mask.color_interpolation == filter::ColorInterpolation::LinearRGB {
+            xml.write_svg_attribute(AId::ColorInterpolation, "linearRGB");
+        }
         xml.write_units(
             AId::MaskUnits,
             Units::UserSpaceOnUse,

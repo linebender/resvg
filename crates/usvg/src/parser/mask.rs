@@ -5,8 +5,10 @@ use std::sync::Arc;
 
 use svgtypes::{Length, LengthUnit as Unit};
 
+use super::paint_server::convert_color_interpolation;
 use super::svgtree::{AId, EId, SvgNode};
 use super::{OptionLog, converter};
+use crate::filter::ColorInterpolation;
 use crate::{Group, Mask, MaskType, Node, NonEmptyString, NonZeroRect, Transform, Units};
 
 pub(crate) fn convert(
@@ -73,6 +75,7 @@ pub(crate) fn convert(
             id,
             rect,
             kind: MaskType::Luminance,
+            color_interpolation: ColorInterpolation::SRGB,
             mask: None,
             root: Group::empty(),
         });
@@ -101,6 +104,7 @@ pub(crate) fn convert(
         id,
         rect,
         kind,
+        color_interpolation: convert_color_interpolation(node),
         mask,
         root: Group::empty(),
     };
