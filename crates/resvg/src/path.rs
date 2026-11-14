@@ -276,7 +276,11 @@ fn render_pattern_pixmap(
     let sx = img_size.width() as f32 / rect.width();
     let sy = img_size.height() as f32 / rect.height();
     let transform = tiny_skia::Transform::from_scale(sx, sy);
-    crate::render::render_nodes(pattern.root(), ctx, transform, &mut pixmap.as_mut());
+    let ctx = Context {
+        max_bbox: ctx.max_bbox,
+        needed_bbox: tiny_skia::IntRect::from_xywh(0, 0, pixmap.width(), pixmap.height())?,
+    };
+    crate::render::render_nodes(pattern.root(), &ctx, transform, &mut pixmap.as_mut());
 
     let mut ts = tiny_skia::Transform::default();
     ts = ts.pre_concat(pattern.transform());
