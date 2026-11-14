@@ -35,6 +35,7 @@ pub(crate) struct FontCache {
 pub(crate) struct LoadedFont {
     font: skrifa::Font,
     instances: HashMap<Vec<FontVariation>, FontInstance>,
+    instance_key: Vec<FontVariation>,
     svg: HashMap<GlyphId, Option<Node>>,
     raster: HashMap<GlyphId, Option<BitmapImage>>,
 }
@@ -154,6 +155,7 @@ impl LoadedFont {
         Some(Self {
             font,
             instances: HashMap::new(),
+            instance_key: Vec::new(),
             svg: HashMap::new(),
             raster: HashMap::new(),
         })
@@ -163,30 +165,35 @@ impl LoadedFont {
         &mut self,
         variations: impl IntoIterator<Item = FontVariation>,
     ) -> &mut FontInstance {
-        let key: Vec<FontVariation> = self
-            .font
-            .axes()
-            .filter(variations.into_iter().map(to_skrifa_variation))
-            .map(|v| FontVariation::new(v.tag.to_be_bytes(), v.value))
-            .collect();
+        let key = &mut self.instance_key;
+        key.clear();
+        key.extend(
+            self.font
+                .axes()
+                .filter(variations.into_iter().map(to_skrifa_variation))
+                .map(|v| FontVariation::new(v.tag.to_be_bytes(), v.value)),
+        );
 
-        let font = &self.font;
-        self.instances.entry(key).or_insert_with_key(|key| {
+        if !self.instances.contains_key(key.as_slice()) {
             let font = if key.is_empty() {
-                font.clone()
+                self.font.clone()
             } else {
-                font.instance_builder()
+                self.font
+                    .instance_builder()
                     .variations(key.iter().copied().map(to_skrifa_variation))
                     .build()
             };
 
-            FontInstance {
+            let instance = FontInstance {
                 font,
                 plans: Vec::new(),
                 outlines: HashMap::new(),
                 colr: HashMap::new(),
-            }
-        })
+            };
+            self.instances.insert(key.clone(), instance);
+        }
+
+        self.instances.get_mut(key.as_slice()).unwrap()
     }
 }
 
