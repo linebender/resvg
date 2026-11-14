@@ -65,7 +65,7 @@ pub use tree::*;
 
 pub use roxmltree;
 
-#[cfg(feature = "text")]
+#[cfg(feature = "fontdb")]
 pub use fontdb;
 
 #[cfg(feature = "writer")]
