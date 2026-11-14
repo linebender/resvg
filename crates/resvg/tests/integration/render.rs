@@ -830,10 +830,15 @@ use crate::render;
 #[test] fn painting_marker_orient_eq_auto_on_M_C_C_6() { assert_eq!(render("tests/painting/marker/orient=auto-on-M-C-C-6"), 0); }
 #[test] fn painting_marker_orient_eq_auto_on_M_C_C_7() { assert_eq!(render("tests/painting/marker/orient=auto-on-M-C-C-7"), 0); }
 #[test] fn painting_marker_orient_eq_auto_on_M_C_C_8() { assert_eq!(render("tests/painting/marker/orient=auto-on-M-C-C-8"), 0); }
+#[test] fn painting_marker_orient_eq_auto_on_M_C_C_with_coincident_control_points() { assert_eq!(render("tests/painting/marker/orient=auto-on-M-C-C-with-coincident-control-points"), 0); }
 #[test] fn painting_marker_orient_eq_auto_on_M_C_L() { assert_eq!(render("tests/painting/marker/orient=auto-on-M-C-L"), 0); }
 #[test] fn painting_marker_orient_eq_auto_on_M_C_M_L() { assert_eq!(render("tests/painting/marker/orient=auto-on-M-C-M-L"), 0); }
+#[test] fn painting_marker_orient_eq_auto_on_M_C_Z_with_zero_length_Z() { assert_eq!(render("tests/painting/marker/orient=auto-on-M-C-Z-with-zero-length-Z"), 0); }
+#[test] fn painting_marker_orient_eq_auto_on_M_C_with_coincident_control_point() { assert_eq!(render("tests/painting/marker/orient=auto-on-M-C-with-coincident-control-point"), 0); }
 #[test] fn painting_marker_orient_eq_auto_on_M_L_C() { assert_eq!(render("tests/painting/marker/orient=auto-on-M-L-C"), 0); }
+#[test] fn painting_marker_orient_eq_auto_on_M_L_L_L_with_zero_length_L() { assert_eq!(render("tests/painting/marker/orient=auto-on-M-L-L-L-with-zero-length-L"), 0); }
 #[test] fn painting_marker_orient_eq_auto_on_M_L_L_Z_Z_Z() { assert_eq!(render("tests/painting/marker/orient=auto-on-M-L-L-Z-Z-Z"), 0); }
+#[test] fn painting_marker_orient_eq_auto_on_M_L_L_with_zero_length_L() { assert_eq!(render("tests/painting/marker/orient=auto-on-M-L-L-with-zero-length-L"), 0); }
 #[test] fn painting_marker_orient_eq_auto_on_M_L_L() { assert_eq!(render("tests/painting/marker/orient=auto-on-M-L-L"), 0); }
 #[test] fn painting_marker_orient_eq_auto_on_M_L_M_C() { assert_eq!(render("tests/painting/marker/orient=auto-on-M-L-M-C"), 0); }
 #[test] fn painting_marker_orient_eq_auto_on_M_L_Z() { assert_eq!(render("tests/painting/marker/orient=auto-on-M-L-Z"), 0); }
