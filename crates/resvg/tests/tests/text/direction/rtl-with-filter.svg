@@ -1,0 +1,29 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"
+     font-family="Noto Sans" font-size="14">
+    <title>`rtl` with a drop shadow</title>
+    <defs>
+
+        <filter id="dropShadow">
+            <feDropShadow dx="3" dy="3" stdDeviation="1.5" flood-color="green"/>
+        </filter>
+        <filter id="fill" x="0" y="0" width="1" height="1">
+            <feFlood flood-color="gold"/>
+            <feComposite in2="SourceGraphic" operator="in"/>
+        </filter>
+    </defs>
+
+    <path id="crosshair" d="M 20 100 L 180 100 M 100 20 L 100 180"
+          stroke="gray" stroke-width="0.5"/>
+
+    <g id="g1" direction="rtl" font-family="Amiri" font-size="18">
+        <text id="text1" x="170" y="50" filter="url(#dropShadow)">ابجد هوز ABC</text>
+        <text id="text2" x="100" y="90" text-anchor="middle" filter="url(#dropShadow)">ABC ابجد هوز</text>
+        <text id="text3" x="170" y="130" filter="url(#fill)" fill="red">ابجد هوز ABC</text>
+    </g>
+    <g id="g2" direction="ltr" font-family="Amiri" font-size="18">
+        <text id="text4" x="30" y="170" filter="url(#dropShadow)">ابجد هوز ABC</text>
+    </g>
+
+    <!-- image frame -->
+    <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>

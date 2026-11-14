@@ -1,0 +1,20 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"
+     font-family="Noto Sans" font-size="14">
+    <title>`rtl` with `text-anchor`</title>
+
+    <path id="line" d="M 100 20 L 100 180" stroke="gray" stroke-width="0.5"/>
+
+    <g id="g1" direction="rtl" font-family="Amiri">
+        <text id="text1" x="100" y="40" text-anchor="start" fill="red">Start ابجد هوز</text>
+        <text id="text2" x="100" y="60" text-anchor="middle" fill="green">Middle ابجد هوز</text>
+        <text id="text3" x="100" y="80" text-anchor="end" fill="blue">End ابجد هوز</text>
+    </g>
+    <g id="g2" direction="ltr" font-family="Amiri">
+        <text id="text4" x="100" y="120" text-anchor="start" fill="red">Start ابجد هوز</text>
+        <text id="text5" x="100" y="140" text-anchor="middle" fill="green">Middle ابجد هوز</text>
+        <text id="text6" x="100" y="160" text-anchor="end" fill="blue">End ابجد هوز</text>
+    </g>
+
+    <!-- image frame -->
+    <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>

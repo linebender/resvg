@@ -1,0 +1,14 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"
+     font-family="Noto Sans" font-size="14">
+    <title>`direction` on `tspan`</title>
+
+    <path id="line" d="M 100 20 L 100 180" stroke="gray" stroke-width="0.5"/>
+
+    <text id="text1" x="100" y="40" fill="red"><tspan x="100" direction="rtl">tspan rtl, start</tspan></text>
+    <text id="text2" x="100" y="65" fill="blue" text-anchor="end"><tspan x="100" direction="rtl">tspan rtl, end on text</tspan></text>
+    <text id="text3" x="100" y="90" fill="green" direction="rtl"><tspan x="100" direction="ltr">text rtl, tspan ltr</tspan></text>
+    <text id="text4" x="100" y="120" fill="black" direction="rtl">1 2 3 <tspan direction="ltr">ABC DEF</tspan> 4 5 6</text>
+
+    <!-- image frame -->
+    <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>

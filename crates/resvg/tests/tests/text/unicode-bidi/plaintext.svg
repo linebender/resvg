@@ -1,0 +1,15 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"
+     font-family="Noto Sans" font-size="14">
+    <title>`plaintext`</title>
+
+    <path id="line" d="M 100 20 L 100 180" stroke="gray" stroke-width="0.5"/>
+
+    <g id="g1" font-family="Amiri">
+        <text id="text1" x="100" y="40" unicode-bidi="plaintext">1 plaintext ابجد هوز</text>
+        <text id="text2" x="100" y="70" unicode-bidi="plaintext">ابجد هوز plaintext 2</text>
+        <text id="text3" x="100" y="100" direction="rtl"><tspan unicode-bidi="plaintext">3 plain ابجد هوز</tspan> tail</text>
+    </g>
+
+    <!-- image frame -->
+    <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>

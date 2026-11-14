@@ -1,0 +1,17 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"
+     font-family="Noto Sans" font-size="14">
+    <title>`rtl` with scientific text</title>
+
+    <path id="line" d="M 100 20 L 100 180" stroke="gray" stroke-width="0.5"/>
+
+    <g id="group1" direction="rtl" font-family="Amiri" font-size="12">
+        <text id="text1" x="190" y="34">درجة 36.6 °C و -5 و +3</text>
+        <text id="text2" x="190" y="56">p &lt; 0.05 و x = 2</text>
+        <text id="text3" x="190" y="78">5 ± 0.3 µm و 10 mg/L</text>
+        <text id="text4" x="190" y="100">Na+ / Cl− و 50%</text>
+        <text id="text5" x="190" y="122">α = 0.01 و β &gt; 2</text>
+    </g>
+
+    <!-- image frame -->
+    <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>

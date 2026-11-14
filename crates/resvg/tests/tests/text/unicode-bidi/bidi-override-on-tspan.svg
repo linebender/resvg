@@ -1,0 +1,16 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"
+     font-family="Noto Sans" font-size="14">
+    <title>`bidi-override` on a `tspan`</title>
+
+    <path id="crosshair" d="M 20 100 L 180 100 M 100 20 L 100 180"
+          stroke="gray" stroke-width="0.5"/>
+
+    <text id="text1" x="30" y="40" direction="ltr">abc <tspan unicode-bidi="bidi-override" direction="rtl">ABC DEF</tspan> ghi</text>
+    <text id="text2" x="170" y="70" direction="rtl">abc <tspan unicode-bidi="bidi-override" direction="ltr">ABC DEF</tspan> ghi</text>
+    <text id="text3" x="30" y="100"><tspan unicode-bidi="bidi-override" direction="rtl">ab <tspan fill="red">cd</tspan> ef</tspan> gh</text>
+    <text id="text4" x="30" y="130" direction="ltr" unicode-bidi="bidi-override">ltr override on text</text>
+    <text id="text5" x="170" y="160" direction="rtl" unicode-bidi="bidi-override">rtl override on text</text>
+
+    <!-- image frame -->
+    <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>

@@ -8,6 +8,14 @@ This changelog also contains important changes in dependencies.
 
 ## [Unreleased]
 
+### Added
+
+- `direction` and `unicode-bidi` on text. `direction` sets the base direction of the text of a `text`
+  element and which side `text-anchor` `start` and `end` mean for a text chunk, including on a text path.
+  `unicode-bidi` supports `embed`, `bidi-override`, `isolate`, `isolate-override` and `plaintext`.
+  Both are ignored in a vertical writing mode. (#475)
+- `usvg::Direction`, `usvg::Text::direction` and `usvg::TextChunk::direction`.
+
 ## [0.50.0] 2026-11-11
 
 This release has an MSRV of 1.85.0 for `usvg` and `resvg` and the C API.

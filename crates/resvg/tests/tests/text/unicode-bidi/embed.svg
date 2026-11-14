@@ -1,0 +1,16 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"
+     font-family="Noto Sans" font-size="14">
+    <title>`embed`</title>
+
+    <path id="crosshair" d="M 20 100 L 180 100 M 100 20 L 100 180"
+          stroke="gray" stroke-width="0.5"/>
+
+    <text id="text1" x="170" y="40" direction="rtl">1 abc <tspan unicode-bidi="embed" direction="ltr">ltr embed 123</tspan> def 2</text>
+    <text id="text2" x="30" y="70" direction="ltr">1 abc <tspan unicode-bidi="embed" direction="rtl">AB CD EF</tspan> def 2</text>
+    <text id="text3" x="30" y="100" direction="ltr">1 <tspan unicode-bidi="embed" direction="rtl">AB <tspan fill="red">CD</tspan> EF</tspan> gh</text>
+    <text id="text4" x="30" y="130" direction="ltr">1 <tspan direction="rtl">AB CD EF</tspan> gh</text>
+    <text id="text5" x="170" y="160" direction="rtl" unicode-bidi="embed" text-anchor="middle" transform="translate(-70 0)">rtl embed middle 3</text>
+
+    <!-- image frame -->
+    <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>

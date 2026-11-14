@@ -13,10 +13,10 @@ use tiny_skia_path::{NonZeroRect, Transform};
 use unicode_script::UnicodeScript;
 
 use super::cache::{FontCache, FontInstance, with_optical_sizing};
-use crate::tree::{BBox, IsValidLength};
+use crate::tree::{BBox, BidiEvent, BidiEventKind, BidiScope, IsValidLength, UnicodeBidi};
 use crate::{
-    AlignmentBaseline, ApproxZeroUlps, BaselineShift, DominantBaseline, Fill, FillRule, Font,
-    FontResolver, GlyphId, LengthAdjust, PaintOrder, Path, ShapeRendering, Stroke, Text,
+    AlignmentBaseline, ApproxZeroUlps, BaselineShift, Direction, DominantBaseline, Fill, FillRule,
+    Font, FontResolver, GlyphId, LengthAdjust, PaintOrder, Path, ShapeRendering, Stroke, Text,
     TextAnchor, TextChunk, TextDecorationStyle, TextFlow, TextPath, TextSpan, WritingMode,
 };
 
@@ -206,7 +206,7 @@ pub(crate) fn layout_text(
             TextFlow::Path(_) => (0.0, 0.0),
         };
 
-        let mut clusters = process_chunk(chunk, resolver, fonts);
+        let mut clusters = process_chunk(chunk, resolver, fonts, text_node);
         if clusters.is_empty() {
             char_offset += chunk.text.chars().count();
             continue;
@@ -580,7 +580,19 @@ fn resolve_clusters_positions_horizontal(
         advance += cluster.advance;
     }
 
-    let mut x = shifts[first].0 - left + process_anchor(chunk.anchor, right - left);
+    // The chunk is placed by its own anchor and direction.
+    let direction = chunk_direction(chunk, writing_mode);
+    let mut x = shifts[first].0 - left + process_anchor(chunk.anchor, direction, right - left);
+
+    // The text position the next chunk continues from does not depend on the anchor or direction of this
+    // chunk: it is where the text would end if it were anchored at its natural start and ran in the
+    // direction of the paragraph.
+    let flow = match writing_mode {
+        WritingMode::LeftToRight => text.direction,
+        WritingMode::TopToBottom => Direction::LeftToRight,
+    };
+    let natural_start =
+        shifts[first].0 - left + process_anchor(TextAnchor::Start, flow, right - left);
 
     for (cluster, (shift_x, shift_y)) in clusters.iter_mut().zip(&shifts) {
         let cp = offset + cluster.byte_idx.code_point_at(&chunk.text);
@@ -597,7 +609,14 @@ fn resolve_clusters_positions_horizontal(
         x += cluster.advance;
     }
 
-    (x + shifts[last].0, shifts[last].1)
+    let end_x = match (flow, direction) {
+        // Left-to-right text keeps continuing from the end of the anchored chunk. Browsers continue from the
+        // end of the unanchored one, which differs for the `middle` and `end` anchors.
+        (Direction::LeftToRight, Direction::LeftToRight) => x,
+        (Direction::LeftToRight, _) => natural_start + clusters_length(clusters),
+        (Direction::RightToLeft, _) => natural_start,
+    };
+    (end_x + shifts[last].0, shifts[last].1)
 }
 
 // Baseline resolving in SVG is a mess.
@@ -664,8 +683,13 @@ fn resolve_clusters_positions_path(
         WritingMode::TopToBottom => chunk.y.unwrap_or(0.0),
     };
 
-    let start_offset =
-        chunk_offset + path.start_offset + process_anchor(chunk.anchor, clusters_length(clusters));
+    let start_offset = chunk_offset
+        + path.start_offset
+        + process_anchor(
+            chunk.anchor,
+            chunk_direction(chunk, writing_mode),
+            clusters_length(clusters),
+        );
 
     let normals = collect_normals(text, clusters, &shifts, &path.path, start_offset);
     for ((cluster, normal), (_, dy)) in clusters.iter_mut().zip(normals).zip(shifts) {
@@ -726,11 +750,26 @@ fn resolve_clusters_positions_path(
     (last_x, last_y)
 }
 
-pub(crate) fn process_anchor(a: TextAnchor, text_width: f32) -> f32 {
-    match a {
-        TextAnchor::Start => 0.0, // Nothing.
-        TextAnchor::Middle => -text_width / 2.0,
-        TextAnchor::End => -text_width,
+/// The shift from the chunk position to the start of the text.
+///
+/// `start` and `end` follow the direction of the chunk: right-to-left text ends at a `start` anchor.
+pub(crate) fn process_anchor(a: TextAnchor, direction: Direction, text_width: f32) -> f32 {
+    match (a, direction) {
+        (TextAnchor::Start, Direction::LeftToRight) | (TextAnchor::End, Direction::RightToLeft) => {
+            0.0 // Nothing.
+        }
+        (TextAnchor::Middle, _) => -text_width / 2.0,
+        (TextAnchor::End, Direction::LeftToRight) | (TextAnchor::Start, Direction::RightToLeft) => {
+            -text_width
+        }
+    }
+}
+
+/// The direction of a chunk: `direction` does not apply to a vertical writing mode.
+fn chunk_direction(chunk: &TextChunk, writing_mode: WritingMode) -> Direction {
+    match writing_mode {
+        WritingMode::LeftToRight => chunk.direction,
+        WritingMode::TopToBottom => Direction::LeftToRight,
     }
 }
 
@@ -874,7 +913,12 @@ fn process_chunk(
     chunk: &TextChunk,
     resolver: &FontResolver,
     fonts: &mut FontCache,
+    text: &Text,
 ) -> Vec<GlyphCluster> {
+    // The bidi algorithm runs once for the whole chunk, in the order of the text, and every font
+    // shapes its runs. Direction does not apply to a vertical writing mode.
+    let runs = bidi_runs(chunk, text.writing_mode, text.direction);
+
     // The way this function works is a bit tricky.
     //
     // The first problem is BIDI reordering.
@@ -920,6 +964,7 @@ fn process_chunk(
 
         let tmp_glyphs = shape_text(
             &chunk.text,
+            &runs,
             font,
             span.small_caps,
             span.apply_kerning,
@@ -1300,6 +1345,7 @@ fn resolve_font(
 /// Text shaping with font fallback.
 pub(crate) fn shape_text(
     text: &str,
+    runs: &[BidiRun],
     font: Arc<ResolvedFont>,
     small_caps: bool,
     apply_kerning: bool,
@@ -1313,6 +1359,7 @@ pub(crate) fn shape_text(
 
     let mut glyphs = shape_text_with_font(
         text,
+        runs,
         font.clone(),
         small_caps,
         apply_kerning,
@@ -1345,6 +1392,7 @@ pub(crate) fn shape_text(
             // Shape again, using a new font.
             let fallback_glyphs = shape_text_with_font(
                 text,
+                runs,
                 fallback_font.clone(),
                 small_caps,
                 apply_kerning,
@@ -1398,11 +1446,129 @@ pub(crate) fn shape_text(
     glyphs
 }
 
+/// A run of text laid out in one direction. Runs come in visual order.
+pub(crate) struct BidiRun {
+    pub(crate) range: std::ops::Range<usize>,
+    pub(crate) ltr: bool,
+}
+
+/// Splits a chunk into bidi runs, in visual order.
+///
+/// The base direction is the `direction` of the `text` element. An element with `unicode-bidi`
+/// opens an embedding, an override or an isolate, which `BidiScope` maps onto the Unicode formatting
+/// characters CSS defines for it. The characters are only added for the analysis and removed from the runs.
+/// A vertical writing mode ignores both.
+fn bidi_runs(chunk: &TextChunk, writing_mode: WritingMode, direction: Direction) -> Vec<BidiRun> {
+    use unicode_bidi::{BidiInfo, Level};
+
+    let horizontal = writing_mode == WritingMode::LeftToRight;
+    let base = match direction {
+        Direction::RightToLeft if horizontal => Level::rtl(),
+        _ => Level::ltr(),
+    };
+    let events: &[BidiEvent] = if horizontal { &chunk.bidi } else { &[] };
+
+    // The text with the formatting characters, and where each piece of the chunk text starts in it.
+    let text = chunk.text.as_str();
+    let mut analysis = String::with_capacity(text.len() + events.len() * 3);
+    let mut pieces: Vec<(usize, usize, usize)> = Vec::new(); // (start in analysis, start in text, length)
+    let mut closers: Vec<&str> = Vec::new();
+    let mut copied = 0;
+    for event in events.iter().chain(std::iter::once(&BidiEvent {
+        byte: text.len(),
+        kind: BidiEventKind::Close,
+    })) {
+        if event.byte > copied {
+            pieces.push((analysis.len(), copied, event.byte - copied));
+            analysis.push_str(&text[copied..event.byte]);
+            copied = event.byte;
+        }
+
+        match event.kind {
+            BidiEventKind::Open(scope) => {
+                let (open, close) = bidi_controls(scope);
+                analysis.push_str(open);
+                closers.push(close);
+            }
+            BidiEventKind::Close => {
+                if let Some(close) = closers.pop() {
+                    analysis.push_str(close);
+                }
+            }
+        }
+    }
+
+    let bidi_info = BidiInfo::new(&analysis, Some(base));
+    let Some(paragraph) = bidi_info.paragraphs.first() else {
+        return Vec::new();
+    };
+    let (levels, runs) = bidi_info.visual_runs(paragraph, paragraph.range.clone());
+
+    let mut result = Vec::new();
+    for run in runs {
+        // The run without the formatting characters: they are not in the chunk text.
+        let mut range: Option<std::ops::Range<usize>> = None;
+        let mut level = None;
+        for &(a_start, t_start, len) in &pieces {
+            let start = run.start.max(a_start);
+            let end = run.end.min(a_start + len);
+            if start < end {
+                let t = (t_start + start - a_start)..(t_start + end - a_start);
+                level.get_or_insert(levels[start]);
+                range = Some(match range {
+                    Some(r) => r.start.min(t.start)..r.end.max(t.end),
+                    None => t,
+                });
+            }
+        }
+
+        if let (Some(range), Some(level)) = (range, level) {
+            result.push(BidiRun {
+                range,
+                ltr: level.is_ltr(),
+            });
+        }
+    }
+
+    result
+}
+
+/// The Unicode formatting characters that open and close the content of a `unicode-bidi` element.
+fn bidi_controls(scope: BidiScope) -> (&'static str, &'static str) {
+    const LRE: &str = "\u{202A}";
+    const RLE: &str = "\u{202B}";
+    const PDF: &str = "\u{202C}";
+    const LRO: &str = "\u{202D}";
+    const RLO: &str = "\u{202E}";
+    const LRI: &str = "\u{2066}";
+    const RLI: &str = "\u{2067}";
+    const FSI: &str = "\u{2068}";
+    const PDI: &str = "\u{2069}";
+    const LRI_LRO: &str = "\u{2066}\u{202D}";
+    const RLI_RLO: &str = "\u{2067}\u{202E}";
+    const PDF_PDI: &str = "\u{202C}\u{2069}";
+
+    let rtl = scope.direction == Direction::RightToLeft;
+    match (scope.unicode_bidi, rtl) {
+        (UnicodeBidi::Normal, _) => ("", ""),
+        (UnicodeBidi::Embed, false) => (LRE, PDF),
+        (UnicodeBidi::Embed, true) => (RLE, PDF),
+        (UnicodeBidi::BidiOverride, false) => (LRO, PDF),
+        (UnicodeBidi::BidiOverride, true) => (RLO, PDF),
+        (UnicodeBidi::Isolate, false) => (LRI, PDI),
+        (UnicodeBidi::Isolate, true) => (RLI, PDI),
+        (UnicodeBidi::IsolateOverride, false) => (LRI_LRO, PDF_PDI),
+        (UnicodeBidi::IsolateOverride, true) => (RLI_RLO, PDF_PDI),
+        (UnicodeBidi::Plaintext, _) => (FSI, PDI),
+    }
+}
+
 /// Converts a text into a list of glyph IDs.
 ///
-/// This function will do the BIDI reordering and text shaping.
+/// This function will shape the text, run by run.
 fn shape_text_with_font(
     text: &str,
+    runs: &[BidiRun],
     font: Arc<ResolvedFont>,
     small_caps: bool,
     apply_kerning: bool,
@@ -1417,10 +1583,6 @@ fn shape_text_with_font(
         ..
     } = fonts.load(font.id)?.instance(variations);
 
-    let bidi_info = unicode_bidi::BidiInfo::new(text, Some(unicode_bidi::Level::ltr()));
-    let paragraph = &bidi_info.paragraphs[0];
-    let line = paragraph.range.clone();
-
     let mut glyphs = Vec::new();
 
     let shaper = ShaperFont::new(hr_font);
@@ -1433,14 +1595,14 @@ fn shape_text_with_font(
         features.push(Feature::new(Tag::new(b"kern"), 0, ..));
     }
 
-    let (levels, runs) = bidi_info.visual_runs(paragraph, line);
-    for run in runs.iter() {
+    for run in runs {
+        let ltr = run.ltr;
+        let run = run.range.clone();
         let sub_text = &text[run.clone()];
         if sub_text.is_empty() {
             continue;
         }
 
-        let ltr = levels[run.start].is_ltr();
         let direction = if ltr {
             harfrust::Direction::LeftToRight
         } else {

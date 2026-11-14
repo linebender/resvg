@@ -1,0 +1,18 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"
+     font-family="Noto Sans" font-size="14">
+    <title>`direction` is inherited</title>
+
+    <path id="crosshair" d="M 20 100 L 180 100 M 100 20 L 100 180"
+          stroke="gray" stroke-width="0.5"/>
+
+    <g id="g1" direction="rtl">
+        <text id="text1" x="170" y="40">Inherited from a group</text>
+        <g id="g2">
+            <text id="text2" x="170" y="65" direction="ltr">Reset on text</text>
+        </g>
+        <text id="text3" x="170" y="90"><tspan>Inherited by a tspan</tspan></text>
+    </g>
+
+    <!-- image frame -->
+    <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>
