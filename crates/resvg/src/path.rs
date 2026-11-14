@@ -185,10 +185,6 @@ fn convert_base_gradient(
     Some((mode, points))
 }
 
-/// Approximates a gradient interpolated in linearRGB with one interpolated in sRGB.
-///
-/// tiny-skia interpolates stops in sRGB, so stops are added between each pair
-/// until every segment is within half an 8-bit level of the linearRGB ramp.
 fn linear_rgb_stops(stops: &[(f32, tiny_skia::Color)]) -> Vec<(f32, tiny_skia::Color)> {
     const MAX_DEPTH: u8 = 8;
     const TOLERANCE: f32 = 0.5 / 255.0;
@@ -221,8 +217,6 @@ fn linear_rgb_stops(stops: &[(f32, tiny_skia::Color)]) -> Vec<(f32, tiny_skia::C
         [f(c[0]), f(c[1]), f(c[2]), c[3]]
     }
 
-    // Adds the stops inside (t0, t1), where `a` and `b` are the linearRGB colors of the pair
-    // and `c0` and `c1` are the sRGB colors at t0 and t1.
     fn split(
         (a, b): (Rgba, Rgba),
         (pos_a, pos_b): (f32, f32),

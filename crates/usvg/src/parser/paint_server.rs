@@ -225,7 +225,6 @@ fn convert_pattern(
     Some(ServerOrColor::Server(Paint::Pattern(Arc::new(patt))))
 }
 
-// A property, so it is inherited from the gradient's ancestors and not through `href`.
 fn convert_color_interpolation(node: SvgNode) -> filter::ColorInterpolation {
     match node.find_attribute(AId::ColorInterpolation) {
         Some("linearRGB") => filter::ColorInterpolation::LinearRGB,

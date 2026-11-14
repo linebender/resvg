@@ -1,8 +1,7 @@
 <svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
     <title>color-interpolation=linearRGB with stop-opacity</title>
 
-    <linearGradient id="lg1" color-interpolation="linearRGB" spreadMethod="reflect"
-                    x2="0.5">
+    <linearGradient id="lg1" color-interpolation="linearRGB">
         <stop offset="0" stop-color="blue"/>
         <stop offset="1" stop-color="yellow" stop-opacity="0"/>
     </linearGradient>

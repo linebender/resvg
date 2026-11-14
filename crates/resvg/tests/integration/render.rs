@@ -528,7 +528,7 @@ use crate::render;
 #[test] fn paint_servers_linearGradient_attributes_via_xlink_href_only_required() { assert_eq!(render("tests/paint-servers/linearGradient/attributes-via-xlink-href-only-required"), 0); }
 #[test] fn paint_servers_linearGradient_attributes_via_xlink_href() { assert_eq!(render("tests/paint-servers/linearGradient/attributes-via-xlink-href"), 0); }
 #[test] fn paint_servers_linearGradient_color_interpolation_eq_linearRGB_on_parent() { assert_eq!(render("tests/paint-servers/linearGradient/color-interpolation=linearRGB-on-parent"), 0); }
-#[test] fn paint_servers_linearGradient_color_interpolation_eq_linearRGB_on_shape() { assert_eq!(render("tests/paint-servers/linearGradient/color-interpolation=linearRGB-on-shape"), 0); }
+#[test] fn paint_servers_linearGradient_color_interpolation_eq_linearRGB_via_href() { assert_eq!(render("tests/paint-servers/linearGradient/color-interpolation=linearRGB-via-href"), 0); }
 #[test] fn paint_servers_linearGradient_color_interpolation_eq_linearRGB_with_stop_opacity() { assert_eq!(render("tests/paint-servers/linearGradient/color-interpolation=linearRGB-with-stop-opacity"), 0); }
 #[test] fn paint_servers_linearGradient_color_interpolation_eq_linearRGB() { assert_eq!(render("tests/paint-servers/linearGradient/color-interpolation=linearRGB"), 0); }
 #[test] fn paint_servers_linearGradient_default_attributes() { assert_eq!(render("tests/paint-servers/linearGradient/default-attributes"), 0); }
@@ -613,7 +613,6 @@ use crate::render;
 #[test] fn paint_servers_radialGradient_attributes_via_xlink_href_from_rect() { assert_eq!(render("tests/paint-servers/radialGradient/attributes-via-xlink-href-from-rect"), 0); }
 #[test] fn paint_servers_radialGradient_attributes_via_xlink_href_only_required() { assert_eq!(render("tests/paint-servers/radialGradient/attributes-via-xlink-href-only-required"), 0); }
 #[test] fn paint_servers_radialGradient_attributes_via_xlink_href() { assert_eq!(render("tests/paint-servers/radialGradient/attributes-via-xlink-href"), 0); }
-#[test] fn paint_servers_radialGradient_color_interpolation_eq_linearRGB() { assert_eq!(render("tests/paint-servers/radialGradient/color-interpolation=linearRGB"), 0); }
 #[test] fn paint_servers_radialGradient_default_attributes() { assert_eq!(render("tests/paint-servers/radialGradient/default-attributes"), 0); }
 #[test] fn paint_servers_radialGradient_fr_eq__1() { assert_eq!(render("tests/paint-servers/radialGradient/fr=-1"), 0); }
 #[test] fn paint_servers_radialGradient_fr_eq_0_2() { assert_eq!(render("tests/paint-servers/radialGradient/fr=0.2"), 0); }

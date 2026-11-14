@@ -316,8 +316,6 @@ impl BaseGradient {
     }
 
     /// The color space stop colors are interpolated in.
-    ///
-    /// `color-interpolation` in SVG. Unlike for filters, the default is `ColorInterpolation::SRGB`.
     pub fn color_interpolation(&self) -> filter::ColorInterpolation {
         self.color_interpolation
     }

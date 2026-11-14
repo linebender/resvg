@@ -11,7 +11,7 @@ This changelog also contains important changes in dependencies.
 ### Added
 
 - `color-interpolation` on gradients: `linearRGB` interpolates the stops in linear light.
-  `usvg::BaseGradient::color_interpolation`.
+  `usvg::BaseGradient::color_interpolation`. (#1229)
 
 ## [0.50.0] 2026-11-11
 
