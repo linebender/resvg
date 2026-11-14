@@ -457,6 +457,7 @@ use crate::render;
 #[test] fn masking_clipPath_mixed_clip_rule() { assert_eq!(render("tests/masking/clipPath/mixed-clip-rule"), 0); }
 #[test] fn masking_clipPath_multiple_children() { assert_eq!(render("tests/masking/clipPath/multiple-children"), 0); }
 #[test] fn masking_clipPath_nested_clip_path() { assert_eq!(render("tests/masking/clipPath/nested-clip-path"), 0); }
+#[test] fn masking_clipPath_nested_on_content_far_above_the_canvas() { assert_eq!(render("tests/masking/clipPath/nested-on-content-far-above-the-canvas"), 0); }
 #[test] fn masking_clipPath_no_children() { assert_eq!(render("tests/masking/clipPath/no-children"), 0); }
 #[test] fn masking_clipPath_none() { assert_eq!(render("tests/masking/clipPath/none"), 0); }
 #[test] fn masking_clipPath_on_a_horizontal_line() { assert_eq!(render("tests/masking/clipPath/on-a-horizontal-line"), 0); }

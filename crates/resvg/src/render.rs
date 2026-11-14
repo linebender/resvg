@@ -148,6 +148,9 @@ fn render_layer(
     };
 
     let transform = shift_ts.pre_concat(transform);
+    let ctx = &Context {
+        max_bbox: ctx.max_bbox.translate(-ibbox.x(), -ibbox.y())?,
+    };
 
     let mut sub_pixmap = tiny_skia::Pixmap::new(ibbox.width(), ibbox.height())
         .log_none(|| log::warn!("Failed to allocate a group layer for: {:?}.", ibbox))?;
