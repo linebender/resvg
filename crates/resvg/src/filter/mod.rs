@@ -89,7 +89,7 @@ pub(crate) enum Error {
     NoResults,
 }
 
-trait PixmapExt: Sized {
+pub(crate) trait PixmapExt: Sized {
     fn try_create(width: u32, height: u32) -> Result<tiny_skia::Pixmap, Error>;
     fn copy_region(&self, region: IntRect) -> Result<tiny_skia::Pixmap, Error>;
     fn clear(&mut self);

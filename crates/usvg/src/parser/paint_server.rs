@@ -225,7 +225,7 @@ fn convert_pattern(
     Some(ServerOrColor::Server(Paint::Pattern(Arc::new(patt))))
 }
 
-fn convert_color_interpolation(node: SvgNode) -> filter::ColorInterpolation {
+pub(crate) fn convert_color_interpolation(node: SvgNode) -> filter::ColorInterpolation {
     match node.find_attribute(AId::ColorInterpolation) {
         Some("linearRGB") => filter::ColorInterpolation::LinearRGB,
         _ => filter::ColorInterpolation::SRGB,

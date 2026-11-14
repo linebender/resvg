@@ -866,6 +866,7 @@ pub struct Mask {
     pub(crate) id: NonEmptyString,
     pub(crate) rect: NonZeroRect,
     pub(crate) kind: MaskType,
+    pub(crate) color_interpolation: filter::ColorInterpolation,
     pub(crate) mask: Option<Arc<Mask>>,
     pub(crate) root: Group,
 }
@@ -891,6 +892,11 @@ impl Mask {
     /// `mask-type` in SVG.
     pub fn kind(&self) -> MaskType {
         self.kind
+    }
+
+    /// The color space the luminance of a luminance mask is computed in.
+    pub fn color_interpolation(&self) -> filter::ColorInterpolation {
+        self.color_interpolation
     }
 
     /// Additional mask.

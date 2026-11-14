@@ -12,6 +12,8 @@ This changelog also contains important changes in dependencies.
 
 - `color-interpolation` on gradients: `linearRGB` interpolates the stops in linear light.
   `usvg::BaseGradient::color_interpolation`. (#1229)
+- `color-interpolation` on masks: `linearRGB` computes the luminance of a luminance mask in linear light.
+  `usvg::Mask::color_interpolation`. (#1235)
 
 ## [0.50.0] 2026-11-11
 
