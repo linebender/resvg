@@ -80,3 +80,11 @@ fn render_node_filter_on_empty_group() {
 fn render_node_filter_with_transform_on_shape() {
     assert_eq!(render_node("extra/filter-with-transform-on-shape", "g1"), 0);
 }
+
+#[test]
+fn rectangle_edge_coverage() {
+    assert_eq!(
+        render_extra_with_scale("extra/rectangle-edge-coverage", 2.0),
+        0
+    );
+}
