@@ -170,10 +170,90 @@ fn convert_base_gradient(
             stop.color().blue,
             alpha.to_u8(),
         );
-        points.push(tiny_skia::GradientStop::new(stop.offset().get(), color));
+        points.push((stop.offset().get(), color));
     }
 
+    if gradient.color_interpolation() == usvg::filter::ColorInterpolation::LinearRGB {
+        points = linear_rgb_stops(&points);
+    }
+
+    let points = points
+        .into_iter()
+        .map(|(offset, color)| tiny_skia::GradientStop::new(offset, color))
+        .collect();
+
     Some((mode, points))
+}
+
+fn linear_rgb_stops(stops: &[(f32, tiny_skia::Color)]) -> Vec<(f32, tiny_skia::Color)> {
+    const MAX_DEPTH: u8 = 8;
+    const TOLERANCE: f32 = 0.5 / 255.0;
+
+    type Rgba = [f32; 4];
+
+    fn mix(a: Rgba, b: Rgba, t: f32) -> Rgba {
+        std::array::from_fn(|i| a[i] + (b[i] - a[i]) * t)
+    }
+
+    fn to_linear(c: Rgba) -> Rgba {
+        let f = |v: f32| {
+            if v <= 0.04045 {
+                v / 12.92
+            } else {
+                ((v + 0.055) / 1.055).powf(2.4)
+            }
+        };
+        [f(c[0]), f(c[1]), f(c[2]), c[3]]
+    }
+
+    fn to_srgb(c: Rgba) -> Rgba {
+        let f = |v: f32| {
+            if v <= 0.0031308 {
+                v * 12.92
+            } else {
+                1.055 * v.powf(1.0 / 2.4) - 0.055
+            }
+        };
+        [f(c[0]), f(c[1]), f(c[2]), c[3]]
+    }
+
+    fn split(
+        (a, b): (Rgba, Rgba),
+        (pos_a, pos_b): (f32, f32),
+        (t0, c0): (f32, Rgba),
+        (t1, c1): (f32, Rgba),
+        depth: u8,
+        out: &mut Vec<(f32, tiny_skia::Color)>,
+    ) {
+        let t = (t0 + t1) / 2.0;
+        let exact = to_srgb(mix(a, b, t));
+        let approx = mix(c0, c1, 0.5);
+        let close = (0..3).all(|i| (exact[i] - approx[i]).abs() <= TOLERANCE);
+        if close || depth == MAX_DEPTH {
+            return;
+        }
+
+        split((a, b), (pos_a, pos_b), (t0, c0), (t, exact), depth + 1, out);
+        if let Some(color) = tiny_skia::Color::from_rgba(exact[0], exact[1], exact[2], exact[3]) {
+            out.push((pos_a + (pos_b - pos_a) * t, color));
+        }
+        split((a, b), (pos_a, pos_b), (t, exact), (t1, c1), depth + 1, out);
+    }
+
+    let rgba = |c: tiny_skia::Color| [c.red(), c.green(), c.blue(), c.alpha()];
+
+    let mut out = Vec::with_capacity(stops.len());
+    for pair in stops.windows(2) {
+        let (c0, c1) = (rgba(pair[0].1), rgba(pair[1].1));
+        let positions = (pair[0].0, pair[1].0);
+        out.push(pair[0]);
+        if positions.0 < positions.1 {
+            let colors = (to_linear(c0), to_linear(c1));
+            split(colors, positions, (0.0, c0), (1.0, c1), 0, &mut out);
+        }
+    }
+    out.extend(stops.last());
+    out
 }
 
 fn render_pattern_pixmap(

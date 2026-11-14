@@ -527,6 +527,10 @@ use crate::render;
 #[test] fn paint_servers_linearGradient_attributes_via_xlink_href_from_rect() { assert_eq!(render("tests/paint-servers/linearGradient/attributes-via-xlink-href-from-rect"), 0); }
 #[test] fn paint_servers_linearGradient_attributes_via_xlink_href_only_required() { assert_eq!(render("tests/paint-servers/linearGradient/attributes-via-xlink-href-only-required"), 0); }
 #[test] fn paint_servers_linearGradient_attributes_via_xlink_href() { assert_eq!(render("tests/paint-servers/linearGradient/attributes-via-xlink-href"), 0); }
+#[test] fn paint_servers_linearGradient_color_interpolation_eq_linearRGB_on_parent() { assert_eq!(render("tests/paint-servers/linearGradient/color-interpolation=linearRGB-on-parent"), 0); }
+#[test] fn paint_servers_linearGradient_color_interpolation_eq_linearRGB_via_href() { assert_eq!(render("tests/paint-servers/linearGradient/color-interpolation=linearRGB-via-href"), 0); }
+#[test] fn paint_servers_linearGradient_color_interpolation_eq_linearRGB_with_stop_opacity() { assert_eq!(render("tests/paint-servers/linearGradient/color-interpolation=linearRGB-with-stop-opacity"), 0); }
+#[test] fn paint_servers_linearGradient_color_interpolation_eq_linearRGB() { assert_eq!(render("tests/paint-servers/linearGradient/color-interpolation=linearRGB"), 0); }
 #[test] fn paint_servers_linearGradient_default_attributes() { assert_eq!(render("tests/paint-servers/linearGradient/default-attributes"), 0); }
 #[test] fn paint_servers_linearGradient_gradientTransform_and_transform() { assert_eq!(render("tests/paint-servers/linearGradient/gradientTransform-and-transform"), 0); }
 #[test] fn paint_servers_linearGradient_gradientTransform_via_href() { assert_eq!(render("tests/paint-servers/linearGradient/gradientTransform-via-href"), 0); }

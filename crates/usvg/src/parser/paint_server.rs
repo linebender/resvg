@@ -72,6 +72,7 @@ fn convert_linear(node: SvgNode, state: &converter::State) -> Option<ServerOrCol
             units,
             transform,
             spread_method: convert_spread_method(node),
+            color_interpolation: convert_color_interpolation(node),
             stops,
         },
     };
@@ -138,6 +139,7 @@ fn convert_radial(node: SvgNode, state: &converter::State) -> Option<ServerOrCol
             units,
             transform,
             spread_method,
+            color_interpolation: convert_color_interpolation(node),
             stops,
         },
     };
@@ -221,6 +223,13 @@ fn convert_pattern(
     update_paint_servers(&mut patt.root, Transform::default(), None, None, cache);
 
     Some(ServerOrColor::Server(Paint::Pattern(Arc::new(patt))))
+}
+
+fn convert_color_interpolation(node: SvgNode) -> filter::ColorInterpolation {
+    match node.find_attribute(AId::ColorInterpolation) {
+        Some("linearRGB") => filter::ColorInterpolation::LinearRGB,
+        _ => filter::ColorInterpolation::SRGB,
+    }
 }
 
 fn convert_spread_method(node: SvgNode) -> SpreadMethod {
@@ -848,6 +857,7 @@ fn process_context_paint(
                     units: lg.units,
                     transform,
                     spread_method: lg.spread_method,
+                    color_interpolation: lg.color_interpolation,
                     stops: lg.stops.clone(),
                 },
             }));
@@ -866,6 +876,7 @@ fn process_context_paint(
                     units: rg.units,
                     transform,
                     spread_method: rg.spread_method,
+                    color_interpolation: rg.color_interpolation,
                     stops: rg.stops.clone(),
                 },
             }));
@@ -974,6 +985,7 @@ impl Paint {
                             units: Units::UserSpaceOnUse,
                             transform,
                             spread_method: lg.spread_method,
+                            color_interpolation: lg.color_interpolation,
                             stops: lg.stops.clone(),
                         },
                     });
@@ -997,6 +1009,7 @@ impl Paint {
                             units: Units::UserSpaceOnUse,
                             transform,
                             spread_method: rg.spread_method,
+                            color_interpolation: rg.color_interpolation,
                             stops: rg.stops.clone(),
                         },
                     });
