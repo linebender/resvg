@@ -631,7 +631,12 @@ pub extern "C" fn resvg_get_object_bbox(
         &*tree
     };
 
-    if let Some(r) = tree.0.root().abs_bounding_box().to_non_zero_rect() {
+    if let Some(r) = tree
+        .0
+        .root()
+        .abs_bounding_box()
+        .and_then(|r| r.to_non_zero_rect())
+    {
         unsafe {
             *bbox = resvg_rect {
                 x: r.x(),
@@ -666,9 +671,7 @@ pub extern "C" fn resvg_get_image_bbox(
         &*tree
     };
 
-    // `abs_layer_bounding_box` returns 0x0x1x1 for empty groups, so we need additional checks.
-    if tree.0.root().has_children() || !tree.0.root().filters().is_empty() {
-        let r = tree.0.root().abs_layer_bounding_box();
+    if let Some(r) = tree.0.root().abs_layer_bounding_box() {
         unsafe {
             *bbox = resvg_rect {
                 x: r.x(),
@@ -764,6 +767,7 @@ pub extern "C" fn resvg_get_node_transform(
 /// @return `false` if a node with such an ID does not exist
 /// @return `false` if ID isn't a UTF-8 string.
 /// @return `false` if ID is an empty string
+/// @return `false` if the node has no bounding box, e.g. an empty group
 #[unsafe(no_mangle)]
 pub extern "C" fn resvg_get_node_bbox(
     tree: *const resvg_render_tree,
@@ -781,6 +785,7 @@ pub extern "C" fn resvg_get_node_bbox(
 /// @return `false` if a node with such an ID does not exist
 /// @return `false` if ID isn't a UTF-8 string.
 /// @return `false` if ID is an empty string
+/// @return `false` if the node has no bounding box, e.g. an empty group
 #[unsafe(no_mangle)]
 pub extern "C" fn resvg_get_node_stroke_bbox(
     tree: *const resvg_render_tree,
@@ -794,7 +799,7 @@ fn get_node_bbox(
     tree: *const resvg_render_tree,
     id: *const c_char,
     bbox: *mut resvg_rect,
-    f: &dyn Fn(&usvg::Node) -> usvg::Rect,
+    f: &dyn Fn(&usvg::Node) -> Option<usvg::Rect>,
 ) -> bool {
     let id = match cstr_to_str(id) {
         Some(v) => v,
@@ -816,7 +821,9 @@ fn get_node_bbox(
 
     match tree.0.node_by_id(id) {
         Some(node) => {
-            let r = f(node);
+            let Some(r) = f(node) else {
+                return false;
+            };
             unsafe {
                 *bbox = resvg_rect {
                     x: r.x(),

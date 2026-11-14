@@ -1,5 +1,5 @@
 <svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-    <title>With `viewBox` (1) (UB)</title>
+    <title>With `viewBox` (1)</title>
 
     <marker id="marker1" refX="10" refY="10" markerWidth="20" markerHeight="20"
             viewBox="0 0 20 10">

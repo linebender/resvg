@@ -25,7 +25,6 @@ For the list of unsupported SVG 2 features see: [svg2-changelog.md](./svg2-chang
 ### Attributes
 
 - `clip` (deprecated in the SVG 2)
-- `color-interpolation`
 - `color-profile`
 - `color-rendering`
 - `direction`

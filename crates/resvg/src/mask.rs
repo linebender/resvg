@@ -1,6 +1,7 @@
 // Copyright 2019 the Resvg Authors
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
+use crate::filter::PixmapExt;
 use crate::render::Context;
 
 pub fn apply(
@@ -40,6 +41,12 @@ pub fn apply(
         usvg::MaskType::Luminance => tiny_skia::MaskType::Luminance,
         usvg::MaskType::Alpha => tiny_skia::MaskType::Alpha,
     };
+
+    if mask.kind() == usvg::MaskType::Luminance
+        && mask.color_interpolation() == usvg::filter::ColorInterpolation::LinearRGB
+    {
+        mask_pixmap.into_linear_rgb();
+    }
 
     let mask = tiny_skia::Mask::from_pixmap(mask_pixmap.as_ref(), mask_type);
     pixmap.apply_mask(&mask);

@@ -6,7 +6,7 @@
 
 /// An element ID.
 #[allow(missing_docs)]
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub enum EId {
     A,
     Circle,
@@ -161,7 +161,7 @@ impl std::fmt::Display for EId {
 
 /// An attribute ID.
 #[allow(missing_docs)]
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub enum AId {
     AlignmentBaseline,
     Amplitude,

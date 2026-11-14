@@ -41,6 +41,7 @@ NOTE: This list is not final. This just things I was able to find so far. Patche
 ### Added
 
 - [ ] `refX` and `refY` [properties](https://www.w3.org/TR/SVG2/struct.html#SymbolAttributes) to the [`symbol`](https://www.w3.org/TR/SVG2/struct.html#SymbolElement) element.
+- [x] `x`, `y`, `width` and `height` [geometry properties](https://www.w3.org/TR/SVG2/struct.html#SymbolElement) on the [`symbol`](https://www.w3.org/TR/SVG2/struct.html#SymbolElement) element.
 - [x] An [`auto`](https://www.w3.org/TR/SVG2/geometry.html#Sizing) variant to [`image`](https://www.w3.org/TR/SVG2/embedded.html#ImageElement) element's `width` and `height` properties.
 - [ ] A `lang` attribute. The same as `xml:lang`, but without the namespace.
 
@@ -110,7 +111,7 @@ NOTE: This list is not final. This just things I was able to find so far. Patche
 Basically everything from [CSS Text Module Level 3](https://www.w3.org/TR/css-text-3/).
 
 - [ ] WOFF font support is required now.
-- [ ] A [`path`](https://www.w3.org/TR/SVG2/text.html#TextPathElementPathAttribute) property to [`textPath`](https://www.w3.org/TR/SVG2/text.html#TextPathElement).
+- [x] A [`path`](https://www.w3.org/TR/SVG2/text.html#TextPathElementPathAttribute) property to [`textPath`](https://www.w3.org/TR/SVG2/text.html#TextPathElement).
 - [ ] A [`side`](https://www.w3.org/TR/SVG2/text.html#TextPathElementSideAttribute) property to [`textPath`](https://www.w3.org/TR/SVG2/text.html#TextPathElement).
 - [ ] A [`font-feature-settings`](https://www.w3.org/TR/css-fonts-3/#propdef-font-feature-settings) property.
 - [x] A [`font-kerning`](https://www.w3.org/TR/css-fonts-3/#propdef-font-kerning) property.

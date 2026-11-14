@@ -557,6 +557,9 @@ fn write_defs(tree: &Tree, opt: &WriteOptions, xml: &mut XmlWriter, write_text_p
         if mask.kind == MaskType::Alpha {
             xml.write_svg_attribute(AId::MaskType, "alpha");
         }
+        if mask.color_interpolation == filter::ColorInterpolation::LinearRGB {
+            xml.write_svg_attribute(AId::ColorInterpolation, "linearRGB");
+        }
         xml.write_units(
             AId::MaskUnits,
             Units::UserSpaceOnUse,
@@ -583,20 +586,8 @@ fn has_text_paths(parent: &Group) -> bool {
             }
         } else if let Node::Text(text) = node {
             for chunk in &text.chunks {
-                if let TextFlow::Path(text_path) = &chunk.text_flow {
-                    let path = Path::new(
-                        text_path.id().to_string(),
-                        true,
-                        None,
-                        None,
-                        PaintOrder::default(),
-                        ShapeRendering::default(),
-                        text_path.path.clone(),
-                        Transform::default(),
-                    );
-                    if path.is_some() {
-                        return true;
-                    }
+                if let TextFlow::Path(_) = &chunk.text_flow {
+                    return true;
                 }
             }
         }
@@ -622,7 +613,7 @@ fn write_text_path_paths(parent: &Group, opt: &WriteOptions, xml: &mut XmlWriter
             for chunk in &text.chunks {
                 if let TextFlow::Path(text_path) = &chunk.text_flow {
                     let path = Path::new(
-                        text_path.id().to_string(),
+                        text_path.id().into(),
                         true,
                         None,
                         None,
@@ -631,9 +622,7 @@ fn write_text_path_paths(parent: &Group, opt: &WriteOptions, xml: &mut XmlWriter
                         text_path.path.clone(),
                         Transform::default(),
                     );
-                    if let Some(path) = &path {
-                        write_path(path, false, Transform::default(), None, opt, xml);
-                    }
+                    write_path(&path, false, Transform::default(), None, opt, xml);
                 }
             }
         }
@@ -1170,6 +1159,10 @@ fn write_base_grad(g: &BaseGradient, opt: &WriteOptions, xml: &mut XmlWriter) {
         SpreadMethod::Pad => {}
         SpreadMethod::Reflect => xml.write_svg_attribute(AId::SpreadMethod, "reflect"),
         SpreadMethod::Repeat => xml.write_svg_attribute(AId::SpreadMethod, "repeat"),
+    }
+
+    if g.color_interpolation == filter::ColorInterpolation::LinearRGB {
+        xml.write_svg_attribute(AId::ColorInterpolation, "linearRGB");
     }
 
     for s in &g.stops {

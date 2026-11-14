@@ -1,0 +1,16 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <title>Shared pattern with an `objectBoundingBox` gradient</title>
+
+    <linearGradient id="lg1">
+        <stop offset="0" stop-color="green"/>
+        <stop offset="1" stop-color="blue"/>
+    </linearGradient>
+    <pattern id="patt1" patternUnits="userSpaceOnUse" width="200" height="200">
+        <rect id="rect1" x="20" y="20" width="160" height="160" fill="url(#lg1)"/>
+    </pattern>
+    <rect id="rect2" x="20" y="20" width="160" height="70" fill="url(#patt1)"/>
+    <rect id="rect3" x="20" y="110" width="160" height="70" fill="url(#patt1)"/>
+
+    <!-- image frame -->
+    <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>

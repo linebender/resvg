@@ -21,7 +21,7 @@ mod text;
 #[cfg(feature = "text")]
 pub(crate) use converter::Cache;
 pub use image::{ImageHrefDataResolverFn, ImageHrefResolver, ImageHrefStringResolverFn};
-pub use options::Options;
+pub use options::{DEFAULT_MAX_DEPTH, Options};
 #[cfg(feature = "writer")]
 pub(crate) use svgtree::{AId, EId};
 
@@ -149,6 +149,7 @@ impl crate::Tree {
                     (opt.font_resolver.select_fallback)(c, used_fonts, db)
                 }),
             },
+            max_depth: opt.max_depth,
             ..Options::default()
         };
 
@@ -162,15 +163,20 @@ impl crate::Tree {
             ..Default::default()
         };
 
-        let doc =
-            roxmltree::Document::parse_with_options(text, xml_opt).map_err(Error::ParsingFailed)?;
+        // The XML document is no longer needed once `svgtree` is built, so drop it
+        // before the conversion to lower the peak memory usage.
+        let doc = {
+            let xml = roxmltree::Document::parse_with_options(text, xml_opt)
+                .map_err(Error::ParsingFailed)?;
+            svgtree::Document::parse_tree(&xml, opt.style_sheet.as_deref(), opt.max_depth)?
+        };
 
-        Self::from_xmltree(&doc, opt)
+        self::converter::convert_doc(&doc, opt)
     }
 
     /// Parses `Tree` from `roxmltree::Document`.
     pub fn from_xmltree(doc: &roxmltree::Document, opt: &Options) -> Result<Self, Error> {
-        let doc = svgtree::Document::parse_tree(doc, opt.style_sheet.as_deref())?;
+        let doc = svgtree::Document::parse_tree(doc, opt.style_sheet.as_deref(), opt.max_depth)?;
         self::converter::convert_doc(&doc, opt)
     }
 }

@@ -1,0 +1,15 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <title>Same clip-path on multiple children</title>
+
+    <clipPath id="clip1" clipPathUnits="objectBoundingBox">
+        <rect id="rect1" width="1" height="0.5"/>
+    </clipPath>
+    <clipPath id="clip2">
+        <rect id="rect2" x="20" y="20" width="70" height="160" clip-path="url(#clip1)"/>
+        <rect id="rect3" x="110" y="20" width="70" height="160" clip-path="url(#clip1)"/>
+    </clipPath>
+    <rect id="rect4" x="0" y="0" width="200" height="200" fill="green" clip-path="url(#clip2)"/>
+
+    <!-- image frame -->
+    <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>

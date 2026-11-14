@@ -1,0 +1,14 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <title>Invalid `patternTransform` via `href`</title>
+
+    <pattern id="patt1" patternUnits="userSpaceOnUse" width="40" height="40"
+             patternTransform="rotate(45)">
+        <rect id="rect1" width="20" height="20" fill="green"/>
+    </pattern>
+    <pattern id="patt2" href="#patt1" patternTransform="invalid"/>
+
+    <rect id="rect2" x="20" y="20" width="160" height="160" fill="url(#patt2)"/>
+
+    <!-- image frame -->
+    <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>

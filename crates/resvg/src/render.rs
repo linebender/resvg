@@ -5,6 +5,8 @@ use crate::OptionLog;
 
 pub struct Context {
     pub max_bbox: tiny_skia::IntRect,
+    /// The part of the target pixmap that contributes to the final image.
+    pub needed_bbox: tiny_skia::IntRect,
 }
 
 pub fn render_nodes(
@@ -75,9 +77,11 @@ fn render_group(
     };
     let inv_rest = rest.invert()?;
 
-    let max_bbox = ctx.max_bbox.to_rect().transform(inv_rest)?.round_out()?;
-    let (layer, ibbox) =
-        render_layer(group, &Context { max_bbox }, inv_rest.pre_concat(transform))?;
+    let layer_ctx = Context {
+        max_bbox: ctx.max_bbox.to_rect().transform(inv_rest)?.round_out()?,
+        needed_bbox: ctx.needed_bbox.to_rect().transform(inv_rest)?.round_out()?,
+    };
+    let (layer, ibbox) = render_layer(group, &layer_ctx, inv_rest.pre_concat(transform))?;
 
     let paint = tiny_skia::Paint {
         shader: tiny_skia::Pattern::new(
@@ -103,7 +107,7 @@ fn render_layer(
     ctx: &Context,
     transform: tiny_skia::Transform,
 ) -> Option<(tiny_skia::Pixmap, tiny_skia::IntRect)> {
-    let bbox = group.layer_bounding_box().transform(transform)?;
+    let bbox = group.layer_bounding_box()?.transform(transform)?;
 
     let mut ibbox = if group.filters().is_empty() {
         // Convert group bbox into an integer one, expanding each side outwards by 2px
@@ -129,10 +133,10 @@ fn render_layer(
         crate::geom::fit_to_rect(bbox, ctx.max_bbox)?
     };
 
-    // Make sure our layer is not bigger than 4x the canvas size.
-    // This is required to prevent huge layers.
+    // Without filters, every pixel of the layer only affects the same pixel of the target,
+    // so the parts that don't contribute to the final image can be skipped.
     if group.filters().is_empty() {
-        ibbox = crate::geom::fit_to_rect(ibbox, ctx.max_bbox)?;
+        ibbox = crate::geom::fit_to_rect(ibbox, ctx.needed_bbox)?;
     }
 
     let shift_ts = {
@@ -148,6 +152,10 @@ fn render_layer(
     };
 
     let transform = shift_ts.pre_concat(transform);
+    let ctx = &Context {
+        max_bbox: ctx.max_bbox.translate(-ibbox.x(), -ibbox.y())?,
+        needed_bbox: tiny_skia::IntRect::from_xywh(0, 0, ibbox.width(), ibbox.height())?,
+    };
 
     let mut sub_pixmap = tiny_skia::Pixmap::new(ibbox.width(), ibbox.height())
         .log_none(|| log::warn!("Failed to allocate a group layer for: {:?}.", ibbox))?;

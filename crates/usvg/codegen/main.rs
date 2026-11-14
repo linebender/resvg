@@ -120,7 +120,7 @@ fn gen_map(
 
     writeln!(f, "/// {}", enum_docs)?;
     writeln!(f, "#[allow(missing_docs)]")?;
-    writeln!(f, "#[derive(Clone, Copy, PartialEq)]")?;
+    writeln!(f, "#[derive(Clone, Copy, PartialEq, Eq, Hash)]")?;
     writeln!(f, "pub enum {} {{", enum_name)?;
     writeln!(f, "    {}", joined_names)?;
     writeln!(f, "}}\n")?;

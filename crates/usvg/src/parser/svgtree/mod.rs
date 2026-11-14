@@ -1,7 +1,7 @@
 // Copyright 2021 the Resvg Authors
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::num::NonZeroU32;
 use std::str::FromStr;
 
@@ -25,6 +25,9 @@ pub struct Document<'input> {
     nodes: Vec<NodeData>,
     attrs: Vec<Attribute<'input>>,
     links: HashMap<String, NodeId>,
+    // Keyed by the element that uses a reference rather than the one that sets it, so that an
+    // inherited reference stays valid outside the cycle it closes.
+    circular_references: HashSet<(NodeId, AId)>,
 }
 
 impl<'input> Document<'input> {
@@ -149,7 +152,7 @@ impl ShortRange {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
 pub(crate) struct NodeId(NonZeroU32);
 
 impl NodeId {
@@ -277,6 +280,14 @@ impl<'a, 'input: 'a> SvgNode<'a, 'input> {
 
     /// Returns an attribute value.
     pub fn attribute<T: FromValue<'a, 'input>>(&self, aid: AId) -> Option<T> {
+        if self.has_circular_reference(aid) {
+            return None;
+        }
+
+        self.attribute_impl(aid)
+    }
+
+    fn attribute_impl<T: FromValue<'a, 'input>>(&self, aid: AId) -> Option<T> {
         let value = self
             .attributes()
             .iter()
@@ -313,12 +324,21 @@ impl<'a, 'input: 'a> SvgNode<'a, 'input> {
     ///
     /// Same as `SvgNode::attribute`, but doesn't show a warning.
     pub fn try_attribute<T: FromValue<'a, 'input>>(&self, aid: AId) -> Option<T> {
+        if self.has_circular_reference(aid) {
+            return None;
+        }
+
         let value = self
             .attributes()
             .iter()
             .find(|a| a.name == aid)
             .map(|a| a.value.as_str())?;
         T::parse(*self, aid, value)
+    }
+
+    #[inline]
+    fn has_circular_reference(&self, aid: AId) -> bool {
+        self.doc.circular_references.contains(&(self.id, aid))
     }
 
     #[inline]
@@ -348,17 +368,6 @@ impl<'a, 'input: 'a> SvgNode<'a, 'input> {
         }
     }
 
-    #[inline]
-    fn attribute_id(&self, aid: AId) -> Option<usize> {
-        match self.d.kind {
-            NodeKind::Element { ref attributes, .. } => {
-                let idx = self.attributes().iter().position(|attr| attr.name == aid)?;
-                Some(attributes.start as usize + idx)
-            }
-            _ => None,
-        }
-    }
-
     /// Finds a [`Node`] that contains the required attribute.
     ///
     /// For inheritable attributes walks over ancestors until a node with
@@ -367,7 +376,13 @@ impl<'a, 'input: 'a> SvgNode<'a, 'input> {
     /// For non-inheritable attributes checks only the current node and the parent one.
     /// As per SVG spec.
     pub fn find_attribute<T: FromValue<'a, 'input>>(&self, aid: AId) -> Option<T> {
-        self.find_attribute_impl(aid)?.attribute(aid)
+        if self.has_circular_reference(aid) {
+            return None;
+        }
+
+        // A circular reference on the declaring element doesn't apply to the ones inheriting it,
+        // which are checked on their own.
+        self.find_attribute_impl(aid)?.attribute_impl(aid)
     }
 
     fn find_attribute_impl(&self, aid: AId) -> Option<SvgNode<'a, 'input>> {
@@ -489,6 +504,7 @@ impl<'a, 'input: 'a> SvgNode<'a, 'input> {
             curr: self.id(),
             is_first: true,
             is_finished: false,
+            visited: VisitedLinks::new(self.id()),
         }
     }
 }
@@ -606,6 +622,41 @@ impl<'a, 'input: 'a> Iterator for Descendants<'a, 'input> {
     }
 }
 
+/// The elements an `xlink:href` chain has visited so far.
+#[derive(Clone, Debug)]
+enum VisitedLinks {
+    Inline([Option<NodeId>; 4]),
+    Heap(HashSet<NodeId>),
+}
+
+impl VisitedLinks {
+    fn new(id: NodeId) -> Self {
+        VisitedLinks::Inline([Some(id), None, None, None])
+    }
+
+    /// Returns `false` if `id` was already visited.
+    fn insert(&mut self, id: NodeId) -> bool {
+        match self {
+            VisitedLinks::Inline(ids) => {
+                if ids.contains(&Some(id)) {
+                    return false;
+                }
+
+                if let Some(slot) = ids.iter_mut().find(|slot| slot.is_none()) {
+                    *slot = Some(id);
+                } else {
+                    let mut set: HashSet<NodeId> = ids.iter().flatten().copied().collect();
+                    set.insert(id);
+                    *self = VisitedLinks::Heap(set);
+                }
+
+                true
+            }
+            VisitedLinks::Heap(set) => set.insert(id),
+        }
+    }
+}
+
 /// An iterator over `xlink:href` references.
 #[derive(Clone, Debug)]
 pub struct HrefIter<'a, 'input: 'a> {
@@ -614,6 +665,7 @@ pub struct HrefIter<'a, 'input: 'a> {
     curr: NodeId,
     is_first: bool,
     is_finished: bool,
+    visited: VisitedLinks,
 }
 
 impl<'a, 'input: 'a> Iterator for HrefIter<'a, 'input> {
@@ -630,9 +682,9 @@ impl<'a, 'input: 'a> Iterator for HrefIter<'a, 'input> {
         }
 
         if let Some(link) = self.doc.get(self.curr).node_attribute(AId::Href) {
-            if link.id() == self.curr || link.id() == self.origin {
+            if !self.visited.insert(link.id()) {
                 log::warn!(
-                    "Element '#{}' cannot reference itself via 'xlink:href'.",
+                    "Element '#{}' has a circular 'xlink:href' reference.",
                     self.doc.get(self.origin).element_id()
                 );
                 self.is_finished = true;
@@ -640,7 +692,7 @@ impl<'a, 'input: 'a> Iterator for HrefIter<'a, 'input> {
             }
 
             self.curr = link.id();
-            Some(self.doc.get(self.curr))
+            Some(link)
         } else {
             None
         }
@@ -772,6 +824,7 @@ impl AId {
                 | AId::ClipPath
                 | AId::ClipRule
                 | AId::Color
+                | AId::ColorInterpolation
                 | AId::ColorInterpolationFilters
                 | AId::Direction
                 | AId::Display
@@ -942,8 +995,22 @@ impl<'a, 'input: 'a> FromValue<'a, 'input> for svgtypes::PaintOrder {
 }
 
 impl<'a, 'input: 'a> FromValue<'a, 'input> for svgtypes::Color {
-    fn parse(_: SvgNode, _: AId, value: &str) -> Option<Self> {
-        Self::from_str(value).ok()
+    fn parse(node: SvgNode, aid: AId, value: &str) -> Option<Self> {
+        // TODO: Let svgtypes parse `currentColor` as part of a `<color>` type that `Paint` and
+        // `drop-shadow()` can share, instead of matching the keyword in several places.
+        if value != "currentColor" {
+            return Self::from_str(value).ok();
+        }
+
+        // In `color`, `currentColor` resolves to the inherited value.
+        let color = if aid == AId::Color {
+            node.parent_element()
+                .and_then(|parent| parent.find_attribute(AId::Color))
+        } else {
+            node.find_attribute(AId::Color)
+        };
+
+        Some(color.unwrap_or_else(Self::black))
     }
 }
 

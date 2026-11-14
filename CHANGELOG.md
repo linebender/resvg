@@ -10,21 +10,101 @@ This changelog also contains important changes in dependencies.
 
 ### Added
 
-- `--query-bbox` CLI option to query the drawing bounding box without rasterizing it.
-- `mix-blend-mode: plus-lighter` (Compositing and Blending Level 2).
-- `feComposite` `operator="lighter"` (SVG 2).
+- `color-interpolation` on gradients: `linearRGB` interpolates the stops in linear light.
+  `usvg::BaseGradient::color_interpolation`. (#1229)
+- `color-interpolation` on masks: `linearRGB` computes the luminance of a luminance mask in linear light.
+  `usvg::Mask::color_interpolation`. (#1235)
+
+### Fixed
+
+- Orientation of `orient="auto"` markers next to Bézier control points that coincide with their
+  vertex, at the shared vertex of closed subpaths, and next to zero-length segments. (#1173)
+
+## [0.50.0] 2026-11-11
+
+This release has an MSRV of 1.85.0 for `usvg` and `resvg` and the C API.
+
+### Added
+
+- `Options::max_depth` and `DEFAULT_MAX_DEPTH` to configure the maximum nesting depth
+  when parsing. (#1223)
+- The `path` attribute on `textPath` (SVG 2). (#1020)
+
+### Changed
+
+- The bounding box methods of `Node`, `Group` and `Path` now return an `Option`, which is
+  `None` for nodes without a bounding box, such as empty groups. `resvg_get_node_bbox` and
+  `resvg_get_node_stroke_bbox` of the C API return `false` for such nodes, `--query-all`
+  skips them, and `--query-bbox` fails for an SVG without content. (#1167)
+- The `underline`, `overline` and `line_through` fields of `layout::Span` are now boxed. (#1200)
+- Bounding boxes of paths and groups are now calculated on first access instead of while parsing. (#1196)
+- Fonts are now loaded, resolved and prepared for shaping once per tree instead of once per text,
+  and fonts with shared data are no longer copied. (#1195, #1208, #1209, #1211, #1220, #1222)
+- Lower memory usage of the parsed tree and lower peak memory usage while parsing.
+  (#1200, #1201, #1204, #1206, #1212, #1213)
+- Faster parsing of documents with many IDs. (#1197, #1198, #1199)
+- `harfrust` updated to 0.15 and `skrifa` to 0.49. (#1156)
+- `svgtypes` is now developed in the resvg repository. (#1227)
+
+### Fixed
+
+- `flood-color="currentColor"` on `feFlood` and `feDropShadow` no longer resolves to black. (#1217)
+- `color="currentColor"` now inherits the parent's `color` instead of resolving to black. (#1217)
+- Filter primitive subregions with `primitiveUnits="objectBoundingBox"` are now resolved against
+  the element's bounding box, and unspecified values default to the filter region. (#1188)
+- `feDisplacementMap` no longer applies `scale` twice, and now reads the displacement map
+  with non-premultiplied colors. (#1157)
+- CSS in a `style` element is no longer cut off at the first XML comment or processing instruction,
+  and a `type` attribute that is empty or `text/css` in any letter case is now accepted. (#1161)
+- Recursive references through clip paths, masks, patterns, markers and `feImage`, including indirect
+  ones via nested elements and inherited properties, are now detected and rejected. (#1225)
+- usvg no longer hangs on an `xlink:href` chain that loops without including its first element. (#1218)
+- Placement of `sbix` bitmap glyphs. (#1221)
+- Patterns with fractional tile sizes no longer drift out of position or show seams between tiles. (#1171)
+- An empty group no longer extends the bounding box of its parent group. (#1167)
+
+## [0.49.0] 2026-10-24
+
+This release has an MSRV of 1.85.0 for `usvg` and `resvg` and the C API.
+
+### Added
+
+- `--query-bbox` CLI option to query the drawing bounding box without rasterizing it. (#1050)
+- `mix-blend-mode: plus-lighter` (Compositing and Blending Level 2). (#1142)
+- `feComposite` `operator="lighter"` (SVG 2). (#1142)
+- Prebuilt `aarch64` release binaries for Linux and Windows. (#1132)
+
+### Changed
+
+- `usvg::BlendMode` and `usvg::filter::CompositeOperator` have new `PlusLighter`
+  and `Lighter` variants. (#1142)
+- `Group::layer_bounding_box` of a group without filters is now clipped by its clip path,
+  so clipped groups allocate smaller layers. This also affects the sizes reported by
+  `--query-all` and used by `--export-id`. (#1158)
 
 ### Fixed
 
 - `dominant-baseline` is now correctly inherited by nested `<tspan>` elements,
-  so a nested span stays on the same baseline as its siblings. (#864)
-- Panics and incorrect clipping when a filter region is smaller than its input. (#1141)
-- Incorrect transform order on the outermost `svg` element with a `viewBox`. (#899)
-- Relative positioning of right-to-left text with `dx` and `dy`, including text on a path and text decorations. (#1093)
+  so a nested span stays on the same baseline as its siblings. (#1086)
+- Panics and incorrect clipping when a filter region is smaller than its input. (#1144)
+- Incorrect transform order on the outermost `svg` element with a `viewBox`. (#1085)
+- Relative positioning of right-to-left text with `dx` and `dy`, including text on a path and text decorations. (#1145)
 - `text-anchor` now uses the actual extent of a text chunk, which `dx` and `textLength` can change. (#1145)
 - Filters inside rotated or skewed groups are now applied in the user space of the group.
   This fixes the clipping to filter regions and subregions, as well as the direction of
-  offsets, blurs, turbulence and tiles, and the rendering of `feImage`. (#949)
+  offsets, blurs, turbulence and tiles, and the rendering of `feImage`. (#1155)
+- `gradientTransform` and `patternTransform` are now inherited via `href`. (#1135)
+- The bounding box of an `<image>` with `preserveAspectRatio="… slice"` is now its viewport,
+  so `objectBoundingBox` clip paths, masks and filters on it are resolved correctly. (#1077)
+- Markers are now clipped to their viewport instead of their `viewBox` when the aspect ratios differ. (#1163)
+- Object bounding box gradients inside masks, patterns and `feImage` filters used by more than one element
+  are now resolved correctly, instead of being rendered as a flat fill or not at all. (#1164)
+- `feMorphology` kernels are now symmetric and fractional radii are rounded to the nearest pixel. (#1120)
+- Font fallback log messages now always name the correct fallback font family. (#1154)
+- The `resvg` CLI no longer rounds fractional image sizes before scaling, and rounds the output size up
+  instead of to the nearest integer. (#875)
+- The C API header was missing `RESVG_ERROR_SVGZ_UNSUPPORTED`, so all following error codes were off by one. (#1122)
+- `cargo-c` now installs `ResvgQt.h` alongside `resvg.h`. (#1182)
 
 ## [0.48.1] 2026-08-02
 
@@ -1413,7 +1493,9 @@ This release has an MSRV of 1.65 for `usvg` and 1.67.1 for `resvg` and the C API
 
 [#897]: https://github.com/linebender/resvg/pull/897
 
-[Unreleased]: https://github.com/linebender/resvg/compare/v0.48.1...HEAD
+[Unreleased]: https://github.com/linebender/resvg/compare/v0.50.0...HEAD
+[0.50.0]: https://github.com/linebender/resvg/compare/v0.49.0...v0.50.0
+[0.49.0]: https://github.com/linebender/resvg/compare/v0.48.1...v0.49.0
 [0.48.1]: https://github.com/linebender/resvg/compare/v0.48.0...v0.48.1
 [0.48.0]: https://github.com/linebender/resvg/compare/v0.47.0...v0.48.0
 [0.47.0]: https://github.com/linebender/resvg/compare/v0.46.0...v0.47.0

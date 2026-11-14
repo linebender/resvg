@@ -1,0 +1,24 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"
+     xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>Recursive links (3)</title>
+
+    <defs id="defs1">
+        <filter id="filter1">
+            <feImage xlink:href="#g1"/>
+        </filter>
+        <g id="g1" filter="url(#filter2)">
+            <rect id="rect3" x="36" y="36" width="120" height="120" fill="green"/>
+        </g>
+        <filter id="filter2">
+            <feImage xlink:href="#g2"/>
+        </filter>
+        <g id="g2" filter="url(#filter1)">
+            <rect id="rect4" x="36" y="36" width="120" height="120" fill="green"/>
+        </g>
+    </defs>
+    <rect id="rect1" x="20" y="20" width="160" height="160" fill="red" filter="url(#filter1)"/>
+    <rect id="rect2" x="40" y="40" width="120" height="120" fill="none" stroke="black"/>
+
+    <!-- image frame -->
+    <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>

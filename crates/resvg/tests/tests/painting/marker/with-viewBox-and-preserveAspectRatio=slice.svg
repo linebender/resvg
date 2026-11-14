@@ -1,0 +1,12 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <title>With `viewBox` and `preserveAspectRatio=slice`</title>
+
+    <marker id="marker1" refX="10" refY="10" markerWidth="160" markerHeight="80"
+            markerUnits="userSpaceOnUse" viewBox="0 0 20 20" preserveAspectRatio="xMidYMid slice">
+        <circle id="circle1" cx="10" cy="10" r="10" fill="blue"/>
+    </marker>
+    <path id="path1" d="M 100 100 L 150 100" marker-start="url(#marker1)"/>
+
+    <!-- image frame -->
+    <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>
