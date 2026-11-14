@@ -532,9 +532,11 @@ use crate::render;
 #[test] fn paint_servers_linearGradient_color_interpolation_eq_linearRGB_with_stop_opacity() { assert_eq!(render("tests/paint-servers/linearGradient/color-interpolation=linearRGB-with-stop-opacity"), 0); }
 #[test] fn paint_servers_linearGradient_color_interpolation_eq_linearRGB() { assert_eq!(render("tests/paint-servers/linearGradient/color-interpolation=linearRGB"), 0); }
 #[test] fn paint_servers_linearGradient_default_attributes() { assert_eq!(render("tests/paint-servers/linearGradient/default-attributes"), 0); }
+#[test] fn paint_servers_linearGradient_empty_gradientTransform_via_href() { assert_eq!(render("tests/paint-servers/linearGradient/empty-gradientTransform-via-href"), 0); }
 #[test] fn paint_servers_linearGradient_gradientTransform_and_transform() { assert_eq!(render("tests/paint-servers/linearGradient/gradientTransform-and-transform"), 0); }
 #[test] fn paint_servers_linearGradient_gradientTransform_via_href() { assert_eq!(render("tests/paint-servers/linearGradient/gradientTransform-via-href"), 0); }
 #[test] fn paint_servers_linearGradient_gradientTransform() { assert_eq!(render("tests/paint-servers/linearGradient/gradientTransform"), 0); }
+#[test] fn paint_servers_linearGradient_gradientTransform_eq_none_via_href() { assert_eq!(render("tests/paint-servers/linearGradient/gradientTransform=none-via-href"), 0); }
 #[test] fn paint_servers_linearGradient_gradientUnits_eq_objectBoundingBox_with_percent() { assert_eq!(render("tests/paint-servers/linearGradient/gradientUnits=objectBoundingBox-with-percent"), 0); }
 #[test] fn paint_servers_linearGradient_gradientUnits_eq_userSpaceOnUse_with_percent() { assert_eq!(render("tests/paint-servers/linearGradient/gradientUnits=userSpaceOnUse-with-percent"), 0); }
 #[test] fn paint_servers_linearGradient_gradientUnits_eq_userSpaceOnUse() { assert_eq!(render("tests/paint-servers/linearGradient/gradientUnits=userSpaceOnUse"), 0); }
@@ -544,6 +546,8 @@ use crate::render;
 #[test] fn paint_servers_linearGradient_invalid_child_1() { assert_eq!(render("tests/paint-servers/linearGradient/invalid-child-1"), 0); }
 #[test] fn paint_servers_linearGradient_invalid_child_2() { assert_eq!(render("tests/paint-servers/linearGradient/invalid-child-2"), 0); }
 #[test] fn paint_servers_linearGradient_invalid_child_3() { assert_eq!(render("tests/paint-servers/linearGradient/invalid-child-3"), 0); }
+#[test] fn paint_servers_linearGradient_invalid_coordinates_via_href() { assert_eq!(render("tests/paint-servers/linearGradient/invalid-coordinates-via-href"), 0); }
+#[test] fn paint_servers_linearGradient_invalid_gradientTransform_via_href() { assert_eq!(render("tests/paint-servers/linearGradient/invalid-gradientTransform-via-href"), 0); }
 #[test] fn paint_servers_linearGradient_invalid_gradientTransform() { assert_eq!(render("tests/paint-servers/linearGradient/invalid-gradientTransform"), 0); }
 #[test] fn paint_servers_linearGradient_invalid_gradientUnits() { assert_eq!(render("tests/paint-servers/linearGradient/invalid-gradientUnits"), 0); }
 #[test] fn paint_servers_linearGradient_invalid_spreadMethod() { assert_eq!(render("tests/paint-servers/linearGradient/invalid-spreadMethod"), 0); }
@@ -576,6 +580,7 @@ use crate::render;
 #[test] fn paint_servers_pattern_display_eq_none_on_child() { assert_eq!(render("tests/paint-servers/pattern/display=none-on-child"), 0); }
 #[test] fn paint_servers_pattern_everything_via_xlink_href() { assert_eq!(render("tests/paint-servers/pattern/everything-via-xlink-href"), 0); }
 #[test] fn paint_servers_pattern_fractional_tile_size() { assert_eq!(render("tests/paint-servers/pattern/fractional-tile-size"), 0); }
+#[test] fn paint_servers_pattern_invalid_patternTransform_via_href() { assert_eq!(render("tests/paint-servers/pattern/invalid-patternTransform-via-href"), 0); }
 #[test] fn paint_servers_pattern_invalid_patternTransform() { assert_eq!(render("tests/paint-servers/pattern/invalid-patternTransform"), 0); }
 #[test] fn paint_servers_pattern_invalid_patternUnits_and_patternContentUnits() { assert_eq!(render("tests/paint-servers/pattern/invalid-patternUnits-and-patternContentUnits"), 0); }
 #[test] fn paint_servers_pattern_missing_height() { assert_eq!(render("tests/paint-servers/pattern/missing-height"), 0); }

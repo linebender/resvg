@@ -8,7 +8,7 @@ use svgtypes::{Length, LengthUnit as Unit};
 
 use super::OptionLog;
 use super::converter::{self, Cache, SvgColorExt};
-use super::svgtree::{AId, EId, SvgNode};
+use super::svgtree::{AId, EId, FromValue, SvgNode};
 use crate::*;
 
 pub(crate) enum ServerOrColor {
@@ -53,8 +53,8 @@ fn convert_linear(node: SvgNode, state: &converter::State) -> Option<ServerOrCol
     }
 
     let units = convert_units(node, AId::GradientUnits, Units::ObjectBoundingBox);
-    let transform =
-        resolve_attr(node, AId::GradientTransform).resolve_transform(AId::GradientTransform, state);
+    let transform = resolve_attr::<Transform>(node, AId::GradientTransform)
+        .resolve_transform(AId::GradientTransform, state);
 
     let gradient = LinearGradient {
         x1: resolve_number(node, AId::X1, units, state, Length::zero()),
@@ -124,8 +124,8 @@ fn convert_radial(node: SvgNode, state: &converter::State) -> Option<ServerOrCol
     );
     let fx = resolve_number(node, AId::Fx, units, state, Length::new_number(cx as f64));
     let fy = resolve_number(node, AId::Fy, units, state, Length::new_number(cy as f64));
-    let transform =
-        resolve_attr(node, AId::GradientTransform).resolve_transform(AId::GradientTransform, state);
+    let transform = resolve_attr::<Transform>(node, AId::GradientTransform)
+        .resolve_transform(AId::GradientTransform, state);
 
     let gradient = RadialGradient {
         cx,
@@ -160,8 +160,8 @@ fn convert_pattern(
     let id = NonEmptyString::new(node.element_id().to_string())?;
 
     let view_box = {
-        let n1 = resolve_attr(node, AId::ViewBox);
-        let n2 = resolve_attr(node, AId::PreserveAspectRatio);
+        let n1 = resolve_attr::<svgtypes::ViewBox>(node, AId::ViewBox);
+        let n2 = resolve_attr::<svgtypes::AspectRatio>(node, AId::PreserveAspectRatio);
         n1.parse_viewbox().map(|vb| ViewBox {
             rect: vb,
             aspect: n2.attribute(AId::PreserveAspectRatio).unwrap_or_default(),
@@ -171,8 +171,8 @@ fn convert_pattern(
     let units = convert_units(node, AId::PatternUnits, Units::ObjectBoundingBox);
     let content_units = convert_units(node, AId::PatternContentUnits, Units::UserSpaceOnUse);
 
-    let transform =
-        resolve_attr(node, AId::PatternTransform).resolve_transform(AId::PatternTransform, state);
+    let transform = resolve_attr::<Transform>(node, AId::PatternTransform)
+        .resolve_transform(AId::PatternTransform, state);
 
     let rect = NonZeroRect::from_xywh(
         resolve_number(node, AId::X, units, state, Length::zero()),
@@ -233,12 +233,12 @@ pub(crate) fn convert_color_interpolation(node: SvgNode) -> filter::ColorInterpo
 }
 
 fn convert_spread_method(node: SvgNode) -> SpreadMethod {
-    let node = resolve_attr(node, AId::SpreadMethod);
+    let node = resolve_attr::<SpreadMethod>(node, AId::SpreadMethod);
     node.attribute(AId::SpreadMethod).unwrap_or_default()
 }
 
 pub(crate) fn convert_units(node: SvgNode, name: AId, def: Units) -> Units {
-    let node = resolve_attr(node, name);
+    let node = resolve_attr::<Units>(node, name);
     node.attribute(name).unwrap_or(def)
 }
 
@@ -410,24 +410,32 @@ pub(crate) fn resolve_number(
     state: &converter::State,
     def: Length,
 ) -> f32 {
-    resolve_attr(node, name).convert_length(name, units, state, def)
+    resolve_attr::<Length>(node, name).convert_length(name, units, state, def)
 }
 
-fn resolve_attr<'a, 'input: 'a>(node: SvgNode<'a, 'input>, name: AId) -> SvgNode<'a, 'input> {
-    if node.has_attribute(name) {
+// An attribute with an invalid value counts as not specified, so it is resolved
+// from the template instead.
+fn resolve_attr<'a, 'input: 'a, T: FromValue<'a, 'input>>(
+    node: SvgNode<'a, 'input>,
+    name: AId,
+) -> SvgNode<'a, 'input> {
+    if node.try_attribute::<T>(name).is_some() {
         return node;
     }
 
     match node.tag_name().unwrap() {
-        EId::LinearGradient => resolve_lg_attr(node, name),
-        EId::RadialGradient => resolve_rg_attr(node, name),
-        EId::Pattern => resolve_pattern_attr(node, name),
-        EId::Filter => resolve_filter_attr(node, name),
+        EId::LinearGradient => resolve_lg_attr::<T>(node, name),
+        EId::RadialGradient => resolve_rg_attr::<T>(node, name),
+        EId::Pattern => resolve_pattern_attr::<T>(node, name),
+        EId::Filter => resolve_filter_attr::<T>(node, name),
         _ => node,
     }
 }
 
-fn resolve_lg_attr<'a, 'input: 'a>(node: SvgNode<'a, 'input>, name: AId) -> SvgNode<'a, 'input> {
+fn resolve_lg_attr<'a, 'input: 'a, T: FromValue<'a, 'input>>(
+    node: SvgNode<'a, 'input>,
+    name: AId,
+) -> SvgNode<'a, 'input> {
     for link in node.href_iter() {
         let tag_name = match link.tag_name() {
             Some(v) => v,
@@ -449,7 +457,7 @@ fn resolve_lg_attr<'a, 'input: 'a>(node: SvgNode<'a, 'input>, name: AId) -> SvgN
             | (AId::SpreadMethod, EId::RadialGradient)
             | (AId::GradientTransform, EId::LinearGradient)
             | (AId::GradientTransform, EId::RadialGradient) => {
-                if link.has_attribute(name) {
+                if link.try_attribute::<T>(name).is_some() {
                     return link;
                 }
             }
@@ -460,7 +468,10 @@ fn resolve_lg_attr<'a, 'input: 'a>(node: SvgNode<'a, 'input>, name: AId) -> SvgN
     node
 }
 
-fn resolve_rg_attr<'a, 'input>(node: SvgNode<'a, 'input>, name: AId) -> SvgNode<'a, 'input> {
+fn resolve_rg_attr<'a, 'input: 'a, T: FromValue<'a, 'input>>(
+    node: SvgNode<'a, 'input>,
+    name: AId,
+) -> SvgNode<'a, 'input> {
     for link in node.href_iter() {
         let tag_name = match link.tag_name() {
             Some(v) => v,
@@ -484,7 +495,7 @@ fn resolve_rg_attr<'a, 'input>(node: SvgNode<'a, 'input>, name: AId) -> SvgNode<
             | (AId::SpreadMethod, EId::RadialGradient)
             | (AId::GradientTransform, EId::LinearGradient)
             | (AId::GradientTransform, EId::RadialGradient) => {
-                if link.has_attribute(name) {
+                if link.try_attribute::<T>(name).is_some() {
                     return link;
                 }
             }
@@ -495,7 +506,7 @@ fn resolve_rg_attr<'a, 'input>(node: SvgNode<'a, 'input>, name: AId) -> SvgNode<
     node
 }
 
-fn resolve_pattern_attr<'a, 'input: 'a>(
+fn resolve_pattern_attr<'a, 'input: 'a, T: FromValue<'a, 'input>>(
     node: SvgNode<'a, 'input>,
     name: AId,
 ) -> SvgNode<'a, 'input> {
@@ -509,7 +520,7 @@ fn resolve_pattern_attr<'a, 'input: 'a>(
             break;
         }
 
-        if link.has_attribute(name) {
+        if link.try_attribute::<T>(name).is_some() {
             return link;
         }
     }
@@ -517,7 +528,10 @@ fn resolve_pattern_attr<'a, 'input: 'a>(
     node
 }
 
-fn resolve_filter_attr<'a, 'input: 'a>(node: SvgNode<'a, 'input>, aid: AId) -> SvgNode<'a, 'input> {
+fn resolve_filter_attr<'a, 'input: 'a, T: FromValue<'a, 'input>>(
+    node: SvgNode<'a, 'input>,
+    aid: AId,
+) -> SvgNode<'a, 'input> {
     for link in node.href_iter() {
         let tag_name = match link.tag_name() {
             Some(v) => v,
@@ -528,7 +542,7 @@ fn resolve_filter_attr<'a, 'input: 'a>(node: SvgNode<'a, 'input>, aid: AId) -> S
             break;
         }
 
-        if link.has_attribute(aid) {
+        if link.try_attribute::<T>(aid).is_some() {
             return link;
         }
     }
