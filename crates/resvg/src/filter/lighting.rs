@@ -1,7 +1,7 @@
 // Copyright 2020 the Resvg Authors
 // SPDX-License-Identifier: Apache-2.0 OR MIT
 
-use super::{ImageRef, ImageRefMut, f32_bound};
+use super::{ImageRef, ImageRefMut};
 use rgb::RGBA8;
 use usvg::filter::{DiffuseLighting, LightSource, SpecularLighting};
 use usvg::{ApproxEqUlps, ApproxZeroUlps, Color};
@@ -274,7 +274,7 @@ fn apply(
         let light_color = light_color(&light_source, lighting_color, light_vector);
         let factor = light_factor(normal, light_vector);
 
-        let compute = |x| (f32_bound(0.0, x as f32 * factor, 255.0) + 0.5) as u8;
+        let compute = |x| (f32::clamp(x as f32 * factor, 0.0, 255.0) + 0.5) as u8;
 
         let r = compute(light_color.red);
         let g = compute(light_color.green);
@@ -326,7 +326,7 @@ fn light_color(light: &LightSource, lighting_color: Color, light_vector: Vector3
             }
 
             let factor = minus_l_dot_s.powf(light.specular_exponent.get());
-            let compute = |x| (f32_bound(0.0, x as f32 * factor, 255.0) + 0.5) as u8;
+            let compute = |x| (f32::clamp(x as f32 * factor, 0.0, 255.0) + 0.5) as u8;
 
             Color::new_rgb(
                 compute(lighting_color.red),
