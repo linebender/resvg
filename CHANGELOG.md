@@ -41,6 +41,10 @@ This release has an MSRV of 1.85.0 for `usvg` and `resvg` and the C API.
 
 ### Fixed
 
+- Filters on rotated or skewed elements were off by up to a pixel: the filter layer now stays aligned
+  with user space, and filter regions are rounded out as in Skia.
+- A filter on a nearly 90° skew allocated gigabytes (from 0.49): as in Skia, such a layer now gets
+  fewer pixels instead.
 - `flood-color="currentColor"` on `feFlood` and `feDropShadow` no longer resolves to black. (#1217)
 - `color="currentColor"` now inherits the parent's `color` instead of resolving to black. (#1217)
 - Filter primitive subregions with `primitiveUnits="objectBoundingBox"` are now resolved against

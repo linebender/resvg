@@ -362,7 +362,7 @@ fn apply_inner(
     let region = filter
         .rect()
         .transform(ts)
-        .map(|r| r.to_int_rect())
+        .and_then(crate::geom::to_int_rect)
         .ok_or(Error::InvalidRegion)?;
 
     // The source pixmap is clamped to `max_bbox` in `render_group`, so the filter
@@ -389,7 +389,7 @@ fn apply_inner(
         let mut subregion = primitive
             .rect()
             .transform(ts)
-            .map(|r| r.to_int_rect())
+            .and_then(crate::geom::to_int_rect)
             .ok_or(Error::InvalidRegion)?;
 
         // `feOffset` inherits its region from the input.
