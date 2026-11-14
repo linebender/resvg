@@ -15,7 +15,7 @@ workspace = "../.."
 
 [[bin]]
 name = "usvg"
-required-features = ["svgz", "text", "system-fonts", "memmap-fonts", "writer"]
+required-features = ["svgz", "text", "fontdb", "system-fonts", "memmap-fonts", "writer"]
 
 [dependencies]
 base64 = { version = "0.23", optional = true } # for embedded images
@@ -47,15 +47,17 @@ unicode-vo = { version = "0.1", optional = true }
 once_cell = "1.21"
 
 [features]
-default = ["svgz", "text", "system-fonts", "memmap-fonts", "writer"]
+default = ["svgz", "text", "fontdb", "system-fonts", "memmap-fonts", "writer"]
 # Enables SVGZ decoding
 svgz = ["flate2"]
 # Enables text-to-path conversion support.
 # Adds around 400KiB to your binary.
-text = ["fontdb", "harfrust", "skrifa", "unicode-bidi", "unicode-script", "unicode-vo", "writer"]
-# Enables system fonts loading.
-system-fonts = ["fontdb/fs", "fontdb/fontconfig"]
-# Enables font files memmaping for faster loading.
-memmap-fonts = ["fontdb/memmap"]
+text = ["harfrust", "skrifa", "unicode-bidi", "unicode-script", "unicode-vo", "writer"]
+# Enables `FontdbResolver`, a font resolver based on `fontdb`.
+fontdb = ["text", "dep:fontdb"]
+# Enables system fonts loading (only for `fontdb`).
+system-fonts = ["fontdb?/fs", "fontdb?/fontconfig"]
+# Enables font files memmaping for faster loading (only for `fontdb`).
+memmap-fonts = ["fontdb?/memmap"]
 # Enables converting trees back to SVG.
 writer = ["xmlwriter", "base64"]

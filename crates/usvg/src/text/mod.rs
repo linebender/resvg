@@ -9,10 +9,12 @@ pub(crate) mod cache;
 pub(crate) mod flatten;
 
 mod colr;
+#[cfg(feature = "fontdb")]
 mod fontdb;
 /// Provides access to the layout of a text node.
 pub mod layout;
 
+#[cfg(feature = "fontdb")]
 pub use self::fontdb::FontdbResolver;
 
 /// The ID of a glyph within a font

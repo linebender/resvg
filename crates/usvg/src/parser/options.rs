@@ -5,12 +5,29 @@
 use std::sync::Arc;
 
 #[cfg(feature = "text")]
-use crate::{FontResolver, FontdbResolver};
+use crate::{Font, FontData, FontKey, FontResolver};
 use crate::{ImageHrefResolver, ImageRendering, ShapeRendering, Size, TextRendering};
 
 #[cfg(feature = "text")]
-static EMPTY_FONT_RESOLVER: std::sync::LazyLock<Arc<FontdbResolver>> =
-    std::sync::LazyLock::new(|| Arc::new(FontdbResolver::default()));
+struct NoFonts;
+
+#[cfg(feature = "text")]
+impl FontResolver for NoFonts {
+    fn select_font(&self, _: &Font) -> Option<FontKey> {
+        None
+    }
+
+    fn select_fallback(&self, _: char, _: &Font, _: FontKey, _: &[FontKey]) -> Option<FontKey> {
+        None
+    }
+
+    fn load(&self, _: FontKey) -> Option<FontData> {
+        None
+    }
+}
+
+#[cfg(feature = "text")]
+static NO_FONTS: std::sync::LazyLock<Arc<NoFonts>> = std::sync::LazyLock::new(|| Arc::new(NoFonts));
 
 /// The default nesting limit when parsing.
 pub const DEFAULT_MAX_DEPTH: u32 = 1024;
@@ -90,7 +107,7 @@ pub struct Options<'a> {
 
     /// Selects and loads the fonts used by text.
     ///
-    /// Default: a [`FontdbResolver`] with no fonts.
+    /// Default: a resolver without any fonts.
     #[cfg(feature = "text")]
     pub font_resolver: Arc<dyn FontResolver + 'a>,
     /// A CSS stylesheet that should be injected into the SVG. Can be used to overwrite
@@ -117,7 +134,7 @@ impl Default for Options<'_> {
             default_size: Size::from_wh(100.0, 100.0).unwrap(),
             image_href_resolver: ImageHrefResolver::default(),
             #[cfg(feature = "text")]
-            font_resolver: EMPTY_FONT_RESOLVER.clone(),
+            font_resolver: NO_FONTS.clone(),
             style_sheet: None,
             max_depth: DEFAULT_MAX_DEPTH,
         }

@@ -22,7 +22,7 @@ default = ["svgz", "text", "system-fonts", "memmap-fonts", "raster-images"]
 svgz = ["resvg/svgz"]
 # enables SVG Text support
 # adds around 500KiB to your binary
-text = ["resvg/text"]
+text = ["resvg/text", "resvg/fontdb"]
 # enables system fonts loading (only for `text`)
 system-fonts = ["resvg/system-fonts"]
 # enables font files memmaping for faster loading (only for `text`)

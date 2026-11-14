@@ -8,7 +8,7 @@ use fontdb::{Database, ID};
 use svgtypes::FontFamily;
 
 use super::{FontData, FontKey, FontResolver};
-use crate::{Font, FontStretch, FontStyle};
+use crate::Font;
 
 /// A [`FontResolver`] that selects fonts from a [`fontdb::Database`].
 pub struct FontdbResolver {
@@ -91,29 +91,11 @@ impl FontResolver for FontdbResolver {
         // Use the default font as fallback.
         name_list.push(fontdb::Family::Serif);
 
-        let stretch = match font.stretch {
-            FontStretch::UltraCondensed => fontdb::Stretch::UltraCondensed,
-            FontStretch::ExtraCondensed => fontdb::Stretch::ExtraCondensed,
-            FontStretch::Condensed => fontdb::Stretch::Condensed,
-            FontStretch::SemiCondensed => fontdb::Stretch::SemiCondensed,
-            FontStretch::Normal => fontdb::Stretch::Normal,
-            FontStretch::SemiExpanded => fontdb::Stretch::SemiExpanded,
-            FontStretch::Expanded => fontdb::Stretch::Expanded,
-            FontStretch::ExtraExpanded => fontdb::Stretch::ExtraExpanded,
-            FontStretch::UltraExpanded => fontdb::Stretch::UltraExpanded,
-        };
-
-        let style = match font.style {
-            FontStyle::Normal => fontdb::Style::Normal,
-            FontStyle::Italic => fontdb::Style::Italic,
-            FontStyle::Oblique => fontdb::Style::Oblique,
-        };
-
         let query = fontdb::Query {
             families: &name_list,
             weight: fontdb::Weight(font.weight),
-            stretch,
-            style,
+            stretch: font.stretch.into(),
+            style: font.style.into(),
         };
 
         let key = state
