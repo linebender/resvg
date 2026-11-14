@@ -1302,6 +1302,9 @@ use crate::render;
 #[test] fn structure_symbol_unused_symbol() { assert_eq!(render("tests/structure/symbol/unused-symbol"), 0); }
 #[test] fn structure_symbol_with_custom_use_size() { assert_eq!(render("tests/structure/symbol/with-custom-use-size"), 0); }
 #[test] fn structure_symbol_with_overflow_visible() { assert_eq!(render("tests/structure/symbol/with-overflow-visible"), 0); }
+#[test] fn structure_symbol_with_percent_size_on_use() { assert_eq!(render("tests/structure/symbol/with-percent-size-on-use"), 0); }
+#[test] fn structure_symbol_with_size_on_symbol_and_use() { assert_eq!(render("tests/structure/symbol/with-size-on-symbol-and-use"), 0); }
+#[test] fn structure_symbol_with_size_on_symbol() { assert_eq!(render("tests/structure/symbol/with-size-on-symbol"), 0); }
 #[test] fn structure_symbol_with_size_on_use_and_relative_units() { assert_eq!(render("tests/structure/symbol/with-size-on-use-and-relative-units"), 0); }
 #[test] fn structure_symbol_with_transform_on_use_no_size() { assert_eq!(render("tests/structure/symbol/with-transform-on-use-no-size"), 0); }
 #[test] fn structure_symbol_with_transform_on_use() { assert_eq!(render("tests/structure/symbol/with-transform-on-use"), 0); }
@@ -1309,6 +1312,7 @@ use crate::render;
 #[test] fn structure_symbol_with_viewBox_and_custom_use_rect() { assert_eq!(render("tests/structure/symbol/with-viewBox-and-custom-use-rect"), 0); }
 #[test] fn structure_symbol_with_viewBox_and_custom_use_size() { assert_eq!(render("tests/structure/symbol/with-viewBox-and-custom-use-size"), 0); }
 #[test] fn structure_symbol_with_viewBox() { assert_eq!(render("tests/structure/symbol/with-viewBox"), 0); }
+#[test] fn structure_symbol_with_x_and_y_on_symbol() { assert_eq!(render("tests/structure/symbol/with-x-and-y-on-symbol"), 0); }
 #[test] fn structure_systemLanguage_en_GB() { assert_eq!(render("tests/structure/systemLanguage/en-GB"), 0); }
 #[test] fn structure_systemLanguage_en_US() { assert_eq!(render("tests/structure/systemLanguage/en-US"), 0); }
 #[test] fn structure_systemLanguage_en() { assert_eq!(render("tests/structure/systemLanguage/en"), 0); }
