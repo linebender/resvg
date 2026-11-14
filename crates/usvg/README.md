@@ -1,7 +1,7 @@
 # usvg
-[![Crates.io](https://img.shields.io/crates/v/usvg.svg)](https://crates.io/crates/usvg)
+[![crates.io](https://img.shields.io/crates/v/usvg.svg)](https://crates.io/crates/usvg)
 [![Documentation](https://docs.rs/usvg/badge.svg)](https://docs.rs/usvg)
-[![Rust 1.65+](https://img.shields.io/badge/rust-1.65+-orange.svg)](https://www.rust-lang.org)
+[![Rust 1.85.0+](https://img.shields.io/badge/rust-1.85.0+-orange.svg)](https://rust-lang.org/)
 
 `usvg` (micro SVG) is an [SVG] parser that tries to solve most of SVG complexity.
 
@@ -41,15 +41,15 @@ and can focus just on the rendering part.
 
 - Unsupported SVG features will be ignored
 - CSS support is minimal
-- Only [static](http://www.w3.org/TR/SVG11/feature#SVG-static) SVG features,
+- Only [static](https://www.w3.org/TR/SVG11/feature#SVG-static) SVG features,
   e.g. no `a`, `view`, `cursor`, `script`, no events and no animations
 
 ## License
 
 Licensed under either of
 
-- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or <http://www.apache.org/licenses/LICENSE-2.0>)
-- MIT license ([LICENSE-MIT](LICENSE-MIT) or <http://opensource.org/licenses/MIT>)
+- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or <https://www.apache.org/licenses/LICENSE-2.0>)
+- MIT license ([LICENSE-MIT](LICENSE-MIT) or <https://opensource.org/license/mit>)
 
 at your option.
 
@@ -60,5 +60,5 @@ The [Rust code of conduct] applies.
 
 Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in the work by you, as defined in the Apache-2.0 license, shall be licensed as above, without any additional terms or conditions.
 
-[Rust Code of Conduct]: https://www.rust-lang.org/policies/code-of-conduct
-[SVG]: https://en.wikipedia.org/wiki/Scalable_Vector_Graphics
+[SVG]: https://en.wikipedia.org/wiki/SVG
+[Rust code of conduct]: https://rust-lang.org/policies/code-of-conduct/

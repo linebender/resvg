@@ -7,7 +7,7 @@
 [![Linebender Zulip, #resvg channel](https://img.shields.io/badge/Linebender-%23resvg-blue?logo=Zulip)](https://xi.zulipchat.com/#narrow/channel/465085-resvg)
 [![dependency status](https://deps.rs/repo/github/linebender/resvg/status.svg)](https://deps.rs/repo/github/linebender/resvg)
 [![Apache 2.0 or MIT license.](https://img.shields.io/badge/license-Apache--2.0_OR_MIT-blue.svg)](#license)
-[![Build status](https://github.com/linebender/resvg/workflows/Build/badge.svg)](https://github.com/linebender/resvg/actions)
+[![Build status](https://github.com/linebender/resvg/actions/workflows/main.yml/badge.svg)](https://github.com/linebender/resvg/actions)
 [![Crates.io](https://img.shields.io/crates/v/svgtypes.svg)](https://crates.io/crates/svgtypes)
 [![Docs](https://docs.rs/svgtypes/badge.svg)](https://docs.rs/svgtypes)
 ![](https://img.shields.io/badge/unsafe-forbidden-brightgreen.svg)
@@ -93,8 +93,8 @@ All public content can be read without logging in.
 
 Licensed under either of
 
-- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or <http://www.apache.org/licenses/LICENSE-2.0>)
-- MIT license ([LICENSE-MIT](LICENSE-MIT) or <http://opensource.org/licenses/MIT>)
+- Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE) or <https://www.apache.org/licenses/LICENSE-2.0>)
+- MIT license ([LICENSE-MIT](LICENSE-MIT) or <https://opensource.org/license/mit>)
 
 at your option.
 
@@ -105,5 +105,5 @@ Please feel free to add your name to the [AUTHORS] file in any substantive pull 
 
 Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in the work by you, as defined in the Apache-2.0 license, shall be licensed as above, without any additional terms or conditions.
 
-[Rust Code of Conduct]: https://www.rust-lang.org/policies/code-of-conduct
+[Rust code of conduct]: https://rust-lang.org/policies/code-of-conduct/
 [AUTHORS]: https://github.com/linebender/resvg/blob/main/AUTHORS
