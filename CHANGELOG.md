@@ -15,6 +15,11 @@ This changelog also contains important changes in dependencies.
 - `color-interpolation` on masks: `linearRGB` computes the luminance of a luminance mask in linear light.
   `usvg::Mask::color_interpolation`. (#1235)
 
+### Fixed
+
+- Orientation of `orient="auto"` markers next to Bézier control points that coincide with their
+  vertex, at the shared vertex of closed subpaths, and next to zero-length segments. (#1173)
+
 ## [0.50.0] 2026-11-11
 
 This release has an MSRV of 1.85.0 for `usvg` and `resvg` and the C API.
