@@ -38,7 +38,10 @@ pub fn render(
 ) {
     let max_bbox = max_filter_bbox(pixmap.width(), pixmap.height());
 
-    let ctx = render::Context { max_bbox };
+    let ctx = render::Context {
+        max_bbox,
+        needed_bbox: tiny_skia::IntRect::from_xywh(0, 0, pixmap.width(), pixmap.height()).unwrap(),
+    };
     render::render_nodes(tree.root(), &ctx, transform, pixmap);
 }
 
@@ -63,7 +66,10 @@ pub fn render_node(
 
     transform = transform.pre_translate(-bbox.x(), -bbox.y());
 
-    let ctx = render::Context { max_bbox };
+    let ctx = render::Context {
+        max_bbox,
+        needed_bbox: tiny_skia::IntRect::from_xywh(0, 0, pixmap.width(), pixmap.height()).unwrap(),
+    };
     render::render_node(node, &ctx, transform, pixmap);
 
     Some(())
