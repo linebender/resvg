@@ -4,7 +4,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use fontdb::{Database, ID};
 use skrifa::font::Variation;
 use skrifa::font::glyph::bitmap::{BitmapSource, Pixels};
 use skrifa::font::glyph::outline::{DrawOptions, PathSink};
@@ -19,17 +18,15 @@ use super::colr::GlyphPainter;
 use super::layout::ResolvedFont;
 use crate::parser::OptionLog;
 use crate::{
-    Font, FontOpticalSizing, FontVariation, GlyphId, Image, ImageKind, ImageRendering, Node,
-    Options, Tree,
+    Font, FontData, FontKey, FontOpticalSizing, FontResolver, FontVariation, GlyphId, Image,
+    ImageKind, ImageRendering, Node, Options, Tree,
 };
 
+#[derive(Default)]
 pub(crate) struct FontCache {
-    /// This fontdb is initialized from [`Options::fontdb`](crate::Options::fontdb) and then
-    /// populated over the course of conversion.
-    pub(crate) fontdb: Arc<Database>,
     pub(crate) resolved: HashMap<Font, Arc<ResolvedFont>>,
-    // `None` marks faces that failed to load, so they are not read again.
-    loaded: HashMap<ID, Option<LoadedFont>>,
+    // `None` marks faces that failed to load, so they are not requested again.
+    loaded: HashMap<FontKey, Option<LoadedFont>>,
 }
 
 pub(crate) struct LoadedFont {
@@ -59,29 +56,29 @@ pub(crate) struct BitmapImage {
 }
 
 impl FontCache {
-    pub(crate) fn new(fontdb: Arc<Database>) -> Self {
-        Self {
-            fontdb,
-            resolved: HashMap::new(),
-            loaded: HashMap::new(),
-        }
+    pub(crate) fn load(
+        &mut self,
+        key: FontKey,
+        resolver: &dyn FontResolver,
+    ) -> Option<&mut LoadedFont> {
+        self.loaded
+            .entry(key)
+            .or_insert_with(|| LoadedFont::new(resolver.load(key)?))
+            .as_mut()
     }
 
-    pub(crate) fn load(&mut self, id: ID) -> Option<&mut LoadedFont> {
-        let fontdb = &self.fontdb;
-        self.loaded
-            .entry(id)
-            .or_insert_with(|| LoadedFont::new(id, fontdb))
-            .as_mut()
+    /// Returns a font that was already loaded with [`FontCache::load`].
+    pub(crate) fn get(&mut self, key: FontKey) -> Option<&mut LoadedFont> {
+        self.loaded.get_mut(&key)?.as_mut()
     }
 
     pub(crate) fn outline(
         &mut self,
-        id: ID,
+        key: FontKey,
         glyph: GlyphId,
         variations: impl IntoIterator<Item = FontVariation>,
     ) -> Option<tiny_skia_path::Path> {
-        let instance = self.load(id)?.instance(variations);
+        let instance = self.get(key)?.instance(variations);
         instance
             .outlines
             .entry(glyph)
@@ -91,11 +88,11 @@ impl FontCache {
 
     pub(crate) fn colr(
         &mut self,
-        id: ID,
+        key: FontKey,
         glyph: GlyphId,
         variations: impl IntoIterator<Item = FontVariation>,
     ) -> Option<Tree> {
-        let loaded = self.load(id)?;
+        let loaded = self.get(key)?;
         if loaded.font.color_glyphs().is_empty() {
             return None;
         }
@@ -108,8 +105,8 @@ impl FontCache {
             .clone()
     }
 
-    pub(crate) fn svg(&mut self, id: ID, glyph: GlyphId) -> Option<Node> {
-        let loaded = self.load(id)?;
+    pub(crate) fn svg(&mut self, key: FontKey, glyph: GlyphId) -> Option<Node> {
+        let loaded = self.get(key)?;
         if loaded.font.tables().svg().is_err() {
             return None;
         }
@@ -122,8 +119,8 @@ impl FontCache {
             .clone()
     }
 
-    pub(crate) fn raster(&mut self, id: ID, glyph: GlyphId) -> Option<BitmapImage> {
-        let loaded = self.load(id)?;
+    pub(crate) fn raster(&mut self, key: FontKey, glyph: GlyphId) -> Option<BitmapImage> {
+        let loaded = self.get(key)?;
         if loaded.font.bitmap_strikes().is_empty() {
             return None;
         }
@@ -138,19 +135,8 @@ impl FontCache {
 }
 
 impl LoadedFont {
-    fn new(id: ID, fontdb: &Database) -> Option<Self> {
-        // Share the font data if it is already in memory, otherwise copy it.
-        let font = match fontdb.face_source(id)? {
-            (fontdb::Source::Binary(data), face_index) => skrifa::Font::new(data, face_index),
-            #[cfg(feature = "memmap-fonts")]
-            (fontdb::Source::SharedFile(_, data), face_index) => {
-                skrifa::Font::new(data, face_index)
-            }
-            #[allow(unreachable_patterns)]
-            _ => fontdb.with_face_data(id, |data, face_index| {
-                skrifa::Font::new(data.to_vec(), face_index)
-            })?,
-        }?;
+    fn new(data: FontData) -> Option<Self> {
+        let font = skrifa::Font::new(data.data, data.index)?;
 
         Some(Self {
             font,

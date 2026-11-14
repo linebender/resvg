@@ -31,7 +31,7 @@ where
 }
 
 fn process() -> Result<(), String> {
-    let mut args = match parse_args() {
+    let args = match parse_args() {
         Ok(args) => args,
         Err(e) => {
             println!("{}", HELP);
@@ -80,17 +80,6 @@ fn process() -> Result<(), String> {
         usvg::roxmltree::Document::parse_with_options(svg_string, xml_opt)
             .map_err(|e| e.to_string())
     })?;
-
-    // fontdb initialization is pretty expensive, so perform it only when needed.
-    let has_text_nodes = xml_tree
-        .descendants()
-        .any(|n| n.has_tag_name(("http://www.w3.org/2000/svg", "text")));
-
-    if has_text_nodes {
-        timed(args.perf, "FontDB", || {
-            load_fonts(&args.raw_args, args.usvg.fontdb_mut());
-        });
-    }
 
     let tree = timed(args.perf, "SVG Parsing", || {
         usvg::Tree::from_xmltree(&xml_tree, &args.usvg).map_err(|e| e.to_string())
@@ -237,14 +226,7 @@ struct CliArgs {
 
     font_family: Option<String>,
     font_size: u32,
-    serif_family: Option<String>,
-    sans_serif_family: Option<String>,
-    cursive_family: Option<String>,
-    fantasy_family: Option<String>,
-    monospace_family: Option<String>,
-    font_files: Vec<path::PathBuf>,
-    font_dirs: Vec<path::PathBuf>,
-    skip_system_fonts: bool,
+    fonts: FontArgs,
     list_fonts: bool,
     style_sheet: Option<path::PathBuf>,
 
@@ -260,6 +242,18 @@ struct CliArgs {
 
     input: Option<String>,
     output: Option<String>,
+}
+
+#[derive(Clone, Debug)]
+struct FontArgs {
+    serif_family: Option<String>,
+    sans_serif_family: Option<String>,
+    cursive_family: Option<String>,
+    fantasy_family: Option<String>,
+    monospace_family: Option<String>,
+    font_files: Vec<path::PathBuf>,
+    font_dirs: Vec<path::PathBuf>,
+    skip_system_fonts: bool,
 }
 
 fn collect_args() -> Result<CliArgs, pico_args::Error> {
@@ -302,14 +296,16 @@ fn collect_args() -> Result<CliArgs, pico_args::Error> {
         font_size: input
             .opt_value_from_fn("--font-size", parse_font_size)?
             .unwrap_or(12),
-        serif_family: input.opt_value_from_str("--serif-family")?,
-        sans_serif_family: input.opt_value_from_str("--sans-serif-family")?,
-        cursive_family: input.opt_value_from_str("--cursive-family")?,
-        fantasy_family: input.opt_value_from_str("--fantasy-family")?,
-        monospace_family: input.opt_value_from_str("--monospace-family")?,
-        font_files: input.values_from_str("--use-font-file")?,
-        font_dirs: input.values_from_str("--use-fonts-dir")?,
-        skip_system_fonts: input.contains("--skip-system-fonts"),
+        fonts: FontArgs {
+            serif_family: input.opt_value_from_str("--serif-family")?,
+            sans_serif_family: input.opt_value_from_str("--sans-serif-family")?,
+            cursive_family: input.opt_value_from_str("--cursive-family")?,
+            fantasy_family: input.opt_value_from_str("--fantasy-family")?,
+            monospace_family: input.opt_value_from_str("--monospace-family")?,
+            font_files: input.values_from_str("--use-font-file")?,
+            font_dirs: input.values_from_str("--use-fonts-dir")?,
+            skip_system_fonts: input.contains("--skip-system-fonts"),
+        },
         list_fonts: input.contains("--list-fonts"),
 
         query_all: input.contains("--query-all"),
@@ -430,7 +426,7 @@ impl FitTo {
     }
 }
 
-fn list_fonts(args: &CliArgs) {
+fn list_fonts(args: &FontArgs) {
     let mut fontdb = fontdb::Database::new();
     load_fonts(args, &mut fontdb);
 
@@ -475,14 +471,13 @@ struct Args {
     usvg: usvg::Options<'static>,
     fit_to: FitTo,
     background: Option<svgtypes::Color>,
-    raw_args: CliArgs, // TODO: find a better way
 }
 
 fn parse_args() -> Result<Args, String> {
     let args = collect_args().map_err(|e| e.to_string())?;
 
     if args.list_fonts {
-        list_fonts(&args);
+        list_fonts(&args.fonts);
         std::process::exit(0);
     }
 
@@ -573,6 +568,17 @@ fn parse_args() -> Result<Args, String> {
         None => None,
     };
 
+    // Loading fonts is expensive, so only do it once text needs a font.
+    let font_args = args.fonts.clone();
+    let perf = args.perf;
+    let font_resolver = usvg::FontdbResolver::new(move || {
+        timed(perf, "FontDB", || {
+            let mut fontdb = fontdb::Database::new();
+            load_fonts(&font_args, &mut fontdb);
+            fontdb
+        })
+    });
+
     let usvg = usvg::Options {
         resources_dir,
         dpi: args.dpi as f32,
@@ -587,8 +593,7 @@ fn parse_args() -> Result<Args, String> {
         image_rendering: args.image_rendering,
         default_size,
         image_href_resolver: usvg::ImageHrefResolver::default(),
-        font_resolver: usvg::FontResolver::default(),
-        fontdb: Arc::new(fontdb::Database::new()),
+        font_resolver: Arc::new(font_resolver),
         max_depth: DEFAULT_MAX_DEPTH,
         style_sheet,
     };
@@ -606,11 +611,10 @@ fn parse_args() -> Result<Args, String> {
         usvg,
         fit_to,
         background: args.background,
-        raw_args: args,
     })
 }
 
-fn load_fonts(args: &CliArgs, fontdb: &mut fontdb::Database) {
+fn load_fonts(args: &FontArgs, fontdb: &mut fontdb::Database) {
     if !args.skip_system_fonts {
         fontdb.load_system_fonts();
     }

@@ -1664,8 +1664,6 @@ pub struct Tree {
     pub(crate) clip_paths: Vec<Arc<ClipPath>>,
     pub(crate) masks: Vec<Arc<Mask>>,
     pub(crate) filters: Vec<Arc<filter::Filter>>,
-    #[cfg(feature = "text")]
-    pub(crate) fontdb: Arc<fontdb::Database>,
 }
 
 impl Tree {
@@ -1742,12 +1740,6 @@ impl Tree {
     /// Returns a list of all unique [`Filter`](filter::Filter)s in the tree.
     pub fn filters(&self) -> &[Arc<filter::Filter>] {
         &self.filters
-    }
-
-    /// Returns the font database that applies to all text nodes in the tree.
-    #[cfg(feature = "text")]
-    pub fn fontdb(&self) -> &Arc<fontdb::Database> {
-        &self.fontdb
     }
 
     pub(crate) fn collect_paint_servers(&mut self) {

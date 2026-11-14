@@ -3,17 +3,17 @@
 
 use std::sync::Arc;
 
-use fontdb::{Database, ID};
-use svgtypes::FontFamily;
-
-use crate::{Cache, Font, FontStretch, FontStyle, Text};
+use crate::{Cache, Font, Text};
 
 pub(crate) mod cache;
 pub(crate) mod flatten;
 
 mod colr;
+mod fontdb;
 /// Provides access to the layout of a text node.
 pub mod layout;
+
+pub use self::fontdb::FontdbResolver;
 
 /// The ID of a glyph within a font
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
@@ -25,181 +25,101 @@ impl From<GlyphId> for skrifa::raw::types::GlyphId {
     }
 }
 
-/// A shorthand for [FontResolver]'s font selection function.
+/// Identifies a font face within a [`FontResolver`].
 ///
-/// This function receives a font specification (families + a style, weight,
-/// stretch triple) and a font database and should return the ID of the font
-/// that shall be used (if any).
-///
-/// In the basic case, the function will search the existing fonts in the
-/// database to find a good match, e.g. via
-/// [`Database::query`](fontdb::Database::query). This is what the [default
-/// implementation](FontResolver::default_font_selector) does.
-///
-/// Users with more complex requirements can mutate the database to load
-/// additional fonts dynamically. To perform mutation, it is recommended to call
-/// `Arc::make_mut` on the provided database. (This call is not done outside of
-/// the callback to not needless clone an underlying shared database if no
-/// mutation will be performed.) It is important that the database is only
-/// mutated additively. Removing fonts or replacing the entire database will
-/// break things.
-pub type FontSelectionFn<'a> =
-    Box<dyn Fn(&Font, &mut Arc<Database>) -> Option<ID> + Send + Sync + 'a>;
+/// Keys are chosen by the resolver. A key must refer to the same face for as
+/// long as the resolver is used.
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct FontKey(u64);
 
-/// A shorthand for [FontResolver]'s fallback selection function.
-///
-/// This function receives a specific character, a list of already used fonts,
-/// and a font database. It should return the ID of a font that
-/// - is not any of the already used fonts
-/// - is as close as possible to the first already used font (if any)
-/// - supports the given character
-///
-/// The function can search the existing database, but can also load additional
-/// fonts dynamically. See the documentation of [`FontSelectionFn`] for more
-/// details.
-pub type FallbackSelectionFn<'a> =
-    Box<dyn Fn(char, &[ID], &mut Arc<Database>) -> Option<ID> + Send + Sync + 'a>;
+impl FontKey {
+    /// Creates a key.
+    pub const fn new(key: u64) -> Self {
+        Self(key)
+    }
 
-/// A font resolver for `<text>` elements.
-///
-/// This type can be useful if you want to have an alternative font handling to
-/// the default one. By default, only fonts specified upfront in
-/// [`Options::fontdb`](crate::Options::fontdb) will be used. This type allows
-/// you to load additional fonts on-demand and customize the font selection
-/// process.
-pub struct FontResolver<'a> {
-    /// Resolver function that will be used when selecting a specific font
-    /// for a generic [`Font`] specification.
-    pub select_font: FontSelectionFn<'a>,
-
-    /// Resolver function that will be used when selecting a fallback font for a
-    /// character.
-    pub select_fallback: FallbackSelectionFn<'a>,
+    /// Returns the value of the key.
+    pub const fn get(self) -> u64 {
+        self.0
+    }
 }
 
-impl Default for FontResolver<'_> {
-    fn default() -> Self {
-        FontResolver {
-            select_font: FontResolver::default_font_selector(),
-            select_fallback: FontResolver::default_fallback_selector(),
+/// The data of a font face.
+#[derive(Clone)]
+pub struct FontData {
+    /// The font file.
+    pub data: Arc<dyn AsRef<[u8]> + Send + Sync>,
+    /// The index of the face within a font collection, or 0.
+    pub index: u32,
+}
+
+impl FontData {
+    /// Creates font data from a font file and the index of a face in it.
+    pub fn new(data: impl AsRef<[u8]> + Send + Sync + 'static, index: u32) -> Self {
+        Self {
+            data: Arc::new(data),
+            index,
         }
     }
-}
 
-impl FontResolver<'_> {
-    /// Creates a default font selection resolver.
-    ///
-    /// The default implementation forwards to
-    /// [`query`](fontdb::Database::query) on the font database specified in the
-    /// [`Options`](crate::Options).
-    pub fn default_font_selector() -> FontSelectionFn<'static> {
-        Box::new(move |font, fontdb| {
-            let mut name_list = Vec::new();
-            for family in &font.families {
-                name_list.push(match family {
-                    FontFamily::Serif => fontdb::Family::Serif,
-                    FontFamily::SansSerif => fontdb::Family::SansSerif,
-                    FontFamily::Cursive => fontdb::Family::Cursive,
-                    FontFamily::Fantasy => fontdb::Family::Fantasy,
-                    FontFamily::Monospace => fontdb::Family::Monospace,
-                    FontFamily::Named(s) => fontdb::Family::Name(s),
-                });
-            }
-
-            // Use the default font as fallback.
-            name_list.push(fontdb::Family::Serif);
-
-            let stretch = match font.stretch {
-                FontStretch::UltraCondensed => fontdb::Stretch::UltraCondensed,
-                FontStretch::ExtraCondensed => fontdb::Stretch::ExtraCondensed,
-                FontStretch::Condensed => fontdb::Stretch::Condensed,
-                FontStretch::SemiCondensed => fontdb::Stretch::SemiCondensed,
-                FontStretch::Normal => fontdb::Stretch::Normal,
-                FontStretch::SemiExpanded => fontdb::Stretch::SemiExpanded,
-                FontStretch::Expanded => fontdb::Stretch::Expanded,
-                FontStretch::ExtraExpanded => fontdb::Stretch::ExtraExpanded,
-                FontStretch::UltraExpanded => fontdb::Stretch::UltraExpanded,
-            };
-
-            let style = match font.style {
-                FontStyle::Normal => fontdb::Style::Normal,
-                FontStyle::Italic => fontdb::Style::Italic,
-                FontStyle::Oblique => fontdb::Style::Oblique,
-            };
-
-            let query = fontdb::Query {
-                families: &name_list,
-                weight: fontdb::Weight(font.weight),
-                stretch,
-                style,
-            };
-
-            let id = fontdb.query(&query);
-            if id.is_none() {
-                log::warn!(
-                    "No match for '{}' font-family.",
-                    font.families
-                        .iter()
-                        .map(|f| f.to_string())
-                        .collect::<Vec<_>>()
-                        .join(", ")
-                );
-            }
-
-            id
-        })
-    }
-
-    /// Creates a default font fallback selection resolver.
-    ///
-    /// The default implementation searches through the entire `fontdb`
-    /// to find a font that has the correct style and supports the character.
-    pub fn default_fallback_selector() -> FallbackSelectionFn<'static> {
-        Box::new(|c, exclude_fonts, fontdb| {
-            let base_font_id = exclude_fonts[0];
-            let base_face = fontdb.face(base_font_id)?;
-
-            // Iterate over fonts and check if any of them support the specified char.
-            for face in fontdb.faces() {
-                // Ignore fonts, that were used for shaping already.
-                if exclude_fonts.contains(&face.id) {
-                    continue;
-                }
-
-                // Check that the new face has the same style.
-                if base_face.style != face.style
-                    && base_face.weight != face.weight
-                    && base_face.stretch != face.stretch
-                {
-                    continue;
-                }
-
-                if !has_char(fontdb, face.id, c) {
-                    continue;
-                }
-
-                let base_family = base_face
-                    .families
-                    .iter()
-                    .find(|f| f.1 == fontdb::Language::English_UnitedStates)
-                    .unwrap_or(&base_face.families[0]);
-
-                let new_family = face
-                    .families
-                    .iter()
-                    .find(|f| f.1 == fontdb::Language::English_UnitedStates)
-                    .unwrap_or(&face.families[0]);
-
-                log::warn!("Fallback from {} to {}.", base_family.0, new_family.0);
-                return Some(face.id);
-            }
-
-            None
-        })
+    /// Returns the font file.
+    pub fn as_bytes(&self) -> &[u8] {
+        (*self.data).as_ref()
     }
 }
 
-impl std::fmt::Debug for FontResolver<'_> {
+impl std::fmt::Debug for FontData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("FontData")
+            .field("len", &self.as_bytes().len())
+            .field("index", &self.index)
+            .finish()
+    }
+}
+
+/// Selects and loads the fonts used by `<text>` elements. Fonts are only
+/// requested when text needs them.
+pub trait FontResolver: Send + Sync {
+    /// Selects the face to use for a font specification.
+    fn select_font(&self, font: &Font) -> Option<FontKey>;
+
+    /// Selects a face to fall back to for `c`.
+    ///
+    /// `base` is the face selected for `font`, and `used` lists the faces
+    /// already tried, starting with `base`.
+    fn select_fallback(
+        &self,
+        c: char,
+        font: &Font,
+        base: FontKey,
+        used: &[FontKey],
+    ) -> Option<FontKey>;
+
+    /// Returns the data of a face returned by one of the selection methods.
+    fn load(&self, key: FontKey) -> Option<FontData>;
+}
+
+impl<T: FontResolver + ?Sized> FontResolver for &T {
+    fn select_font(&self, font: &Font) -> Option<FontKey> {
+        (**self).select_font(font)
+    }
+
+    fn select_fallback(
+        &self,
+        c: char,
+        font: &Font,
+        base: FontKey,
+        used: &[FontKey],
+    ) -> Option<FontKey> {
+        (**self).select_fallback(c, font, base, used)
+    }
+
+    fn load(&self, key: FontKey) -> Option<FontData> {
+        (**self).load(key)
+    }
+}
+
+impl std::fmt::Debug for dyn FontResolver + '_ {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str("FontResolver { .. }")
     }
@@ -211,7 +131,11 @@ impl std::fmt::Debug for FontResolver<'_> {
 ///    is not based on the outlines of a glyph, but instead the glyph metrics as well
 ///    as decoration spans).
 /// 2. We convert all of the positioned glyphs into outlines.
-pub(crate) fn convert(text: &mut Text, resolver: &FontResolver, cache: &mut Cache) -> Option<()> {
+pub(crate) fn convert(
+    text: &mut Text,
+    resolver: &dyn FontResolver,
+    cache: &mut Cache,
+) -> Option<()> {
     let (text_fragments, bbox) = layout::layout_text(text, resolver, &mut cache.fonts)?;
     text.layouted = text_fragments;
     text.bounding_box = bbox.to_rect();
@@ -223,19 +147,4 @@ pub(crate) fn convert(text: &mut Text, resolver: &FontResolver, cache: &mut Cach
     text.abs_stroke_bounding_box = stroke_bbox.transform(text.abs_transform)?.to_rect();
 
     Some(())
-}
-
-#[inline(never)]
-fn has_char(fontdb: &Database, id: ID, c: char) -> bool {
-    // Unlike for the main fonts where we use skrifa's owned font abstraction,
-    // here we just call `with_face_data` repeatedly so we don't need to call `to_vec`
-    // for all fallback fonts.
-    // TODO: Cache the charmaps of fallback candidates, building one for every lookup is expensive.
-    fontdb
-        .with_face_data(id, |data, face_index| {
-            let font = skrifa::FontRef::from_index(data, face_index).ok()?;
-            skrifa::charmap::Charmap::new(&font).map(c)
-        })
-        .flatten()
-        .is_some()
 }

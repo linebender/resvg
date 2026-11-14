@@ -598,10 +598,13 @@ fn flattened_text_should_inherit_absolute_transform() {
     </svg>
     ";
 
-    let mut opts = usvg::Options::default();
-    opts.fontdb_mut()
-        .load_fonts_dir(env!("CARGO_MANIFEST_DIR").to_string() + "/../resvg/tests/fonts");
-    opts.font_family = "Noto Sans".to_string();
+    let mut fontdb = usvg::fontdb::Database::new();
+    fontdb.load_fonts_dir(env!("CARGO_MANIFEST_DIR").to_string() + "/../resvg/tests/fonts");
+    let opts = usvg::Options {
+        font_resolver: std::sync::Arc::new(usvg::FontdbResolver::new(move || fontdb)),
+        font_family: "Noto Sans".to_string(),
+        ..usvg::Options::default()
+    };
 
     let tree = usvg::Tree::from_str(&svg, &opts).unwrap();
 

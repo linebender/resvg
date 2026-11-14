@@ -5,8 +5,12 @@
 use std::sync::Arc;
 
 #[cfg(feature = "text")]
-use crate::FontResolver;
+use crate::{FontResolver, FontdbResolver};
 use crate::{ImageHrefResolver, ImageRendering, ShapeRendering, Size, TextRendering};
+
+#[cfg(feature = "text")]
+static EMPTY_FONT_RESOLVER: std::sync::LazyLock<Arc<FontdbResolver>> =
+    std::sync::LazyLock::new(|| Arc::new(FontdbResolver::default()));
 
 /// The default nesting limit when parsing.
 pub const DEFAULT_MAX_DEPTH: u32 = 1024;
@@ -84,20 +88,11 @@ pub struct Options<'a> {
     /// Default: see type's documentation for details
     pub image_href_resolver: ImageHrefResolver<'a>,
 
-    /// Specifies how fonts should be resolved and loaded.
-    #[cfg(feature = "text")]
-    pub font_resolver: FontResolver<'a>,
-
-    /// A database of fonts usable by text.
+    /// Selects and loads the fonts used by text.
     ///
-    /// This is a base database. If a custom `font_resolver` is specified,
-    /// additional fonts can be loaded during parsing. Those will be added to a
-    /// copy of this database. The full database containing all fonts referenced
-    /// in a `Tree` becomes available as [`Tree::fontdb`](crate::Tree::fontdb)
-    /// after parsing. If no fonts were loaded dynamically, that database will
-    /// be the same as this one.
+    /// Default: a [`FontdbResolver`] with no fonts.
     #[cfg(feature = "text")]
-    pub fontdb: Arc<fontdb::Database>,
+    pub font_resolver: Arc<dyn FontResolver + 'a>,
     /// A CSS stylesheet that should be injected into the SVG. Can be used to overwrite
     /// certain attributes.
     pub style_sheet: Option<String>,
@@ -122,9 +117,7 @@ impl Default for Options<'_> {
             default_size: Size::from_wh(100.0, 100.0).unwrap(),
             image_href_resolver: ImageHrefResolver::default(),
             #[cfg(feature = "text")]
-            font_resolver: FontResolver::default(),
-            #[cfg(feature = "text")]
-            fontdb: Arc::new(fontdb::Database::new()),
+            font_resolver: EMPTY_FONT_RESOLVER.clone(),
             style_sheet: None,
             max_depth: DEFAULT_MAX_DEPTH,
         }
@@ -140,13 +133,5 @@ impl Options<'_> {
             Some(ref dir) => dir.join(rel_path),
             None => rel_path.into(),
         }
-    }
-
-    /// Mutably acquires the database.
-    ///
-    /// This clones the database if it is currently shared.
-    #[cfg(feature = "text")]
-    pub fn fontdb_mut(&mut self) -> &mut fontdb::Database {
-        Arc::make_mut(&mut self.fontdb)
     }
 }

@@ -137,18 +137,8 @@ impl crate::Tree {
                 // External images should be ignored.
                 resolve_string: Box::new(|_, _| None),
             },
-            // In the referenced SVG, we start with the unmodified user-provided
-            // fontdb, not the one from the cache.
             #[cfg(feature = "text")]
-            fontdb: opt.fontdb.clone(),
-            // Can't clone the resolver, so we create a new one that forwards to it.
-            #[cfg(feature = "text")]
-            font_resolver: crate::FontResolver {
-                select_font: Box::new(|font, db| (opt.font_resolver.select_font)(font, db)),
-                select_fallback: Box::new(|c, used_fonts, db| {
-                    (opt.font_resolver.select_fallback)(c, used_fonts, db)
-                }),
-            },
+            font_resolver: opt.font_resolver.clone(),
             max_depth: opt.max_depth,
             ..Options::default()
         };
