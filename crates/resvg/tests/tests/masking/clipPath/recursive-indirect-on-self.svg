@@ -1,0 +1,18 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <title>Indirect recursion on self</title>
+
+    <clipPath id="clip1" clip-path="url(#clip2)">
+        <rect id="rect1" x="40" y="20" width="120" height="160"/>
+    </clipPath>
+    <clipPath id="clip2" clip-path="url(#clip3)">
+        <rect id="rect2" x="20" y="40" width="160" height="120"/>
+    </clipPath>
+    <clipPath id="clip3" clip-path="url(#clip1)">
+        <rect id="rect3" x="60" y="60" width="120" height="120"/>
+    </clipPath>
+    <rect id="rect4" x="62" y="62" width="96" height="96" fill="red"/>
+    <rect id="rect5" x="0" y="0" width="200" height="200" fill="green" clip-path="url(#clip1)"/>
+
+    <!-- image frame -->
+    <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>

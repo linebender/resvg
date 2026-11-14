@@ -967,3 +967,17 @@ fn max_depth_applies_to_nested_svg_images() {
     assert!(parse_with_max_depth(svg, 2).unwrap().root().has_children());
     assert!(!parse_with_max_depth(svg, 1).unwrap().root().has_children());
 }
+
+#[test]
+fn long_clip_path_chain() {
+    let mut svg = String::from("<svg xmlns='http://www.w3.org/2000/svg'><defs>");
+    for i in 0..100_000 {
+        svg.push_str(&format!(
+            "<clipPath id='c{i}' clip-path='url(#c{})'><rect/></clipPath>",
+            i + 1
+        ));
+    }
+    svg.push_str("<clipPath id='c100000' clip-path='url(#c0)'><rect/></clipPath></defs></svg>");
+
+    assert!(usvg::Tree::from_str(&svg, &usvg::Options::default()).is_ok());
+}
