@@ -399,19 +399,17 @@ fn default_primitive_subregion(
         _ => &[],
     };
 
-    let inputs: Vec<Input> = if fe.tag_name() == Some(EId::FeMerge) {
-        fe.children()
-            .map(|n| resolve_input(n, AId::In, primitives))
-            .collect()
-    } else {
-        input_attrs
-            .iter()
-            .map(|aid| resolve_input(fe, *aid, primitives))
-            .collect()
-    };
+    let merge_inputs = (fe.tag_name() == Some(EId::FeMerge))
+        .then(|| fe.children())
+        .into_iter()
+        .flatten()
+        .map(|n| resolve_input(n, AId::In, primitives));
+    let attr_inputs = input_attrs
+        .iter()
+        .map(|aid| resolve_input(fe, *aid, primitives));
 
     let mut union: Option<(f32, f32, f32, f32)> = None;
-    for input in &inputs {
+    for input in merge_inputs.chain(attr_inputs) {
         let Input::Reference(name) = input else {
             return filter_region;
         };
