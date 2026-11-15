@@ -91,7 +91,7 @@ fn raw_image() {
 
     let mut opt = usvg::Options::default();
     opt.image_href_resolver.resolve_string =
-        Box::new(move |href, _| (href == "pixels").then(|| usvg::ImageKind::RAW(image.clone())));
+        Box::new(move |href, _| (href == "pixels").then(|| usvg::ImageKind::Raw(image.clone())));
 
     let svg = "<svg xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' \
                width='4' height='2'>\
