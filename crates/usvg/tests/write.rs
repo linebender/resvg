@@ -226,7 +226,7 @@ fn raw_image_is_written_as_png() {
 
     let mut opt = usvg::Options::default();
     opt.image_href_resolver.resolve_string =
-        Box::new(move |_, _| Some(usvg::ImageKind::RAW(image.clone())));
+        Box::new(move |_, _| Some(usvg::ImageKind::Raw(image.clone())));
 
     let svg = "<svg xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' \
                width='2' height='1'><image xlink:href='pixels' width='2' height='1'/></svg>";

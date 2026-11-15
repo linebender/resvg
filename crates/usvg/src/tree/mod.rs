@@ -1547,7 +1547,7 @@ pub enum ImageKind {
     ///
     /// Lets the caller pass an image decoded by itself, e.g. in a format usvg doesn't support,
     /// or one it has already decoded for other purposes, without re-encoding it.
-    RAW(RawImage),
+    Raw(RawImage),
 }
 
 impl ImageKind {
@@ -1561,7 +1561,7 @@ impl ImageKind {
                 .and_then(|size| Size::from_wh(size.width as f32, size.height as f32))
                 .log_none(|| log::warn!("Image has an invalid size. Skipped.")),
             ImageKind::SVG(svg) => Some(svg.size),
-            ImageKind::RAW(image) => Size::from_wh(image.width as f32, image.height as f32),
+            ImageKind::Raw(image) => Size::from_wh(image.width as f32, image.height as f32),
         }
     }
 }
@@ -1574,8 +1574,8 @@ impl std::fmt::Debug for ImageKind {
             ImageKind::GIF(_) => f.write_str("ImageKind::GIF(..)"),
             ImageKind::WEBP(_) => f.write_str("ImageKind::WEBP(..)"),
             ImageKind::SVG(_) => f.write_str("ImageKind::SVG(..)"),
-            ImageKind::RAW(image) => {
-                write!(f, "ImageKind::RAW({}x{}, ..)", image.width, image.height)
+            ImageKind::Raw(image) => {
+                write!(f, "ImageKind::Raw({}x{}, ..)", image.width, image.height)
             }
         }
     }
