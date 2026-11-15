@@ -9,6 +9,7 @@ use std::sync::Arc;
 use strict_num::PositiveF32;
 use svgtypes::{AspectRatio, Length, LengthUnit as Unit};
 
+use crate::tree::BBox;
 use crate::{
     ApproxZeroUlps, Color, Group, Node, NonEmptyString, NonZeroF32, NonZeroRect, Opacity, Size,
     Transform, Units,
@@ -408,7 +409,7 @@ fn default_primitive_subregion(
         .iter()
         .map(|aid| resolve_input(fe, *aid, primitives));
 
-    let mut union: Option<(f32, f32, f32, f32)> = None;
+    let mut union = BBox::default();
     for input in merge_inputs.chain(attr_inputs) {
         let Input::Reference(name) = input else {
             return filter_region;
@@ -423,16 +424,10 @@ fn default_primitive_subregion(
             return filter_region;
         };
 
-        let (l, t, r, b) = (rect.left(), rect.top(), rect.right(), rect.bottom());
-        union = Some(match union {
-            Some((ul, ut, ur, ub)) => (ul.min(l), ut.min(t), ur.max(r), ub.max(b)),
-            None => (l, t, r, b),
-        });
+        union = union.expand(rect);
     }
 
-    union
-        .and_then(|(l, t, r, b)| NonZeroRect::from_ltrb(l, t, r, b))
-        .unwrap_or(filter_region)
+    union.to_non_zero_rect().unwrap_or(filter_region)
 }
 
 fn resolve_primitive_region(
