@@ -295,6 +295,8 @@ use crate::render;
 #[test] fn filters_filter_content_outside_the_canvas_2() { assert_eq!(render("tests/filters/filter/content-outside-the-canvas-2"), 0); }
 #[test] fn filters_filter_content_outside_the_canvas() { assert_eq!(render("tests/filters/filter/content-outside-the-canvas"), 0); }
 #[test] fn filters_filter_default_color_interpolation_filters() { assert_eq!(render("tests/filters/filter/default-color-interpolation-filters"), 0); }
+#[test] fn filters_filter_default_subregion_from_input() { assert_eq!(render("tests/filters/filter/default-subregion-from-input"), 0); }
+#[test] fn filters_filter_default_subregion_from_multiple_inputs() { assert_eq!(render("tests/filters/filter/default-subregion-from-multiple-inputs"), 0); }
 #[test] fn filters_filter_everything_via_xlink_href() { assert_eq!(render("tests/filters/filter/everything-via-xlink-href"), 0); }
 #[test] fn filters_filter_global_transform() { assert_eq!(render("tests/filters/filter/global-transform"), 0); }
 #[test] fn filters_filter_huge_region() { assert_eq!(render("tests/filters/filter/huge-region"), 0); }

@@ -386,20 +386,11 @@ fn apply_inner(
     let mut results: Vec<FilterResult> = Vec::new();
 
     for primitive in filter.primitives() {
-        let mut subregion = primitive
+        let subregion = primitive
             .rect()
             .transform(ts)
             .map(|r| r.to_int_rect())
             .ok_or(Error::InvalidRegion)?;
-
-        // `feOffset` inherits its region from the input.
-        if let usvg::filter::Kind::Offset(fe) = primitive.kind() {
-            if let usvg::filter::Input::Reference(name) = fe.input() {
-                if let Some(res) = results.iter().rev().find(|v| v.name == *name) {
-                    subregion = res.image.region;
-                }
-            }
-        }
 
         let cs = primitive.color_interpolation();
 
@@ -468,14 +459,7 @@ fn apply_inner(
         if region != subregion {
             // Clip result.
 
-            // TODO: explain
-            let subregion2 = if let usvg::filter::Kind::Offset(..) = primitive.kind() {
-                // We do not support clipping on feOffset.
-                region.translate_to(0, 0)
-            } else {
-                subregion.translate(-region.x(), -region.y())
-            }
-            .unwrap();
+            let subregion2 = subregion.translate(-region.x(), -region.y()).unwrap();
 
             let color_space = result.color_space;
 

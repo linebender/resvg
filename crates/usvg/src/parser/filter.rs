@@ -320,8 +320,9 @@ fn collect_children(
             None => continue,
         };
 
+        let default_subregion = default_primitive_subregion(child, &primitives, filter_region);
         let filter_subregion =
-            match resolve_primitive_region(child, units, state, object_bbox, filter_region) {
+            match resolve_primitive_region(child, units, state, object_bbox, default_subregion) {
                 Some(v) => v,
                 None => break,
             };
@@ -371,12 +372,77 @@ fn collect_children(
     primitives
 }
 
+/// Returns the subregion a primitive uses for its omitted `x`, `y`, `width` and `height`.
+///
+/// Per the Filter Effects spec, this is the union of the subregions of the referenced
+/// primitives. When there are no referenced primitives,
+/// when a standard input (e.g. `SourceGraphic`) is used, or for `feTile`,
+/// it is the filter region.
+fn default_primitive_subregion(
+    fe: SvgNode,
+    primitives: &[Primitive],
+    filter_region: NonZeroRect,
+) -> NonZeroRect {
+    let input_attrs: &[AId] = match fe.tag_name() {
+        Some(EId::FeBlend | EId::FeComposite | EId::FeDisplacementMap) => &[AId::In, AId::In2],
+        Some(
+            EId::FeColorMatrix
+            | EId::FeComponentTransfer
+            | EId::FeConvolveMatrix
+            | EId::FeDiffuseLighting
+            | EId::FeDropShadow
+            | EId::FeGaussianBlur
+            | EId::FeMorphology
+            | EId::FeOffset
+            | EId::FeSpecularLighting,
+        ) => &[AId::In],
+        _ => &[],
+    };
+
+    let inputs: Vec<Input> = if fe.tag_name() == Some(EId::FeMerge) {
+        fe.children()
+            .map(|n| resolve_input(n, AId::In, primitives))
+            .collect()
+    } else {
+        input_attrs
+            .iter()
+            .map(|aid| resolve_input(fe, *aid, primitives))
+            .collect()
+    };
+
+    let mut union: Option<(f32, f32, f32, f32)> = None;
+    for input in &inputs {
+        let Input::Reference(name) = input else {
+            return filter_region;
+        };
+
+        let Some(rect) = primitives
+            .iter()
+            .rev()
+            .find(|p| p.result == *name)
+            .map(|p| p.rect)
+        else {
+            return filter_region;
+        };
+
+        let (l, t, r, b) = (rect.left(), rect.top(), rect.right(), rect.bottom());
+        union = Some(match union {
+            Some((ul, ut, ur, ub)) => (ul.min(l), ut.min(t), ur.max(r), ub.max(b)),
+            None => (l, t, r, b),
+        });
+    }
+
+    union
+        .and_then(|(l, t, r, b)| NonZeroRect::from_ltrb(l, t, r, b))
+        .unwrap_or(filter_region)
+}
+
 fn resolve_primitive_region(
     fe: SvgNode,
     units: Units,
     state: &converter::State,
     bbox: Option<NonZeroRect>,
-    filter_region: NonZeroRect,
+    default_region: NonZeroRect,
 ) -> Option<NonZeroRect> {
     let mut x = fe.try_convert_length(AId::X, units, state);
     let mut y = fe.try_convert_length(AId::Y, units, state);
@@ -392,10 +458,10 @@ fn resolve_primitive_region(
     }
 
     NonZeroRect::from_xywh(
-        x.unwrap_or(filter_region.x()),
-        y.unwrap_or(filter_region.y()),
-        width.unwrap_or(filter_region.width()),
-        height.unwrap_or(filter_region.height()),
+        x.unwrap_or(default_region.x()),
+        y.unwrap_or(default_region.y()),
+        width.unwrap_or(default_region.width()),
+        height.unwrap_or(default_region.height()),
     )
 }
 

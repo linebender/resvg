@@ -1,0 +1,19 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <title>Default subregion from multiple inputs</title>
+
+    <filter id="filter1">
+        <feFlood id="feFlood1" flood-color="seagreen" x="20" y="20" width="60" height="60"
+                 result="flood1"/>
+        <feFlood id="feFlood2" flood-color="gold" x="120" y="120" width="60" height="60"
+                 result="flood2"/>
+        <feMerge>
+            <feMergeNode in="flood1"/>
+            <feMergeNode in="flood2"/>
+        </feMerge>
+        <feOffset dx="30"/>
+    </filter>
+    <rect id="rect1" x="20" y="20" width="160" height="160" filter="url(#filter1)"/>
+
+    <!-- image frame -->
+    <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>
