@@ -23,7 +23,7 @@ pub fn render_inner(
         usvg::ImageKind::SVG(tree) => {
             render_vector(tree, transform, pixmap);
         }
-        usvg::ImageKind::Raw(image) => {
+        usvg::ImageKind::RGBA(image) => {
             render_raw(image, transform, rendering_mode, pixmap);
         }
         #[cfg(feature = "raster-images")]
@@ -126,7 +126,7 @@ mod raster_images {
 
     fn decode_raster(image: &usvg::ImageKind) -> Option<tiny_skia::Pixmap> {
         match image {
-            usvg::ImageKind::SVG(_) | usvg::ImageKind::Raw(_) => None,
+            usvg::ImageKind::SVG(_) | usvg::ImageKind::RGBA(_) => None,
             usvg::ImageKind::JPEG(data) => {
                 decode_jpeg(data).log_none(|| log::warn!("Failed to decode a JPEG image."))
             }

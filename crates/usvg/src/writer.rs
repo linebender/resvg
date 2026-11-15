@@ -1082,7 +1082,7 @@ impl XmlWriterExt for XmlWriter {
                 svg_string = tree.to_string(&WriteOptions::default());
                 ("svg+xml", svg_string.as_bytes())
             }
-            ImageKind::Raw(image) => {
+            ImageKind::RGBA(image) => {
                 png_data = encode_png(image);
                 ("png", png_data.as_slice())
             }
