@@ -19,6 +19,9 @@ This changelog also contains important changes in dependencies.
 
 - Orientation of `orient="auto"` markers next to Bézier control points that coincide with their
   vertex, at the shared vertex of closed subpaths, and next to zero-length segments. (#1173)
+- Default filter primitive subregion: a primitive without `x`, `y`, `width` or `height` now uses
+  the union of its inputs' subregions, as the Filter Effects spec requires, instead of the filter
+  region. `feOffset` results are now clipped to their subregion.
 
 ## [0.50.0] 2026-11-11
 

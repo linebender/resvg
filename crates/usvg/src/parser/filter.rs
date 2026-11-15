@@ -9,6 +9,7 @@ use std::sync::Arc;
 use strict_num::PositiveF32;
 use svgtypes::{AspectRatio, Length, LengthUnit as Unit};
 
+use crate::tree::BBox;
 use crate::{
     ApproxZeroUlps, Color, Group, Node, NonEmptyString, NonZeroF32, NonZeroRect, Opacity, Size,
     Transform, Units,
@@ -320,8 +321,9 @@ fn collect_children(
             None => continue,
         };
 
+        let default_subregion = default_primitive_subregion(child, &primitives, filter_region);
         let filter_subregion =
-            match resolve_primitive_region(child, units, state, object_bbox, filter_region) {
+            match resolve_primitive_region(child, units, state, object_bbox, default_subregion) {
                 Some(v) => v,
                 None => break,
             };
@@ -371,12 +373,66 @@ fn collect_children(
     primitives
 }
 
+/// Returns the subregion a primitive uses for its omitted `x`, `y`, `width` and `height`.
+///
+/// <https://www.w3.org/TR/filter-effects-1/#FilterPrimitiveSubRegion>
+fn default_primitive_subregion(
+    fe: SvgNode,
+    primitives: &[Primitive],
+    filter_region: NonZeroRect,
+) -> NonZeroRect {
+    let input_attrs: &[AId] = match fe.tag_name() {
+        Some(EId::FeBlend | EId::FeComposite | EId::FeDisplacementMap) => &[AId::In, AId::In2],
+        Some(
+            EId::FeColorMatrix
+            | EId::FeComponentTransfer
+            | EId::FeConvolveMatrix
+            | EId::FeDiffuseLighting
+            | EId::FeDropShadow
+            | EId::FeGaussianBlur
+            | EId::FeMorphology
+            | EId::FeOffset
+            | EId::FeSpecularLighting,
+        ) => &[AId::In],
+        _ => &[],
+    };
+
+    let merge_inputs = (fe.tag_name() == Some(EId::FeMerge))
+        .then(|| fe.children())
+        .into_iter()
+        .flatten()
+        .map(|n| resolve_input(n, AId::In, primitives));
+    let attr_inputs = input_attrs
+        .iter()
+        .map(|aid| resolve_input(fe, *aid, primitives));
+
+    let mut union = BBox::default();
+    for input in merge_inputs.chain(attr_inputs) {
+        let Input::Reference(name) = input else {
+            return filter_region;
+        };
+
+        let Some(rect) = primitives
+            .iter()
+            .rev()
+            .find(|p| p.result == *name)
+            .map(|p| p.rect)
+        else {
+            return filter_region;
+        };
+
+        union = union.expand(rect);
+    }
+
+    union.to_non_zero_rect().unwrap_or(filter_region)
+}
+
 fn resolve_primitive_region(
     fe: SvgNode,
     units: Units,
     state: &converter::State,
     bbox: Option<NonZeroRect>,
-    filter_region: NonZeroRect,
+    default_region: NonZeroRect,
 ) -> Option<NonZeroRect> {
     let mut x = fe.try_convert_length(AId::X, units, state);
     let mut y = fe.try_convert_length(AId::Y, units, state);
@@ -392,10 +448,10 @@ fn resolve_primitive_region(
     }
 
     NonZeroRect::from_xywh(
-        x.unwrap_or(filter_region.x()),
-        y.unwrap_or(filter_region.y()),
-        width.unwrap_or(filter_region.width()),
-        height.unwrap_or(filter_region.height()),
+        x.unwrap_or(default_region.x()),
+        y.unwrap_or(default_region.y()),
+        width.unwrap_or(default_region.width()),
+        height.unwrap_or(default_region.height()),
     )
 }
 
