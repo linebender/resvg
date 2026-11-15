@@ -375,10 +375,7 @@ fn collect_children(
 
 /// Returns the subregion a primitive uses for its omitted `x`, `y`, `width` and `height`.
 ///
-/// Per the Filter Effects spec, this is the union of the subregions of the referenced
-/// primitives. When there are no referenced primitives,
-/// when a standard input (e.g. `SourceGraphic`) is used, or for `feTile`,
-/// it is the filter region.
+/// <https://www.w3.org/TR/filter-effects-1/#FilterPrimitiveSubRegion>
 fn default_primitive_subregion(
     fe: SvgNode,
     primitives: &[Primitive],
