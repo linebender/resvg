@@ -1072,6 +1072,7 @@ impl XmlWriterExt for XmlWriter {
 
     fn write_image_data(&mut self, kind: &ImageKind) {
         let svg_string;
+        let png_data;
         let (mime, data) = match kind {
             ImageKind::JPEG(data) => ("jpeg", data.as_slice()),
             ImageKind::PNG(data) => ("png", data.as_slice()),
@@ -1080,6 +1081,10 @@ impl XmlWriterExt for XmlWriter {
             ImageKind::SVG(tree) => {
                 svg_string = tree.to_string(&WriteOptions::default());
                 ("svg+xml", svg_string.as_bytes())
+            }
+            ImageKind::RAW(image) => {
+                png_data = encode_png(image);
+                ("png", png_data.as_slice())
             }
         };
 
@@ -1094,6 +1099,78 @@ impl XmlWriterExt for XmlWriter {
             enc.finish().unwrap();
         });
     }
+}
+
+/// Encodes an image as an RGBA PNG with uncompressed (stored) deflate blocks,
+/// so no compression library is needed.
+fn encode_png(image: &crate::RawImage) -> Vec<u8> {
+    fn write_chunk(png: &mut Vec<u8>, name: &[u8; 4], data: &[u8]) {
+        png.extend_from_slice(&(data.len() as u32).to_be_bytes());
+        let start = png.len();
+        png.extend_from_slice(name);
+        png.extend_from_slice(data);
+        let crc = crc32(&png[start..]);
+        png.extend_from_slice(&crc.to_be_bytes());
+    }
+
+    let row_len = image.width() as usize * 4;
+    let mut scanlines = Vec::with_capacity((row_len + 1) * image.height() as usize);
+    for row in image.data().chunks_exact(row_len) {
+        scanlines.push(0); // No filter.
+        scanlines.extend_from_slice(row);
+    }
+
+    // A zlib stream of stored deflate blocks.
+    let mut zlib = vec![0x78, 0x01];
+    let mut blocks = scanlines.chunks(u16::MAX as usize).peekable();
+    while let Some(block) = blocks.next() {
+        zlib.push(u8::from(blocks.peek().is_none()));
+        let len = block.len() as u16;
+        zlib.extend_from_slice(&len.to_le_bytes());
+        zlib.extend_from_slice(&(!len).to_le_bytes());
+        zlib.extend_from_slice(block);
+    }
+    zlib.extend_from_slice(&adler32(&scanlines).to_be_bytes());
+
+    let mut ihdr = Vec::with_capacity(13);
+    ihdr.extend_from_slice(&image.width().to_be_bytes());
+    ihdr.extend_from_slice(&image.height().to_be_bytes());
+    // 8-bit depth, RGBA, deflate, adaptive filtering, no interlace.
+    ihdr.extend_from_slice(&[8, 6, 0, 0, 0]);
+
+    let mut png = b"\x89PNG\r\n\x1a\n".to_vec();
+    write_chunk(&mut png, b"IHDR", &ihdr);
+    write_chunk(&mut png, b"IDAT", &zlib);
+    write_chunk(&mut png, b"IEND", &[]);
+    png
+}
+
+fn crc32(data: &[u8]) -> u32 {
+    let mut crc = !0u32;
+    for &byte in data {
+        crc ^= u32::from(byte);
+        for _ in 0..8 {
+            crc = if crc & 1 != 0 {
+                (crc >> 1) ^ 0xEDB8_8320
+            } else {
+                crc >> 1
+            };
+        }
+    }
+    !crc
+}
+
+fn adler32(data: &[u8]) -> u32 {
+    let (mut a, mut b) = (1u32, 0u32);
+    for chunk in data.chunks(5552) {
+        for &byte in chunk {
+            a += u32::from(byte);
+            b += a;
+        }
+        a %= 65521;
+        b %= 65521;
+    }
+    (b << 16) | a
 }
 
 fn has_xlink(parent: &Group) -> bool {
