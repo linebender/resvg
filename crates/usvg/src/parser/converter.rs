@@ -5,8 +5,6 @@ use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::Arc;
 
-#[cfg(feature = "text")]
-use fontdb::Database;
 use svgtypes::{Length, LengthUnit as Unit, PaintOrderKind, TransformOrigin};
 use tiny_skia_path::PathBuilder;
 
@@ -60,13 +58,10 @@ pub struct Cache<'a> {
 }
 
 impl<'a> Cache<'a> {
-    pub(crate) fn new(
-        svg_doc: &'a svgtree::Document<'a>,
-        #[cfg(feature = "text")] fontdb: Arc<Database>,
-    ) -> Self {
+    pub(crate) fn new(svg_doc: &'a svgtree::Document<'a>) -> Self {
         Self {
             #[cfg(feature = "text")]
-            fonts: crate::text::cache::FontCache::new(fontdb),
+            fonts: crate::text::cache::FontCache::default(),
 
             clip_paths: HashMap::new(),
             masks: HashMap::new(),
@@ -314,7 +309,7 @@ pub(crate) fn convert_doc(svg_doc: &svgtree::Document, opt: &Options) -> Result<
         masks: Vec::new(),
         filters: Vec::new(),
         #[cfg(feature = "text")]
-        fontdb: opt.fontdb.clone(),
+        fonts: Default::default(),
     };
 
     if !svg.is_visible_element(opt) {
@@ -332,11 +327,7 @@ pub(crate) fn convert_doc(svg_doc: &svgtree::Document, opt: &Options) -> Result<
         opt,
     };
 
-    let mut cache = Cache::new(
-        svg_doc,
-        #[cfg(feature = "text")]
-        opt.fontdb.clone(),
-    );
+    let mut cache = Cache::new(svg_doc);
 
     // The root transform wraps the viewBox mapping, so its origin is resolved
     // against the viewport rather than the viewBox.
@@ -380,12 +371,9 @@ pub(crate) fn convert_doc(svg_doc: &svgtree::Document, opt: &Options) -> Result<
     tree.root.collect_clip_paths(&mut tree.clip_paths);
     tree.root.collect_masks(&mut tree.masks);
     tree.root.collect_filters(&mut tree.filters);
-
-    // The fontdb might have been mutated and we want to apply these changes to
-    // the tree's fontdb.
     #[cfg(feature = "text")]
     {
-        tree.fontdb = cache.fonts.fontdb;
+        tree.fonts = cache.fonts.into_used_fonts();
     }
 
     if restore_viewbox {

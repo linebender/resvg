@@ -29,8 +29,10 @@ pub unsafe fn tree_from_istream(pstream: LPSTREAM) -> Result<usvg::Tree, Error> 
     }
     svg_data.set_len(len as usize);
 
-    let mut opt = usvg::Options::default();
-    opt.fontdb_mut().load_system_fonts();
+    let opt = usvg::Options {
+        font_resolver: std::sync::Arc::new(usvg::FontdbResolver::system()),
+        ..usvg::Options::default()
+    };
 
     let tree = usvg::Tree::from_data(&svg_data, &opt).map_err(|e| Error::TreeError(e))?;
     Ok(tree)

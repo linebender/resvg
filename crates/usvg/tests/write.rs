@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use once_cell::sync::Lazy;
 
-static GLOBAL_FONTDB: Lazy<Arc<usvg::fontdb::Database>> = Lazy::new(|| {
+static GLOBAL_FONTS: Lazy<Arc<usvg::FontdbResolver>> = Lazy::new(|| {
     let mut fontdb = usvg::fontdb::Database::new();
     fontdb.load_fonts_dir("../resvg/tests/fonts");
     fontdb.set_serif_family("Noto Serif");
@@ -13,7 +13,7 @@ static GLOBAL_FONTDB: Lazy<Arc<usvg::fontdb::Database>> = Lazy::new(|| {
     fontdb.set_cursive_family("Yellowtail");
     fontdb.set_fantasy_family("Sedgwick Ave Display");
     fontdb.set_monospace_family("Noto Mono");
-    Arc::new(fontdb)
+    Arc::new(usvg::FontdbResolver::new(move || fontdb))
 });
 
 fn resave(name: &str) {
@@ -33,7 +33,7 @@ fn resave_impl(name: &str, id_prefix: Option<String>, preserve_text: bool) {
 
     let tree = {
         let opt = usvg::Options {
-            fontdb: GLOBAL_FONTDB.clone(),
+            font_resolver: GLOBAL_FONTS.clone(),
             ..Default::default()
         };
         usvg::Tree::from_str(&input_svg, &opt).unwrap()
