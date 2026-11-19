@@ -1,0 +1,15 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <title>Stroke dashes calibrated by pathLength</title>
+    <!-- Reference PNG: rendered at 300px with pathLength omitted, the positive dash
+         arrays and offsets pre-scaled, and the zero case explicitly solid. -->
+    <g id="strokes" fill="none" stroke="black" stroke-width="4"
+       stroke-dasharray="3 2" stroke-dashoffset="1">
+        <!-- Actual length 160; dashes become 30, 20, and offset becomes 10. -->
+        <path id="path" d="M20 30H180" pathLength="16"/>
+        <!-- Actual perimeter 176; ratio 2. -->
+        <rect id="rect" x="20" y="60" width="64" height="24" pathLength="88"/>
+        <path id="zero" d="M20 114H180" pathLength="0"/>
+        <path id="negative" d="M20 154H180" pathLength="-16"/>
+    </g>
+    <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>

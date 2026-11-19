@@ -136,6 +136,35 @@ pub(crate) fn resolve_stroke(
     Some(stroke)
 }
 
+pub(crate) fn calibrate_path_dashes(
+    node: SvgNode,
+    path: &tiny_skia_path::Path,
+    stroke: &mut Stroke,
+) {
+    let Some(dashes) = &mut stroke.dasharray else {
+        return;
+    };
+    let Some(author_length) = node.attribute::<f32>(AId::PathLength) else {
+        return;
+    };
+    if !author_length.is_finite() || author_length < 0.0 {
+        return;
+    }
+
+    // Infinite dash lengths (pathLength="0") render as a solid stroke.
+    if author_length == 0.0 {
+        stroke.dasharray = None;
+        stroke.dashoffset = 0.0;
+        return;
+    }
+
+    let scale = super::shapes::path_length(path) / f64::from(author_length);
+    for dash in dashes {
+        *dash = (f64::from(*dash) * scale) as f32;
+    }
+    stroke.dashoffset = (f64::from(stroke.dashoffset) * scale) as f32;
+}
+
 fn convert_paint(
     node: SvgNode,
     value: &str,

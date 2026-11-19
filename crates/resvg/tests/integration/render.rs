@@ -967,6 +967,7 @@ use crate::render;
 #[test] fn painting_stroke_dasharray_none() { assert_eq!(render("tests/painting/stroke-dasharray/none"), 0); }
 #[test] fn painting_stroke_dasharray_odd_count() { assert_eq!(render("tests/painting/stroke-dasharray/odd-count"), 0); }
 #[test] fn painting_stroke_dasharray_on_a_circle() { assert_eq!(render("tests/painting/stroke-dasharray/on-a-circle"), 0); }
+#[test] fn painting_stroke_dasharray_path_length() { assert_eq!(render("tests/painting/stroke-dasharray/path-length"), 0); }
 #[test] fn painting_stroke_dasharray_percent_units() { assert_eq!(render("tests/painting/stroke-dasharray/percent-units"), 0); }
 #[test] fn painting_stroke_dasharray_ws_separator() { assert_eq!(render("tests/painting/stroke-dasharray/ws-separator"), 0); }
 #[test] fn painting_stroke_dasharray_zero_sum() { assert_eq!(render("tests/painting/stroke-dasharray/zero-sum"), 0); }
