@@ -1553,6 +1553,7 @@ use crate::render;
 #[test] fn text_font_variation_settings_xtra_extreme() { assert_eq!(render("tests/text/font-variation-settings/xtra-extreme"), 0); }
 #[test] fn text_font_weight_650() { assert_eq!(render("tests/text/font-weight/650"), 0); }
 #[test] fn text_font_weight_700() { assert_eq!(render("tests/text/font-weight/700"), 0); }
+#[test] fn text_font_weight_850() { assert_eq!(render("tests/text/font-weight/850"), 0); }
 #[test] fn text_font_weight_bold() { assert_eq!(render("tests/text/font-weight/bold"), 0); }
 #[test] fn text_font_weight_bolder_with_clamping() { assert_eq!(render("tests/text/font-weight/bolder-with-clamping"), 0); }
 #[test] fn text_font_weight_bolder_without_parent() { assert_eq!(render("tests/text/font-weight/bolder-without-parent"), 0); }
