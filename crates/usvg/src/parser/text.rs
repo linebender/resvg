@@ -614,26 +614,14 @@ fn conv_font_stretch(node: SvgNode) -> FontStretch {
 }
 
 fn resolve_font_weight(node: SvgNode) -> u16 {
-    fn bound(min: usize, val: usize, max: usize) -> usize {
-        std::cmp::max(min, std::cmp::min(max, val))
-    }
-
     let nodes: Vec<_> = node.ancestors().collect();
-    let mut weight = 400;
+    let mut weight = 400u16;
     for n in nodes.iter().rev().skip(1) {
         // skip Root
         weight = match n.attribute(AId::FontWeight).unwrap_or("") {
             "normal" => 400,
             "bold" => 700,
-            "100" => 100,
-            "200" => 200,
-            "300" => 300,
-            "400" => 400,
-            "500" => 500,
-            "600" => 600,
-            "700" => 700,
-            "800" => 800,
-            "900" => 900,
+            "bolder" if weight >= 900 => weight,
             "bolder" => {
                 // By the CSS2 spec the default value should be 400
                 // so `bolder` will result in 500.
@@ -642,8 +630,9 @@ fn resolve_font_weight(node: SvgNode) -> u16 {
                 // we will follow such behavior for now.
                 let step = if weight == 400 { 300 } else { 100 };
 
-                bound(100, weight + step, 900)
+                (weight + step).clamp(100, 900)
             }
+            "lighter" if weight <= 100 => weight,
             "lighter" => {
                 // By the CSS2 spec the default value should be 400
                 // so `lighter` will result in 300.
@@ -652,13 +641,18 @@ fn resolve_font_weight(node: SvgNode) -> u16 {
                 // we will follow such behavior for now.
                 let step = if weight == 400 { 200 } else { 100 };
 
-                bound(100, weight - step, 900)
+                (weight - step).clamp(100, 900)
             }
-            _ => weight,
+            value => match value.parse::<svgtypes::Number>() {
+                Ok(svgtypes::Number(number)) if (1.0..=1000.0).contains(&number) => {
+                    number.round() as u16
+                }
+                _ => weight,
+            },
         };
     }
 
-    weight as u16
+    weight
 }
 
 /// Resolves text's character positions.
