@@ -150,12 +150,13 @@ dependencies = [
 [[package]]
 name = "fearless_simd"
 version = "1.2.0"
-source = "git+https://github.com/LaurenzV/fearless_simd?rev=9c349b2ddb91884e12e39271dd0c48ee1a164d22#9c349b2ddb91884e12e39271dd0c48ee1a164d22"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "629c9d6b6f30b5604089e0980f4d924a013aacb1654a6cdf5d3d852224f68651"
 
 [[package]]
 name = "filtra"
 version = "0.1.0"
-source = "git+https://github.com/LaurenzV/filtra?rev=2e62761c31c28881ad7293bac570fd8e2127b791#2e62761c31c28881ad7293bac570fd8e2127b791"
+source = "git+https://github.com/LaurenzV/filtra?rev=292c41e1f9c8f33875fff949cab97068e88d8bb5#292c41e1f9c8f33875fff949cab97068e88d8bb5"
 dependencies = [
  "filtra_kernels",
  "filtra_plan",
@@ -163,26 +164,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "filtra_core"
+version = "0.1.0"
+source = "git+https://github.com/LaurenzV/filtra?rev=292c41e1f9c8f33875fff949cab97068e88d8bb5#292c41e1f9c8f33875fff949cab97068e88d8bb5"
+
+[[package]]
 name = "filtra_kernels"
 version = "0.1.0"
-source = "git+https://github.com/LaurenzV/filtra?rev=2e62761c31c28881ad7293bac570fd8e2127b791#2e62761c31c28881ad7293bac570fd8e2127b791"
+source = "git+https://github.com/LaurenzV/filtra?rev=292c41e1f9c8f33875fff949cab97068e88d8bb5#292c41e1f9c8f33875fff949cab97068e88d8bb5"
 dependencies = [
  "fearless_simd",
+ "filtra_core",
  "filtra_types",
 ]
 
 [[package]]
 name = "filtra_plan"
 version = "0.1.0"
-source = "git+https://github.com/LaurenzV/filtra?rev=2e62761c31c28881ad7293bac570fd8e2127b791#2e62761c31c28881ad7293bac570fd8e2127b791"
+source = "git+https://github.com/LaurenzV/filtra?rev=292c41e1f9c8f33875fff949cab97068e88d8bb5#292c41e1f9c8f33875fff949cab97068e88d8bb5"
 dependencies = [
+ "filtra_core",
  "filtra_types",
 ]
 
 [[package]]
 name = "filtra_types"
 version = "0.1.0"
-source = "git+https://github.com/LaurenzV/filtra?rev=2e62761c31c28881ad7293bac570fd8e2127b791#2e62761c31c28881ad7293bac570fd8e2127b791"
+source = "git+https://github.com/LaurenzV/filtra?rev=292c41e1f9c8f33875fff949cab97068e88d8bb5#292c41e1f9c8f33875fff949cab97068e88d8bb5"
 
 [[package]]
 name = "flate2"
