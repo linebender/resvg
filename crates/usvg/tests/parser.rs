@@ -770,3 +770,33 @@ fn long_clip_path_chain() {
 
     assert!(usvg::Tree::from_str(&svg, &usvg::Options::default()).is_ok());
 }
+
+// Since `href` is a URL, non-ASCII characters and spaces in a local path are
+// commonly percent-encoded (e.g. by Inkscape) and must be decoded before
+// the path can be resolved. https://github.com/RazrFalcon/resvg/issues/1073
+#[test]
+fn percent_encoded_image_href_is_resolved() {
+    let dir = std::path::Path::new(env!("CARGO_TARGET_TMPDIR")).join("image-href-percent-decode");
+    std::fs::create_dir_all(&dir).unwrap();
+
+    let svg_content = "<svg xmlns='http://www.w3.org/2000/svg' width='1' height='1'/>";
+
+    // A file name with non-ASCII characters and a space, referenced percent-encoded.
+    let image_path = dir.join("\u{7EC6}\u{8282}3 mine.svg");
+    std::fs::write(&image_path, svg_content).unwrap();
+
+    let opt = usvg::Options {
+        resources_dir: Some(dir.clone()),
+        ..usvg::Options::default()
+    };
+    let resolve = usvg::ImageHrefResolver::default_string_resolver();
+
+    assert!(resolve("%E7%BB%86%E8%8A%823%20mine.svg", &opt).is_some());
+
+    // A file name that contains a literal '%' must keep resolving as well.
+    let raw_path = dir.join("100%.svg");
+    std::fs::write(&raw_path, svg_content).unwrap();
+    assert!(resolve("100%.svg", &opt).is_some());
+
+    std::fs::remove_dir_all(&dir).unwrap();
+}
