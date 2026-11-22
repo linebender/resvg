@@ -847,6 +847,11 @@ fn resolve_decoration(
         Some(TextDecorationStyle {
             fill: fill_node.and_then(|node| style::resolve_fill(node, true, state, cache)),
             stroke: stroke_node.and_then(|node| style::resolve_stroke(node, true, state, cache)),
+            paint_order: super::converter::svg_paint_order_to_usvg(
+                fill_node
+                    .and_then(|node| node.find_attribute(AId::PaintOrder))
+                    .unwrap_or_default(),
+            ),
         })
     };
 

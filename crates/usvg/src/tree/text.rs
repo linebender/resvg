@@ -285,6 +285,7 @@ impl Default for FontOpticalSizing {
 pub struct TextDecorationStyle {
     pub(crate) fill: Option<Fill>,
     pub(crate) stroke: Option<Stroke>,
+    pub(crate) paint_order: PaintOrder,
 }
 
 impl TextDecorationStyle {
