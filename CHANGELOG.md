@@ -14,6 +14,7 @@ This changelog also contains important changes in dependencies.
 - `usvg` stores filters using the types from `filtra_types`, which is re-exported as
   `usvg::filtra_types`. `usvg::filter::Filter` dereferences to `filtra_types::Filter<Group>`, and
   `usvg`'s own filter primitive types are removed. (#1255)
+- MSRV raised from 1.85 to 1.89 for `usvg`, `resvg` and the C API, which filtra requires.
 
 ### Added
 
