@@ -45,7 +45,6 @@ unicode-vo = { version = "0.1", optional = true }
 
 [dev-dependencies]
 once_cell = "1.21"
-png = "0.18.0"
 
 [features]
 default = ["svgz", "text", "system-fonts", "memmap-fonts", "writer"]

@@ -220,22 +220,23 @@ fn optimize_paths_without_markers() {
 }
 
 #[test]
-fn raw_image_is_written_as_png() {
+fn raw_image_is_written_as_href() {
     let pixels: Arc<Vec<u8>> = Arc::new(vec![255, 0, 0, 255, 0, 0, 255, 128]);
-    let image = usvg::RawImage::from_rgba8(2, 1, pixels.clone()).unwrap();
+    let image = usvg::RawImage::from_rgba8(2, 1, pixels).unwrap();
 
     let mut opt = usvg::Options::default();
-    opt.image_href_resolver.resolve_string =
-        Box::new(move |_, _| Some(usvg::ImageKind::RGBA(image.clone())));
+    opt.image_href_resolver.resolve_string = Box::new(move |href, _| {
+        (href == "https://example.com/pixels.qoi").then(|| usvg::ImageKind::RGBA(image.clone()))
+    });
 
     let svg = "<svg xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' \
-               width='2' height='1'><image xlink:href='pixels' width='2' height='1'/></svg>";
+               width='2' height='1'>\
+               <image xlink:href='https://example.com/pixels.qoi' width='2' height='1'/></svg>";
     let tree = usvg::Tree::from_str(svg, &opt).unwrap();
     let written = tree.to_string(&usvg::WriteOptions::default());
-    assert!(written.contains("data:image/png;base64,"));
+    assert!(written.contains("xlink:href=\"https://example.com/pixels.qoi\""));
 
-    // Parsing the written SVG decodes the embedded PNG.
-    let tree = usvg::Tree::from_str(&written, &usvg::Options::default()).unwrap();
+    let tree = usvg::Tree::from_str(&written, &opt).unwrap();
     fn find_image(group: &usvg::Group) -> Option<&usvg::Image> {
         group.children().iter().find_map(|node| match node {
             usvg::Node::Image(image) => Some(image.as_ref()),
@@ -244,15 +245,5 @@ fn raw_image_is_written_as_png() {
         })
     }
     let image = find_image(tree.root()).unwrap();
-    let usvg::ImageKind::PNG(png) = image.kind() else {
-        panic!("expected a PNG image");
-    };
-
-    let decoder = png::Decoder::new(std::io::Cursor::new(png.as_slice()));
-    let mut reader = decoder.read_info().unwrap();
-    let mut decoded = vec![0; reader.output_buffer_size().unwrap()];
-    let info = reader.next_frame(&mut decoded).unwrap();
-    assert_eq!((info.width, info.height), (2, 1));
-    assert_eq!(info.color_type, png::ColorType::Rgba);
-    assert_eq!(decoded, *pixels);
+    assert!(matches!(image.kind(), usvg::ImageKind::RGBA(_)));
 }

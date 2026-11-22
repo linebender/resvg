@@ -193,6 +193,7 @@ pub(crate) fn convert(
 
     convert_inner(
         kind,
+        href,
         id,
         visible,
         rendering_mode,
@@ -206,6 +207,7 @@ pub(crate) fn convert(
 
 pub(crate) fn convert_inner(
     kind: ImageKind,
+    href: &str,
     id: String,
     visible: bool,
     rendering_mode: ImageRendering,
@@ -237,6 +239,8 @@ pub(crate) fn convert_inner(
     let abs_transform = parent.abs_transform.pre_concat(image_ts);
     let abs_bounding_box = view_box.transform(parent.abs_transform)?;
 
+    let href = matches!(kind, ImageKind::RGBA(_)).then(|| href.to_string());
+
     let mut g = Group::empty();
     g.id = id;
     g.children.push(Node::Image(Box::new(Image {
@@ -245,6 +249,7 @@ pub(crate) fn convert_inner(
         size: actual_size,
         rendering_mode,
         kind,
+        href,
         abs_transform,
         abs_bounding_box,
     })));

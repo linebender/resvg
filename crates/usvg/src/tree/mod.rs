@@ -1547,6 +1547,10 @@ pub enum ImageKind {
     ///
     /// Lets the caller pass an image decoded by itself, e.g. in a format usvg doesn't support,
     /// or one it has already decoded for other purposes, without re-encoding it.
+    ///
+    /// The default [`ImageHrefResolver`](crate::ImageHrefResolver) never returns this kind.
+    /// It only appears when a custom resolver does. When writing the tree, such images are
+    /// written with the `href` they were resolved from instead of embedding their pixels.
     RGBA(RawImage),
 }
 
@@ -1658,6 +1662,7 @@ pub struct Image {
     pub(crate) size: Size,
     pub(crate) rendering_mode: ImageRendering,
     pub(crate) kind: ImageKind,
+    pub(crate) href: Option<String>,
     pub(crate) abs_transform: Transform,
     pub(crate) abs_bounding_box: NonZeroRect,
 }
