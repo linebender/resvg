@@ -15,7 +15,7 @@ name = "resvg"
 required-features = ["svgz", "text", "system-fonts", "memmap-fonts"]
 
 [dependencies]
-filtra = { git = "https://github.com/LaurenzV/filtra", rev = "12940850b1e0bdd15a762f1923af73a7c69ffddb" }
+filtra = "0.1.0"
 gif = { version = "0.14.1", optional = true }
 image-webp = { version = "0.2.4", optional = true }
 log = "0.4"

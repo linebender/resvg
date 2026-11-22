@@ -156,7 +156,8 @@ checksum = "629c9d6b6f30b5604089e0980f4d924a013aacb1654a6cdf5d3d852224f68651"
 [[package]]
 name = "filtra"
 version = "0.1.0"
-source = "git+https://github.com/LaurenzV/filtra?rev=12940850b1e0bdd15a762f1923af73a7c69ffddb#12940850b1e0bdd15a762f1923af73a7c69ffddb"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0a216025bc7086817e6b913df3cde4306056dce12c20915d704209900a658d95"
 dependencies = [
  "filtra_core",
  "filtra_kernels",
@@ -166,7 +167,8 @@ dependencies = [
 [[package]]
 name = "filtra_core"
 version = "0.1.0"
-source = "git+https://github.com/LaurenzV/filtra?rev=12940850b1e0bdd15a762f1923af73a7c69ffddb#12940850b1e0bdd15a762f1923af73a7c69ffddb"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "458c494d2dc1ad1f3aafa447ccd47d603e52eab73d686237b12e8afb89469733"
 dependencies = [
  "filtra_types",
 ]
@@ -174,7 +176,8 @@ dependencies = [
 [[package]]
 name = "filtra_kernels"
 version = "0.1.0"
-source = "git+https://github.com/LaurenzV/filtra?rev=12940850b1e0bdd15a762f1923af73a7c69ffddb#12940850b1e0bdd15a762f1923af73a7c69ffddb"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "207d8b1e6d5fb7dc9c49a331c5162957205cdf3e80fbf83c1d602a59f3a0aede"
 dependencies = [
  "fearless_simd",
  "filtra_core",
@@ -184,7 +187,8 @@ dependencies = [
 [[package]]
 name = "filtra_types"
 version = "0.1.0"
-source = "git+https://github.com/LaurenzV/filtra?rev=12940850b1e0bdd15a762f1923af73a7c69ffddb#12940850b1e0bdd15a762f1923af73a7c69ffddb"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "737a4db0adb76b7be609d183b6200b4941b4136fde3c12cab2252a9d6af18b9e"
 
 [[package]]
 name = "flate2"

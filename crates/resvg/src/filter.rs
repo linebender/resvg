@@ -14,11 +14,11 @@ pub fn apply(
 
     let (width, height) = (source.width(), source.height());
     let pixmap = cpu::PixmapMut::from_data(source.data_mut(), width, height);
-    let mut backend = cpu::Backend::new(0);
+    let mut pool = cpu::BufferPool::new(0);
     filtra::apply(
-        &mut backend,
         filter,
         pixmap,
+        &mut pool,
         transform,
         |root, subregion, rect, data| {
             render_image(root, subregion, transform, rect, data);

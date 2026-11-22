@@ -19,7 +19,7 @@ required-features = ["svgz", "text", "system-fonts", "memmap-fonts", "writer"]
 
 [dependencies]
 base64 = { version = "0.23", optional = true } # for embedded images
-filtra_types = { git = "https://github.com/LaurenzV/filtra", rev = "12940850b1e0bdd15a762f1923af73a7c69ffddb" }
+filtra_types = "0.1.0"
 log = "0.4"
 pico-args = { version = "0.5", features = ["eq-separator"] }
 strict-num = "0.1.1"
