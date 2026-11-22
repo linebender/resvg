@@ -10,6 +10,7 @@ use std::sync::{Arc, OnceLock};
 
 pub use strict_num::{self, ApproxEqUlps, NonZeroPositiveF32, NormalizedF32, PositiveF32};
 
+pub use filtra_types;
 pub use tiny_skia_path;
 
 pub use self::geom::*;
@@ -264,6 +265,17 @@ impl Display for BlendMode {
     }
 }
 
+/// A color interpolation mode.
+///
+/// The default is `ColorInterpolation::LinearRGB`.
+#[allow(missing_docs)]
+#[derive(Clone, Copy, PartialEq, Debug, Default)]
+pub enum ColorInterpolation {
+    SRGB,
+    #[default]
+    LinearRGB,
+}
+
 /// A spread method.
 ///
 /// `spreadMethod` attribute in the SVG.
@@ -288,7 +300,7 @@ pub struct BaseGradient {
     pub(crate) units: Units, // used only during parsing
     pub(crate) transform: Transform,
     pub(crate) spread_method: SpreadMethod,
-    pub(crate) color_interpolation: filter::ColorInterpolation,
+    pub(crate) color_interpolation: ColorInterpolation,
     pub(crate) stops: Vec<Stop>,
 }
 
@@ -316,7 +328,7 @@ impl BaseGradient {
     }
 
     /// The color space stop colors are interpolated in.
-    pub fn color_interpolation(&self) -> filter::ColorInterpolation {
+    pub fn color_interpolation(&self) -> ColorInterpolation {
         self.color_interpolation
     }
 
@@ -866,7 +878,7 @@ pub struct Mask {
     pub(crate) id: NonEmptyString,
     pub(crate) rect: NonZeroRect,
     pub(crate) kind: MaskType,
-    pub(crate) color_interpolation: filter::ColorInterpolation,
+    pub(crate) color_interpolation: ColorInterpolation,
     pub(crate) mask: Option<Arc<Mask>>,
     pub(crate) root: Group,
 }
@@ -895,7 +907,7 @@ impl Mask {
     }
 
     /// The color space the luminance of a luminance mask is computed in.
-    pub fn color_interpolation(&self) -> filter::ColorInterpolation {
+    pub fn color_interpolation(&self) -> ColorInterpolation {
         self.color_interpolation
     }
 
@@ -1273,7 +1285,7 @@ impl Group {
     pub fn filters_bounding_box(&self) -> Option<NonZeroRect> {
         let mut full_region = BBox::default();
         for filter in &self.filters {
-            full_region = full_region.expand(filter.rect);
+            full_region = full_region.expand(filter.rect());
         }
 
         full_region.to_non_zero_rect()
@@ -1297,9 +1309,9 @@ impl Group {
         }
 
         for filter in &self.filters {
-            for primitive in &filter.primitives {
-                if let filter::Kind::Image(ref image) = primitive.kind {
-                    f(image.root());
+            for node in filter.filter.nodes() {
+                if let filtra_types::Primitive::Image(ref root) = node.primitive {
+                    f(root);
                 }
             }
         }

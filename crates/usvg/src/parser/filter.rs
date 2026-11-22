@@ -3,29 +3,33 @@
 
 //! A collection of SVG filters.
 
-use std::collections::HashSet;
 use std::sync::Arc;
 
-use strict_num::PositiveF32;
+use filtra_types::{
+    Blend, BlendMode, ColorChannel, ColorInterpolation, ColorMatrix, ComponentTransfer, Composite,
+    CompositeOperator, ConvolveMatrix, DiffuseLighting, DisplacementMap, DistantLight, DropShadow,
+    EdgeMode, FilterFunction, Flood, GaussianBlur, Input, LightSource, Merge, Morphology,
+    MorphologyOperator, Node, Offset, PointLight, Primitive, SpecularLighting, SpotLight,
+    Subregion, Tile, TransferFunction, Turbulence, TurbulenceType,
+};
 use svgtypes::{AspectRatio, Length, LengthUnit as Unit};
 
-use crate::tree::BBox;
+use crate::filter::Filter;
 use crate::{
-    ApproxZeroUlps, Color, Group, Node, NonEmptyString, NonZeroF32, NonZeroRect, Opacity, Size,
-    Transform, Units,
-    filter::{self, *},
+    BlendMode as SvgBlendMode, Group, NonEmptyString, NonZeroRect, Opacity, Size, Transform, Units,
 };
 
 use super::OptionLog;
-use super::converter::{self, SvgColorExt};
+use super::converter;
 use super::paint_server::{convert_units, resolve_number};
 use super::svgtree::{AId, EId, FromValue, SvgNode};
+use super::units::convert_user_length;
 
-impl<'a, 'input: 'a> FromValue<'a, 'input> for filter::ColorInterpolation {
+impl<'a, 'input: 'a> FromValue<'a, 'input> for ColorInterpolation {
     fn parse(_: SvgNode, _: AId, value: &str) -> Option<Self> {
         match value {
-            "sRGB" => Some(filter::ColorInterpolation::SRGB),
-            "linearRGB" => Some(filter::ColorInterpolation::LinearRGB),
+            "sRGB" => Some(ColorInterpolation::Srgb),
+            "linearRGB" => Some(ColorInterpolation::LinearRgb),
             _ => None,
         }
     }
@@ -45,45 +49,6 @@ pub(crate) fn convert(
     let mut has_invalid_urls = false;
     let mut filters = Vec::new();
 
-    let create_base_filter_func =
-        |kind, filters: &mut Vec<Arc<Filter>>, cache: &mut converter::Cache| {
-            // Filter functions, unlike `filter` elements, do not have a filter region.
-            // We're currently do not support an unlimited region, so we simply use a fairly large one.
-            // This if far from ideal, but good for now.
-            // TODO: Should be fixed eventually.
-            let mut rect = match kind {
-                Kind::DropShadow(_) | Kind::GaussianBlur(_) => {
-                    NonZeroRect::from_xywh(-0.5, -0.5, 2.0, 2.0).unwrap()
-                }
-                _ => NonZeroRect::from_xywh(-0.1, -0.1, 1.2, 1.2).unwrap(),
-            };
-
-            let object_bbox = match object_bbox {
-                Some(v) => v,
-                None => {
-                    log::warn!(
-                        "Filter '{}' has an invalid region. Skipped.",
-                        node.element_id()
-                    );
-                    return;
-                }
-            };
-
-            rect = rect.bbox_transform(object_bbox);
-
-            filters.push(Arc::new(Filter {
-                id: cache.gen_filter_id(),
-                rect,
-                primitives: vec![Primitive {
-                    rect,
-                    // Unlike `filter` elements, filter functions use sRGB colors by default.
-                    color_interpolation: ColorInterpolation::SRGB,
-                    result: "result".to_string(),
-                    kind,
-                }],
-            }));
-        };
-
     for func in svgtypes::FilterValueListParser::from(value) {
         let func = match func {
             Ok(v) => v,
@@ -94,46 +59,34 @@ pub(crate) fn convert(
             }
         };
 
-        match func {
-            svgtypes::FilterValue::Blur(std_dev) => create_base_filter_func(
-                convert_blur_function(node, std_dev, state),
-                &mut filters,
-                cache,
-            ),
+        let function = match func {
+            svgtypes::FilterValue::Blur(std_dev) => {
+                FilterFunction::Blur(convert_user_length(std_dev, node, AId::Dx, state))
+            }
             svgtypes::FilterValue::DropShadow {
                 color,
                 dx,
                 dy,
                 std_dev,
-            } => create_base_filter_func(
-                convert_drop_shadow_function(node, color, dx, dy, std_dev, state),
-                &mut filters,
-                cache,
-            ),
-            svgtypes::FilterValue::Brightness(amount) => {
-                create_base_filter_func(convert_brightness_function(amount), &mut filters, cache);
-            }
-            svgtypes::FilterValue::Contrast(amount) => {
-                create_base_filter_func(convert_contrast_function(amount), &mut filters, cache);
-            }
-            svgtypes::FilterValue::Grayscale(amount) => {
-                create_base_filter_func(convert_grayscale_function(amount), &mut filters, cache);
-            }
+            } => FilterFunction::DropShadow {
+                dx: convert_user_length(dx, node, AId::Dx, state),
+                dy: convert_user_length(dy, node, AId::Dy, state),
+                std_dev: convert_user_length(std_dev, node, AId::Dx, state),
+                color: convert_color(color.unwrap_or_else(|| {
+                    node.find_attribute(AId::Color)
+                        .unwrap_or_else(svgtypes::Color::black)
+                })),
+            },
+            svgtypes::FilterValue::Brightness(amount) => FilterFunction::Brightness(amount as f32),
+            svgtypes::FilterValue::Contrast(amount) => FilterFunction::Contrast(amount as f32),
+            svgtypes::FilterValue::Grayscale(amount) => FilterFunction::Grayscale(amount as f32),
             svgtypes::FilterValue::HueRotate(angle) => {
-                create_base_filter_func(convert_hue_rotate_function(angle), &mut filters, cache);
+                FilterFunction::HueRotate(angle.to_degrees() as f32)
             }
-            svgtypes::FilterValue::Invert(amount) => {
-                create_base_filter_func(convert_invert_function(amount), &mut filters, cache);
-            }
-            svgtypes::FilterValue::Opacity(amount) => {
-                create_base_filter_func(convert_opacity_function(amount), &mut filters, cache);
-            }
-            svgtypes::FilterValue::Sepia(amount) => {
-                create_base_filter_func(convert_sepia_function(amount), &mut filters, cache);
-            }
-            svgtypes::FilterValue::Saturate(amount) => {
-                create_base_filter_func(convert_saturate_function(amount), &mut filters, cache);
-            }
+            svgtypes::FilterValue::Invert(amount) => FilterFunction::Invert(amount as f32),
+            svgtypes::FilterValue::Opacity(amount) => FilterFunction::Opacity(amount as f32),
+            svgtypes::FilterValue::Sepia(amount) => FilterFunction::Sepia(amount as f32),
+            svgtypes::FilterValue::Saturate(amount) => FilterFunction::Saturate(amount as f32),
             svgtypes::FilterValue::Url(url) => {
                 if let Some(link) = node.document().element_by_id(url) {
                     if let Ok(res) = convert_url(link, state, object_bbox, cache) {
@@ -146,8 +99,38 @@ pub(crate) fn convert(
                 } else {
                     has_invalid_urls = true;
                 }
+
+                continue;
             }
-        }
+        };
+
+        let Some(object_bbox) = object_bbox else {
+            log::warn!(
+                "Filter '{}' has an invalid region. Skipped.",
+                node.element_id()
+            );
+            continue;
+        };
+
+        // Filter functions, unlike `filter` elements, do not have a filter region.
+        // Instead of the one `from_functions` derives from the content, we currently use a fairly
+        // large one. This is far from ideal, but good for now.
+        // TODO: Should be fixed eventually.
+        let region = match function {
+            FilterFunction::DropShadow { .. } | FilterFunction::Blur(_) => {
+                NonZeroRect::from_xywh(-0.5, -0.5, 2.0, 2.0).unwrap()
+            }
+            _ => NonZeroRect::from_xywh(-0.1, -0.1, 1.2, 1.2).unwrap(),
+        };
+        let region = convert_rect(region.bbox_transform(object_bbox));
+
+        let mut filter = filtra_types::Filter::from_functions(&[function], region);
+        filter.region = region;
+
+        filters.push(Arc::new(Filter {
+            id: cache.gen_filter_id(),
+            filter,
+        }));
     }
 
     // If a `filter` attribute had urls pointing to a missing elements
@@ -235,7 +218,7 @@ fn convert_url(
         Some(v) => v,
         None => return Err(()),
     };
-    let primitives = collect_children(
+    let filter = collect_children(
         &node_with_primitives,
         primitive_units,
         state,
@@ -243,7 +226,7 @@ fn convert_url(
         rect,
         cache,
     );
-    if primitives.is_empty() {
+    if filter.nodes().is_empty() {
         return Err(());
     }
 
@@ -254,11 +237,7 @@ fn convert_url(
     }
     let id_copy = id.get().to_string();
 
-    let filter = Arc::new(Filter {
-        id,
-        rect,
-        primitives,
-    });
+    let filter = Arc::new(Filter { id, filter });
 
     cache.filters.insert(id_copy, filter.clone());
 
@@ -284,11 +263,6 @@ fn find_filter_with_primitives<'a>(node: SvgNode<'a, 'a>) -> Option<SvgNode<'a, 
     None
 }
 
-struct FilterResults {
-    names: HashSet<String>,
-    idx: usize,
-}
-
 fn collect_children(
     filter: &SvgNode,
     units: Units,
@@ -296,24 +270,17 @@ fn collect_children(
     object_bbox: Option<NonZeroRect>,
     filter_region: NonZeroRect,
     cache: &mut converter::Cache,
-) -> Vec<Primitive> {
-    let mut primitives = Vec::new();
+) -> filtra_types::Filter<Group> {
+    let mut converted = filtra_types::Filter::new(convert_rect(filter_region));
+    let mut results = Vec::new();
 
-    let mut results = FilterResults {
-        names: HashSet::new(),
-        idx: 1,
+    let bbox = match (units, object_bbox) {
+        // No need to warn. Already checked.
+        (Units::ObjectBoundingBox, None) => return converted,
+        (Units::ObjectBoundingBox, bbox) => bbox,
+        (Units::UserSpaceOnUse, _) => None,
     };
-
-    let scale = if units == Units::ObjectBoundingBox {
-        if let Some(object_bbox) = object_bbox {
-            object_bbox.size()
-        } else {
-            // No need to warn. Already checked.
-            return Vec::new();
-        }
-    } else {
-        Size::from_wh(1.0, 1.0).unwrap()
-    };
+    let scale = bbox.map_or(Size::from_wh(1.0, 1.0).unwrap(), |bbox| bbox.size());
 
     for child in filter.children() {
         let tag_name = match child.tag_name() {
@@ -321,268 +288,171 @@ fn collect_children(
             None => continue,
         };
 
-        let default_subregion = default_primitive_subregion(child, &primitives, filter_region);
-        let filter_subregion =
-            match resolve_primitive_region(child, units, state, object_bbox, default_subregion) {
-                Some(v) => v,
-                None => break,
-            };
+        let subregion = convert_subregion(child, units, state, bbox);
+        let mut node = match tag_name {
+            EId::FeDropShadow => convert_drop_shadow(child, scale, &results),
+            EId::FeGaussianBlur => convert_gaussian_blur(child, scale, &results),
+            EId::FeOffset => convert_offset(child, scale, &results),
+            EId::FeBlend => convert_blend(child, &results),
+            EId::FeFlood => Node::new(Primitive::Flood(convert_flood(child)), []),
+            EId::FeComposite => convert_composite(child, &results),
+            EId::FeMerge => convert_merge(child, &results),
+            EId::FeTile => convert_tile(child, &results),
+            EId::FeImage => convert_image(child, subregion, filter_region, state, cache),
+            EId::FeComponentTransfer => convert_component_transfer(child, &results),
+            EId::FeColorMatrix => convert_color_matrix(child, &results),
+            EId::FeConvolveMatrix => convert_convolve_matrix(child, &results),
+            EId::FeMorphology => convert_morphology(child, scale, &results),
+            EId::FeDisplacementMap => convert_displacement_map(child, scale, &results),
+            EId::FeTurbulence => convert_turbulence(child),
+            EId::FeDiffuseLighting => convert_diffuse_lighting(child, &results)
+                .unwrap_or_else(|| transparent_black(child, &results)),
+            EId::FeSpecularLighting => convert_specular_lighting(child, &results)
+                .unwrap_or_else(|| transparent_black(child, &results)),
+            tag_name => {
+                log::warn!("'{}' is not a valid filter primitive. Skipped.", tag_name);
+                continue;
+            }
+        };
 
-        let kind =
-            match tag_name {
-                EId::FeDropShadow => convert_drop_shadow(child, scale, &primitives),
-                EId::FeGaussianBlur => convert_gaussian_blur(child, scale, &primitives),
-                EId::FeOffset => convert_offset(child, scale, &primitives),
-                EId::FeBlend => convert_blend(child, &primitives),
-                EId::FeFlood => convert_flood(child),
-                EId::FeComposite => convert_composite(child, &primitives),
-                EId::FeMerge => convert_merge(child, &primitives),
-                EId::FeTile => convert_tile(child, &primitives),
-                EId::FeImage => convert_image(child, filter_subregion, state, cache),
-                EId::FeComponentTransfer => convert_component_transfer(child, &primitives),
-                EId::FeColorMatrix => convert_color_matrix(child, &primitives),
-                EId::FeConvolveMatrix => convert_convolve_matrix(child, &primitives)
-                    .unwrap_or_else(create_dummy_primitive),
-                EId::FeMorphology => convert_morphology(child, scale, &primitives),
-                EId::FeDisplacementMap => convert_displacement_map(child, scale, &primitives),
-                EId::FeTurbulence => convert_turbulence(child),
-                EId::FeDiffuseLighting => convert_diffuse_lighting(child, &primitives)
-                    .unwrap_or_else(create_dummy_primitive),
-                EId::FeSpecularLighting => convert_specular_lighting(child, &primitives)
-                    .unwrap_or_else(create_dummy_primitive),
-                tag_name => {
-                    log::warn!("'{}' is not a valid filter primitive. Skipped.", tag_name);
-                    continue;
-                }
-            };
-
-        let color_interpolation = child
+        node.subregion = subregion;
+        node.color_interpolation = child
             .find_attribute(AId::ColorInterpolationFilters)
             .unwrap_or_default();
 
-        primitives.push(Primitive {
-            rect: filter_subregion,
-            color_interpolation,
-            result: gen_result(child, &mut results),
-            kind,
-        });
+        converted.push(node);
+        results.push(child.attribute::<&str>(AId::Result));
     }
 
-    // TODO: remove primitives which results are not used
-
-    primitives
+    converted
 }
 
-/// Returns the subregion a primitive uses for its omitted `x`, `y`, `width` and `height`.
-///
-/// <https://www.w3.org/TR/filter-effects-1/#FilterPrimitiveSubRegion>
-fn default_primitive_subregion(
-    fe: SvgNode,
-    primitives: &[Primitive],
-    filter_region: NonZeroRect,
-) -> NonZeroRect {
-    let input_attrs: &[AId] = match fe.tag_name() {
-        Some(EId::FeBlend | EId::FeComposite | EId::FeDisplacementMap) => &[AId::In, AId::In2],
-        Some(
-            EId::FeColorMatrix
-            | EId::FeComponentTransfer
-            | EId::FeConvolveMatrix
-            | EId::FeDiffuseLighting
-            | EId::FeDropShadow
-            | EId::FeGaussianBlur
-            | EId::FeMorphology
-            | EId::FeOffset
-            | EId::FeSpecularLighting,
-        ) => &[AId::In],
-        _ => &[],
-    };
-
-    let merge_inputs = (fe.tag_name() == Some(EId::FeMerge))
-        .then(|| fe.children())
-        .into_iter()
-        .flatten()
-        .map(|n| resolve_input(n, AId::In, primitives));
-    let attr_inputs = input_attrs
-        .iter()
-        .map(|aid| resolve_input(fe, *aid, primitives));
-
-    let mut union = BBox::default();
-    for input in merge_inputs.chain(attr_inputs) {
-        let Input::Reference(name) = input else {
-            return filter_region;
-        };
-
-        let Some(rect) = primitives
-            .iter()
-            .rev()
-            .find(|p| p.result == *name)
-            .map(|p| p.rect)
-        else {
-            return filter_region;
-        };
-
-        union = union.expand(rect);
-    }
-
-    union.to_non_zero_rect().unwrap_or(filter_region)
+fn convert_rect(rect: NonZeroRect) -> filtra_types::Rect {
+    filtra_types::Rect::from_ltrb(rect.left(), rect.top(), rect.right(), rect.bottom())
 }
 
-fn resolve_primitive_region(
+fn convert_subregion(
     fe: SvgNode,
     units: Units,
     state: &converter::State,
     bbox: Option<NonZeroRect>,
-    default_region: NonZeroRect,
-) -> Option<NonZeroRect> {
-    let mut x = fe.try_convert_length(AId::X, units, state);
-    let mut y = fe.try_convert_length(AId::Y, units, state);
-    let mut width = fe.try_convert_length(AId::Width, units, state);
-    let mut height = fe.try_convert_length(AId::Height, units, state);
+) -> Subregion {
+    let length = |aid| fe.try_convert_length(aid, units, state);
+    let mut subregion = Subregion {
+        x: length(AId::X),
+        y: length(AId::Y),
+        width: length(AId::Width),
+        height: length(AId::Height),
+    };
 
-    if units == Units::ObjectBoundingBox {
-        let bbox = bbox?;
-        x = x.map(|v| bbox.x() + v * bbox.width());
-        y = y.map(|v| bbox.y() + v * bbox.height());
-        width = width.map(|v| v * bbox.width());
-        height = height.map(|v| v * bbox.height());
+    if let Some(bbox) = bbox {
+        subregion.x = subregion.x.map(|x| bbox.x() + x * bbox.width());
+        subregion.y = subregion.y.map(|y| bbox.y() + y * bbox.height());
+        subregion.width = subregion.width.map(|width| width * bbox.width());
+        subregion.height = subregion.height.map(|height| height * bbox.height());
     }
 
-    NonZeroRect::from_xywh(
-        x.unwrap_or(default_region.x()),
-        y.unwrap_or(default_region.y()),
-        width.unwrap_or(default_region.width()),
-        height.unwrap_or(default_region.height()),
+    subregion
+}
+
+// A malformed filter primitive produces transparent black. Unlike a transparent `feFlood`, a zero
+// color matrix keeps the input that the default subregion is derived from.
+fn transparent_black(fe: SvgNode, results: &[Option<&str>]) -> Node<Group> {
+    let input = resolve_input(fe, AId::In, results);
+    Node::new(
+        Primitive::ColorMatrix(ColorMatrix::Matrix([0.0; 20])),
+        [input],
     )
 }
 
-// A malformed filter primitive usually should produce a transparent image.
-// But since `FilterKind` structs are designed to always be valid,
-// we are using `FeFlood` as fallback.
 #[inline(never)]
-pub(crate) fn create_dummy_primitive() -> Kind {
-    Kind::Flood(Flood {
-        color: Color::black(),
-        opacity: Opacity::ZERO,
-    })
-}
+fn resolve_input(node: SvgNode, aid: AId, results: &[Option<&str>]) -> Input {
+    // Without `in`, or with an `in` that references an unknown `result`, the input is the result
+    // of the previous primitive, or `SourceGraphic` for the first one.
+    let previous = || {
+        results
+            .len()
+            .checked_sub(1)
+            .map_or(Input::SourceGraphic, Input::Result)
+    };
 
-#[inline(never)]
-fn resolve_input(node: SvgNode, aid: AId, primitives: &[Primitive]) -> Input {
     match node.attribute(aid) {
-        Some(s) => {
-            let input = parse_in(s);
-
-            // If `in` references an unknown `result` than fallback
-            // to previous result or `SourceGraphic`.
-            if let Input::Reference(ref name) = input {
-                if !primitives.iter().any(|p| p.result == *name) {
-                    return if let Some(prev) = primitives.last() {
-                        Input::Reference(prev.result.clone())
-                    } else {
-                        Input::SourceGraphic
-                    };
-                }
-            }
-
-            input
-        }
-        None => {
-            if let Some(prev) = primitives.last() {
-                // If `in` is not set and this is not the first primitive
-                // than the input is a result of the previous primitive.
-                Input::Reference(prev.result.clone())
-            } else {
-                // If `in` is not set and this is the first primitive
-                // than the input is `SourceGraphic`.
-                Input::SourceGraphic
-            }
-        }
-    }
-}
-
-fn parse_in(s: &str) -> Input {
-    match s {
-        "SourceGraphic" => Input::SourceGraphic,
-        "SourceAlpha" => Input::SourceAlpha,
-        "BackgroundImage" | "BackgroundAlpha" | "FillPaint" | "StrokePaint" => {
+        Some("SourceGraphic") => Input::SourceGraphic,
+        Some("SourceAlpha") => Input::SourceAlpha,
+        Some(s @ ("BackgroundImage" | "BackgroundAlpha" | "FillPaint" | "StrokePaint")) => {
             log::warn!("{} filter input isn't supported and not planed.", s);
             Input::SourceGraphic
         }
-        _ => Input::Reference(s.to_string()),
+        Some(name) => results
+            .iter()
+            .rposition(|result| *result == Some(name))
+            .map_or_else(previous, Input::Result),
+        None => previous(),
     }
 }
 
-fn gen_result(node: SvgNode, results: &mut FilterResults) -> String {
-    match node.attribute::<&str>(AId::Result) {
-        Some(s) => {
-            // Remember predefined result.
-            results.names.insert(s.to_string());
-            results.idx += 1;
-
-            s.to_string()
-        }
-        None => {
-            // Generate an unique name for `result`.
-            loop {
-                let name = format!("result{}", results.idx);
-                results.idx += 1;
-
-                if !results.names.contains(&name) {
-                    return name;
-                }
-            }
-        }
-    }
-}
-
-fn convert_blend(fe: SvgNode, primitives: &[Primitive]) -> Kind {
-    let mode = fe.attribute(AId::Mode).unwrap_or_default();
-    let input1 = resolve_input(fe, AId::In, primitives);
-    let input2 = resolve_input(fe, AId::In2, primitives);
-    Kind::Blend(Blend {
+fn convert_blend(fe: SvgNode, results: &[Option<&str>]) -> Node<Group> {
+    let mode = match fe.attribute(AId::Mode).unwrap_or_default() {
+        SvgBlendMode::Normal | SvgBlendMode::PlusLighter => BlendMode::Normal,
+        SvgBlendMode::Multiply => BlendMode::Multiply,
+        SvgBlendMode::Screen => BlendMode::Screen,
+        SvgBlendMode::Overlay => BlendMode::Overlay,
+        SvgBlendMode::Darken => BlendMode::Darken,
+        SvgBlendMode::Lighten => BlendMode::Lighten,
+        SvgBlendMode::ColorDodge => BlendMode::ColorDodge,
+        SvgBlendMode::ColorBurn => BlendMode::ColorBurn,
+        SvgBlendMode::HardLight => BlendMode::HardLight,
+        SvgBlendMode::SoftLight => BlendMode::SoftLight,
+        SvgBlendMode::Difference => BlendMode::Difference,
+        SvgBlendMode::Exclusion => BlendMode::Exclusion,
+        SvgBlendMode::Hue => BlendMode::Hue,
+        SvgBlendMode::Saturation => BlendMode::Saturation,
+        SvgBlendMode::Color => BlendMode::Color,
+        SvgBlendMode::Luminosity => BlendMode::Luminosity,
+    };
+    let input1 = resolve_input(fe, AId::In, results);
+    let input2 = resolve_input(fe, AId::In2, results);
+    let blend = Blend {
         mode,
-        input1,
-        input2,
-    })
+        no_composite: false,
+    };
+    Node::new(Primitive::Blend(blend), [input1, input2])
 }
 
-fn convert_color_matrix(fe: SvgNode, primitives: &[Primitive]) -> Kind {
-    let kind = convert_color_matrix_kind(fe).unwrap_or_default();
-    Kind::ColorMatrix(ColorMatrix {
-        input: resolve_input(fe, AId::In, primitives),
-        kind,
-    })
+fn convert_color_matrix(fe: SvgNode, results: &[Option<&str>]) -> Node<Group> {
+    let matrix = convert_color_matrix_kind(fe).unwrap_or_default();
+    let input = resolve_input(fe, AId::In, results);
+    Node::new(Primitive::ColorMatrix(matrix), [input])
 }
 
-fn convert_color_matrix_kind(fe: SvgNode) -> Option<ColorMatrixKind> {
+fn convert_color_matrix_kind(fe: SvgNode) -> Option<ColorMatrix> {
     match fe.attribute(AId::Type) {
         Some("saturate") => {
             if let Some(list) = fe.attribute::<Vec<f32>>(AId::Values) {
                 if !list.is_empty() {
-                    let n = crate::f32_bound(0.0, list[0], 1.0);
-                    return Some(ColorMatrixKind::Saturate(PositiveF32::new(n).unwrap()));
+                    return Some(ColorMatrix::Saturate(list[0]));
                 } else {
-                    return Some(ColorMatrixKind::Saturate(PositiveF32::new(1.0).unwrap()));
+                    return Some(ColorMatrix::Saturate(1.0));
                 }
             }
         }
         Some("hueRotate") => {
             if let Some(list) = fe.attribute::<Vec<f32>>(AId::Values) {
                 if !list.is_empty() {
-                    return Some(ColorMatrixKind::HueRotate(list[0]));
+                    return Some(ColorMatrix::HueRotate(list[0]));
                 } else {
-                    return Some(ColorMatrixKind::HueRotate(0.0));
+                    return Some(ColorMatrix::HueRotate(0.0));
                 }
             }
         }
         Some("luminanceToAlpha") => {
-            return Some(ColorMatrixKind::LuminanceToAlpha);
+            return Some(ColorMatrix::LuminanceToAlpha);
         }
         _ => {
             // Fallback to `matrix`.
             if let Some(list) = fe.attribute::<Vec<f32>>(AId::Values) {
-                if list.len() == 20 {
-                    return Some(ColorMatrixKind::Matrix(list));
+                if let Ok(matrix) = list.try_into() {
+                    return Some(ColorMatrix::Matrix(matrix));
                 }
             }
         }
@@ -591,28 +461,23 @@ fn convert_color_matrix_kind(fe: SvgNode) -> Option<ColorMatrixKind> {
     None
 }
 
-fn convert_component_transfer(fe: SvgNode, primitives: &[Primitive]) -> Kind {
-    let mut kind = ComponentTransfer {
-        input: resolve_input(fe, AId::In, primitives),
-        func_r: TransferFunction::Identity,
-        func_g: TransferFunction::Identity,
-        func_b: TransferFunction::Identity,
-        func_a: TransferFunction::Identity,
-    };
+fn convert_component_transfer(fe: SvgNode, results: &[Option<&str>]) -> Node<Group> {
+    let mut transfer = ComponentTransfer::default();
 
     for child in fe.children().filter(|n| n.is_element()) {
         if let Some(func) = convert_transfer_function(child) {
             match child.tag_name().unwrap() {
-                EId::FeFuncR => kind.func_r = func,
-                EId::FeFuncG => kind.func_g = func,
-                EId::FeFuncB => kind.func_b = func,
-                EId::FeFuncA => kind.func_a = func,
+                EId::FeFuncR => transfer.red = func,
+                EId::FeFuncG => transfer.green = func,
+                EId::FeFuncB => transfer.blue = func,
+                EId::FeFuncA => transfer.alpha = func,
                 _ => {}
             }
         }
     }
 
-    Kind::ComponentTransfer(kind)
+    let input = resolve_input(fe, AId::In, results);
+    Node::new(Primitive::ComponentTransfer(transfer), [input])
 }
 
 fn convert_transfer_function(node: SvgNode) -> Option<TransferFunction> {
@@ -639,7 +504,7 @@ fn convert_transfer_function(node: SvgNode) -> Option<TransferFunction> {
     }
 }
 
-fn convert_composite(fe: SvgNode, primitives: &[Primitive]) -> Kind {
+fn convert_composite(fe: SvgNode, results: &[Option<&str>]) -> Node<Group> {
     let operator = match fe.attribute(AId::Operator).unwrap_or("over") {
         "in" => CompositeOperator::In,
         "out" => CompositeOperator::Out,
@@ -655,84 +520,48 @@ fn convert_composite(fe: SvgNode, primitives: &[Primitive]) -> Kind {
         _ => CompositeOperator::Over,
     };
 
-    let input1 = resolve_input(fe, AId::In, primitives);
-    let input2 = resolve_input(fe, AId::In2, primitives);
-
-    Kind::Composite(Composite {
-        operator,
-        input1,
-        input2,
-    })
+    let input1 = resolve_input(fe, AId::In, results);
+    let input2 = resolve_input(fe, AId::In2, results);
+    Node::new(
+        Primitive::Composite(Composite { operator }),
+        [input1, input2],
+    )
 }
 
-fn convert_convolve_matrix(fe: SvgNode, primitives: &[Primitive]) -> Option<Kind> {
-    fn parse_target(target: Option<f32>, order: u32) -> Option<u32> {
-        let default_target = (order as f32 / 2.0).floor() as u32;
-        let target = target.unwrap_or(default_target as f32) as i32;
-        if target < 0 || target >= order as i32 {
-            None
-        } else {
-            Some(target as u32)
-        }
-    }
-
-    let mut order_x = 3;
-    let mut order_y = 3;
-    if let Some(value) = fe.attribute::<&str>(AId::Order) {
-        let mut s = svgtypes::NumberListParser::from(value);
-        let x = s.next().and_then(|a| a.ok()).map(|n| n as i32).unwrap_or(3);
-        let y = s.next().and_then(|a| a.ok()).map(|n| n as i32).unwrap_or(x);
-        if x > 0 && y > 0 {
-            order_x = x as u32;
-            order_y = y as u32;
-        }
-    }
-
-    let mut matrix = Vec::new();
-    if let Some(list) = fe.attribute::<Vec<f32>>(AId::KernelMatrix) {
-        if list.len() == (order_x * order_y) as usize {
-            matrix = list;
-        }
-    }
-
-    let mut kernel_sum: f32 = matrix.iter().sum();
-    // Round up to prevent float precision issues.
-    kernel_sum = (kernel_sum * 1_000_000.0).round() / 1_000_000.0;
-    if kernel_sum.approx_zero_ulps(4) {
-        kernel_sum = 1.0;
-    }
-
-    let divisor = fe.attribute(AId::Divisor).unwrap_or(kernel_sum);
-    if divisor.approx_zero_ulps(4) {
-        return None;
-    }
-
-    let bias = fe.attribute(AId::Bias).unwrap_or(0.0);
-
-    let target_x = parse_target(fe.attribute(AId::TargetX), order_x)?;
-    let target_y = parse_target(fe.attribute(AId::TargetY), order_y)?;
-
-    let kernel_matrix = ConvolveMatrixData::new(target_x, target_y, order_x, order_y, matrix)?;
+fn convert_convolve_matrix(fe: SvgNode, results: &[Option<&str>]) -> Node<Group> {
+    let (order_x, order_y) = match convert_number_optional_number(fe, AId::Order) {
+        Some((x, y)) if x >= 1.0 && y >= 1.0 => (x as u32, y as u32),
+        _ => (3, 3),
+    };
 
     let edge_mode = match fe.attribute(AId::EdgeMode).unwrap_or("duplicate") {
         "none" => EdgeMode::None,
         "wrap" => EdgeMode::Wrap,
+        "mirror" => EdgeMode::Mirror,
         _ => EdgeMode::Duplicate,
     };
 
-    let preserve_alpha = fe.attribute(AId::PreserveAlpha).unwrap_or("false") == "true";
-
-    Some(Kind::ConvolveMatrix(ConvolveMatrix {
-        input: resolve_input(fe, AId::In, primitives),
-        matrix: kernel_matrix,
-        divisor: NonZeroF32::new(divisor).unwrap(),
-        bias,
+    let convolve = ConvolveMatrix {
+        order_x,
+        order_y,
+        kernel: fe.attribute(AId::KernelMatrix).unwrap_or_default(),
+        divisor: fe.attribute(AId::Divisor),
+        bias: fe.attribute(AId::Bias).unwrap_or(0.0),
+        target_x: fe
+            .attribute::<f32>(AId::TargetX)
+            .map(|target| target as i32),
+        target_y: fe
+            .attribute::<f32>(AId::TargetY)
+            .map(|target| target as i32),
         edge_mode,
-        preserve_alpha,
-    }))
+        kernel_unit_length: None,
+        preserve_alpha: fe.attribute(AId::PreserveAlpha) == Some("true"),
+    };
+    let input = resolve_input(fe, AId::In, results);
+    Node::new(Primitive::ConvolveMatrix(convolve), [input])
 }
 
-fn convert_displacement_map(fe: SvgNode, scale: Size, primitives: &[Primitive]) -> Kind {
+fn convert_displacement_map(fe: SvgNode, scale: Size, results: &[Option<&str>]) -> Node<Group> {
     let parse_channel = |aid| match fe.attribute(aid).unwrap_or("A") {
         "R" => ColorChannel::R,
         "G" => ColorChannel::G,
@@ -744,106 +573,96 @@ fn convert_displacement_map(fe: SvgNode, scale: Size, primitives: &[Primitive]) 
     //       to handle `primitiveUnits=objectBoundingBox` with a non-square bbox.
     let scale = (scale.width() + scale.height()) / 2.0;
 
-    Kind::DisplacementMap(DisplacementMap {
-        input1: resolve_input(fe, AId::In, primitives),
-        input2: resolve_input(fe, AId::In2, primitives),
+    let map = DisplacementMap {
         scale: fe.attribute(AId::Scale).unwrap_or(0.0) * scale,
-        x_channel_selector: parse_channel(AId::XChannelSelector),
-        y_channel_selector: parse_channel(AId::YChannelSelector),
-    })
+        x_channel: parse_channel(AId::XChannelSelector),
+        y_channel: parse_channel(AId::YChannelSelector),
+    };
+    let input1 = resolve_input(fe, AId::In, results);
+    let input2 = resolve_input(fe, AId::In2, results);
+    Node::new(Primitive::DisplacementMap(map), [input1, input2])
 }
 
-fn convert_drop_shadow(fe: SvgNode, scale: Size, primitives: &[Primitive]) -> Kind {
-    let (std_dev_x, std_dev_y) = convert_std_dev_attr(fe, scale, "2 2");
-
-    let (color, opacity) = fe
-        .attribute(AId::FloodColor)
-        .unwrap_or_else(svgtypes::Color::black)
-        .split_alpha();
-
-    let flood_opacity = fe
-        .attribute::<Opacity>(AId::FloodOpacity)
-        .unwrap_or(Opacity::ONE);
-
-    Kind::DropShadow(DropShadow {
-        input: resolve_input(fe, AId::In, primitives),
+fn convert_drop_shadow(fe: SvgNode, scale: Size, results: &[Option<&str>]) -> Node<Group> {
+    let (std_dev_x, std_dev_y) = convert_std_dev_attr(fe, scale, 2.0);
+    let Flood { color, opacity } = convert_flood(fe);
+    let shadow = DropShadow {
         dx: fe.attribute(AId::Dx).unwrap_or(2.0) * scale.width(),
         dy: fe.attribute(AId::Dy).unwrap_or(2.0) * scale.height(),
         std_dev_x,
         std_dev_y,
         color,
-        opacity: opacity * flood_opacity,
-    })
+        opacity,
+    };
+    let input = resolve_input(fe, AId::In, results);
+    Node::new(Primitive::DropShadow(shadow), [input])
 }
 
-fn convert_flood(fe: SvgNode) -> Kind {
-    let (color, opacity) = fe
+fn convert_flood(fe: SvgNode) -> Flood {
+    let color = fe
         .attribute(AId::FloodColor)
-        .unwrap_or_else(svgtypes::Color::black)
-        .split_alpha();
-
-    let flood_opacity = fe
+        .unwrap_or_else(svgtypes::Color::black);
+    let opacity = fe
         .attribute::<Opacity>(AId::FloodOpacity)
         .unwrap_or(Opacity::ONE);
 
-    Kind::Flood(Flood {
-        color,
-        opacity: opacity * flood_opacity,
-    })
+    Flood {
+        color: convert_color(color),
+        opacity: opacity.get(),
+    }
 }
 
-fn convert_gaussian_blur(fe: SvgNode, scale: Size, primitives: &[Primitive]) -> Kind {
-    let (std_dev_x, std_dev_y) = convert_std_dev_attr(fe, scale, "0 0");
-    Kind::GaussianBlur(GaussianBlur {
-        input: resolve_input(fe, AId::In, primitives),
+fn convert_gaussian_blur(fe: SvgNode, scale: Size, results: &[Option<&str>]) -> Node<Group> {
+    let (std_dev_x, std_dev_y) = convert_std_dev_attr(fe, scale, 0.0);
+    let blur = GaussianBlur {
         std_dev_x,
         std_dev_y,
-    })
+        edge_mode: EdgeMode::None,
+    };
+    let input = resolve_input(fe, AId::In, results);
+    Node::new(Primitive::GaussianBlur(blur), [input])
 }
 
-fn convert_std_dev_attr(fe: SvgNode, scale: Size, default: &str) -> (PositiveF32, PositiveF32) {
-    let text = fe.attribute(AId::StdDeviation).unwrap_or(default);
-    let mut parser = svgtypes::NumberListParser::from(text);
+fn convert_std_dev_attr(fe: SvgNode, scale: Size, default: f32) -> (f32, f32) {
+    let (x, y) =
+        convert_number_optional_number(fe, AId::StdDeviation).unwrap_or((default, default));
+    (x * scale.width(), y * scale.height())
+}
 
-    let n1 = parser.next().and_then(|n| n.ok());
-    let n2 = parser.next().and_then(|n| n.ok());
-    // `stdDeviation` must have no more than two values.
-    // Otherwise we should fallback to `0 0`.
-    let n3 = parser.next().and_then(|n| n.ok());
-
-    let (std_dev_x, std_dev_y) = match (n1, n2, n3) {
-        (Some(n1), Some(n2), None) => (n1, n2),
-        (Some(n1), None, None) => (n1, n1),
-        _ => (0.0, 0.0),
-    };
-
-    let std_dev_x = (std_dev_x as f32) * scale.width();
-    let std_dev_y = (std_dev_y as f32) * scale.height();
-
-    let std_dev_x = PositiveF32::new(std_dev_x).unwrap_or(PositiveF32::ZERO);
-    let std_dev_y = PositiveF32::new(std_dev_y).unwrap_or(PositiveF32::ZERO);
-
-    (std_dev_x, std_dev_y)
+fn convert_number_optional_number(fe: SvgNode, aid: AId) -> Option<(f32, f32)> {
+    match *fe.attribute::<Vec<f32>>(aid)? {
+        [n] => Some((n, n)),
+        [x, y] => Some((x, y)),
+        _ => None,
+    }
 }
 
 fn convert_image(
     fe: SvgNode,
-    filter_subregion: NonZeroRect,
+    subregion: Subregion,
+    filter_region: NonZeroRect,
     state: &converter::State,
     cache: &mut converter::Cache,
-) -> Kind {
-    match convert_image_inner(fe, filter_subregion, state, cache) {
-        Some(kind) => kind,
-        None => create_dummy_primitive(),
+) -> Node<Group> {
+    match convert_image_inner(fe, subregion, filter_region, state, cache) {
+        Some(root) => Node::new(Primitive::Image(root), []),
+        None => {
+            let flood = Flood {
+                color: filtra_types::Color::TRANSPARENT,
+                ..Flood::default()
+            };
+            Node::new(Primitive::Flood(flood), [])
+        }
     }
 }
 
 fn convert_image_inner(
     fe: SvgNode,
-    filter_subregion: NonZeroRect,
+    subregion: Subregion,
+    filter_region: NonZeroRect,
     state: &converter::State,
     cache: &mut converter::Cache,
-) -> Option<Kind> {
+) -> Option<Group> {
     let rendering_mode = fe
         .find_attribute(AId::ImageRendering)
         .unwrap_or(state.opt.image_rendering);
@@ -862,19 +681,19 @@ fn convert_image_inner(
                 cache,
             );
             // Transfer node id from group's child to the group itself if needed.
-            if let Some(Node::Group(g)) = root.children.first_mut() {
+            if let Some(crate::Node::Group(g)) = root.children.first_mut() {
                 if let Some(child2) = g.children.first_mut() {
                     g.id = child2.id().to_string();
                     match child2 {
-                        Node::Group(g2) => g2.id.clear(),
-                        Node::Path(path) => path.id = Box::default(),
-                        Node::Image(image) => image.id.clear(),
-                        Node::Text(text) => text.id.clear(),
+                        crate::Node::Group(g2) => g2.id.clear(),
+                        crate::Node::Path(path) => path.id = Box::default(),
+                        crate::Node::Image(image) => image.id.clear(),
+                        crate::Node::Text(text) => text.id.clear(),
                     }
                 }
             }
 
-            Some(Kind::Image(Image { root }))
+            Some(root)
         } else {
             None
         };
@@ -887,6 +706,11 @@ fn convert_image_inner(
     let actual_size = img_data.actual_size()?;
 
     let aspect: AspectRatio = fe.attribute(AId::PreserveAspectRatio).unwrap_or_default();
+    // The default subregion of `feImage`, which has no inputs, is the filter region.
+    let size = Size::from_wh(
+        subregion.width.unwrap_or(filter_region.width()),
+        subregion.height.unwrap_or(filter_region.height()),
+    )?;
 
     let mut root = Group::empty();
     super::image::convert_inner(
@@ -896,51 +720,54 @@ fn convert_image_inner(
         rendering_mode,
         aspect,
         actual_size,
-        filter_subregion.translate_to(0.0, 0.0)?,
+        size.to_non_zero_rect(0.0, 0.0),
         cache,
         &mut root,
     );
 
-    Some(Kind::Image(Image { root }))
+    Some(root)
 }
 
-fn convert_diffuse_lighting(fe: SvgNode, primitives: &[Primitive]) -> Option<Kind> {
+fn convert_diffuse_lighting(fe: SvgNode, results: &[Option<&str>]) -> Option<Node<Group>> {
     let light_source = convert_light_source(fe)?;
-    Some(Kind::DiffuseLighting(DiffuseLighting {
-        input: resolve_input(fe, AId::In, primitives),
+    let lighting = DiffuseLighting {
         surface_scale: fe.attribute(AId::SurfaceScale).unwrap_or(1.0),
         diffuse_constant: fe.attribute(AId::DiffuseConstant).unwrap_or(1.0),
+        kernel_unit_length: None,
         lighting_color: convert_lighting_color(fe),
         light_source,
-    }))
+    };
+    let input = resolve_input(fe, AId::In, results);
+    Some(Node::new(Primitive::DiffuseLighting(lighting), [input]))
 }
 
-fn convert_specular_lighting(fe: SvgNode, primitives: &[Primitive]) -> Option<Kind> {
+fn convert_specular_lighting(fe: SvgNode, results: &[Option<&str>]) -> Option<Node<Group>> {
     let light_source = convert_light_source(fe)?;
 
-    let specular_exponent = fe.attribute(AId::SpecularExponent).unwrap_or(1.0);
-    if !(1.0..=128.0).contains(&specular_exponent) {
-        // When exponent is out of range, the whole filter primitive should be ignored.
-        return None;
-    }
-
-    let specular_exponent = crate::f32_bound(1.0, specular_exponent, 128.0);
-
-    Some(Kind::SpecularLighting(SpecularLighting {
-        input: resolve_input(fe, AId::In, primitives),
+    let lighting = SpecularLighting {
         surface_scale: fe.attribute(AId::SurfaceScale).unwrap_or(1.0),
         specular_constant: fe.attribute(AId::SpecularConstant).unwrap_or(1.0),
-        specular_exponent,
+        specular_exponent: fe.attribute(AId::SpecularExponent).unwrap_or(1.0),
+        kernel_unit_length: None,
         lighting_color: convert_lighting_color(fe),
         light_source,
-    }))
+    };
+    let input = resolve_input(fe, AId::In, results);
+    Some(Node::new(Primitive::SpecularLighting(lighting), [input]))
 }
 
 #[inline(never)]
-fn convert_lighting_color(node: SvgNode) -> Color {
-    // Color's alpha doesn't affect lighting-color. Simply skip it.
-    node.attribute::<svgtypes::Color>(AId::LightingColor)
-        .map_or(Color::white(), |c| c.split_alpha().0)
+fn convert_lighting_color(node: SvgNode) -> filtra_types::Color {
+    convert_color(
+        node.attribute(AId::LightingColor)
+            .unwrap_or_else(svgtypes::Color::white),
+    )
+}
+
+fn convert_color(color: svgtypes::Color) -> filtra_types::Color {
+    let [r, g, b, a] =
+        [color.red, color.green, color.blue, color.alpha].map(|c| f32::from(c) / 255.0);
+    filtra_types::Color::new(r, g, b, a)
 }
 
 #[inline(never)]
@@ -953,336 +780,84 @@ fn convert_light_source(parent: SvgNode) -> Option<LightSource> {
     })?;
 
     match child.tag_name() {
-        Some(EId::FeDistantLight) => Some(LightSource::DistantLight(DistantLight {
+        Some(EId::FeDistantLight) => Some(LightSource::Distant(DistantLight {
             azimuth: child.attribute(AId::Azimuth).unwrap_or(0.0),
             elevation: child.attribute(AId::Elevation).unwrap_or(0.0),
         })),
-        Some(EId::FePointLight) => Some(LightSource::PointLight(PointLight {
+        Some(EId::FePointLight) => Some(LightSource::Point(PointLight {
             x: child.attribute(AId::X).unwrap_or(0.0),
             y: child.attribute(AId::Y).unwrap_or(0.0),
             z: child.attribute(AId::Z).unwrap_or(0.0),
         })),
-        Some(EId::FeSpotLight) => {
-            let specular_exponent = child.attribute(AId::SpecularExponent).unwrap_or(1.0);
-            let specular_exponent = PositiveF32::new(specular_exponent)
-                .unwrap_or_else(|| PositiveF32::new(1.0).unwrap());
-
-            Some(LightSource::SpotLight(SpotLight {
-                x: child.attribute(AId::X).unwrap_or(0.0),
-                y: child.attribute(AId::Y).unwrap_or(0.0),
-                z: child.attribute(AId::Z).unwrap_or(0.0),
-                points_at_x: child.attribute(AId::PointsAtX).unwrap_or(0.0),
-                points_at_y: child.attribute(AId::PointsAtY).unwrap_or(0.0),
-                points_at_z: child.attribute(AId::PointsAtZ).unwrap_or(0.0),
-                specular_exponent,
-                limiting_cone_angle: child.attribute(AId::LimitingConeAngle),
-            }))
-        }
+        Some(EId::FeSpotLight) => Some(LightSource::Spot(SpotLight {
+            x: child.attribute(AId::X).unwrap_or(0.0),
+            y: child.attribute(AId::Y).unwrap_or(0.0),
+            z: child.attribute(AId::Z).unwrap_or(0.0),
+            points_at_x: child.attribute(AId::PointsAtX).unwrap_or(0.0),
+            points_at_y: child.attribute(AId::PointsAtY).unwrap_or(0.0),
+            points_at_z: child.attribute(AId::PointsAtZ).unwrap_or(0.0),
+            specular_exponent: child.attribute(AId::SpecularExponent).unwrap_or(1.0),
+            limiting_cone_angle: child.attribute(AId::LimitingConeAngle),
+        })),
         _ => None,
     }
 }
 
-fn convert_merge(fe: SvgNode, primitives: &[Primitive]) -> Kind {
-    let mut inputs = Vec::new();
-    for child in fe.children() {
-        inputs.push(resolve_input(child, AId::In, primitives));
-    }
-
-    Kind::Merge(Merge { inputs })
+fn convert_merge(fe: SvgNode, results: &[Option<&str>]) -> Node<Group> {
+    let inputs = fe
+        .children()
+        .map(|child| resolve_input(child, AId::In, results));
+    Node::new(Primitive::Merge(Merge), inputs)
 }
 
-fn convert_morphology(fe: SvgNode, scale: Size, primitives: &[Primitive]) -> Kind {
+fn convert_morphology(fe: SvgNode, scale: Size, results: &[Option<&str>]) -> Node<Group> {
     let operator = match fe.attribute(AId::Operator).unwrap_or("erode") {
         "dilate" => MorphologyOperator::Dilate,
         _ => MorphologyOperator::Erode,
     };
 
-    let mut radius_x = PositiveF32::new(scale.width()).unwrap();
-    let mut radius_y = PositiveF32::new(scale.height()).unwrap();
-    if let Some(list) = fe.attribute::<Vec<f32>>(AId::Radius) {
-        let mut rx = 0.0;
-        let mut ry = 0.0;
-        if list.len() == 2 {
-            rx = list[0];
-            ry = list[1];
-        } else if list.len() == 1 {
-            rx = list[0];
-            ry = list[0]; // The same as `rx`.
-        }
+    let (radius_x, radius_y) =
+        convert_number_optional_number(fe, AId::Radius).unwrap_or((0.0, 0.0));
 
-        if rx.approx_zero_ulps(4) && ry.approx_zero_ulps(4) {
-            rx = 1.0;
-            ry = 1.0;
-        }
-
-        // If only one of the values is zero, reset it to 1.0
-        // This is not specified in the spec, but this is how Chrome and Safari work.
-        if rx.approx_zero_ulps(4) && !ry.approx_zero_ulps(4) {
-            rx = 1.0;
-        }
-        if !rx.approx_zero_ulps(4) && ry.approx_zero_ulps(4) {
-            ry = 1.0;
-        }
-
-        // Both values must be positive.
-        if rx.is_sign_positive() && ry.is_sign_positive() {
-            radius_x = PositiveF32::new(rx * scale.width()).unwrap();
-            radius_y = PositiveF32::new(ry * scale.height()).unwrap();
-        }
-    }
-
-    Kind::Morphology(Morphology {
-        input: resolve_input(fe, AId::In, primitives),
+    let morphology = Morphology {
         operator,
-        radius_x,
-        radius_y,
-    })
+        radius_x: radius_x * scale.width(),
+        radius_y: radius_y * scale.height(),
+    };
+    let input = resolve_input(fe, AId::In, results);
+    Node::new(Primitive::Morphology(morphology), [input])
 }
 
-fn convert_offset(fe: SvgNode, scale: Size, primitives: &[Primitive]) -> Kind {
-    Kind::Offset(Offset {
-        input: resolve_input(fe, AId::In, primitives),
+fn convert_offset(fe: SvgNode, scale: Size, results: &[Option<&str>]) -> Node<Group> {
+    let offset = Offset {
         dx: fe.attribute(AId::Dx).unwrap_or(0.0) * scale.width(),
         dy: fe.attribute(AId::Dy).unwrap_or(0.0) * scale.height(),
-    })
+    };
+    let input = resolve_input(fe, AId::In, results);
+    Node::new(Primitive::Offset(offset), [input])
 }
 
-fn convert_tile(fe: SvgNode, primitives: &[Primitive]) -> Kind {
-    Kind::Tile(Tile {
-        input: resolve_input(fe, AId::In, primitives),
-    })
+fn convert_tile(fe: SvgNode, results: &[Option<&str>]) -> Node<Group> {
+    let input = resolve_input(fe, AId::In, results);
+    Node::new(Primitive::Tile(Tile), [input])
 }
 
-fn convert_turbulence(fe: SvgNode) -> Kind {
-    let mut base_frequency_x = PositiveF32::ZERO;
-    let mut base_frequency_y = PositiveF32::ZERO;
-    if let Some(list) = fe.attribute::<Vec<f32>>(AId::BaseFrequency) {
-        let mut x = 0.0;
-        let mut y = 0.0;
-        if list.len() == 2 {
-            x = list[0];
-            y = list[1];
-        } else if list.len() == 1 {
-            x = list[0];
-            y = list[0]; // The same as `x`.
-        }
-
-        if x.is_sign_positive() && y.is_sign_positive() {
-            base_frequency_x = PositiveF32::new(x).unwrap();
-            base_frequency_y = PositiveF32::new(y).unwrap();
-        }
-    }
-
-    let mut num_octaves = fe.attribute(AId::NumOctaves).unwrap_or(1.0);
-    if num_octaves.is_sign_negative() {
-        num_octaves = 0.0;
-    }
-
+fn convert_turbulence(fe: SvgNode) -> Node<Group> {
     let kind = match fe.attribute(AId::Type).unwrap_or("turbulence") {
-        "fractalNoise" => TurbulenceKind::FractalNoise,
-        _ => TurbulenceKind::Turbulence,
+        "fractalNoise" => TurbulenceType::FractalNoise,
+        _ => TurbulenceType::Turbulence,
     };
 
-    Kind::Turbulence(Turbulence {
+    let (base_frequency_x, base_frequency_y) =
+        convert_number_optional_number(fe, AId::BaseFrequency).unwrap_or((0.0, 0.0));
+
+    let turbulence = Turbulence {
         base_frequency_x,
         base_frequency_y,
-        num_octaves: num_octaves.round() as u32,
-        seed: fe.attribute::<f32>(AId::Seed).unwrap_or(0.0).trunc() as i32,
+        num_octaves: fe.attribute(AId::NumOctaves).unwrap_or(1.0).round() as i32,
+        seed: fe.attribute(AId::Seed).unwrap_or(0.0),
         stitch_tiles: fe.attribute(AId::StitchTiles) == Some("stitch"),
         kind,
-    })
-}
-
-#[inline(never)]
-fn convert_grayscale_function(amount: f64) -> Kind {
-    let amount = amount.min(1.0) as f32;
-    Kind::ColorMatrix(ColorMatrix {
-        input: Input::SourceGraphic,
-        kind: ColorMatrixKind::Matrix(vec![
-            (0.2126 + 0.7874 * (1.0 - amount)),
-            (0.7152 - 0.7152 * (1.0 - amount)),
-            (0.0722 - 0.0722 * (1.0 - amount)),
-            0.0,
-            0.0,
-            (0.2126 - 0.2126 * (1.0 - amount)),
-            (0.7152 + 0.2848 * (1.0 - amount)),
-            (0.0722 - 0.0722 * (1.0 - amount)),
-            0.0,
-            0.0,
-            (0.2126 - 0.2126 * (1.0 - amount)),
-            (0.7152 - 0.7152 * (1.0 - amount)),
-            (0.0722 + 0.9278 * (1.0 - amount)),
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            1.0,
-            0.0,
-        ]),
-    })
-}
-
-#[inline(never)]
-fn convert_sepia_function(amount: f64) -> Kind {
-    let amount = amount.min(1.0) as f32;
-    Kind::ColorMatrix(ColorMatrix {
-        input: Input::SourceGraphic,
-        kind: ColorMatrixKind::Matrix(vec![
-            (0.393 + 0.607 * (1.0 - amount)),
-            (0.769 - 0.769 * (1.0 - amount)),
-            (0.189 - 0.189 * (1.0 - amount)),
-            0.0,
-            0.0,
-            (0.349 - 0.349 * (1.0 - amount)),
-            (0.686 + 0.314 * (1.0 - amount)),
-            (0.168 - 0.168 * (1.0 - amount)),
-            0.0,
-            0.0,
-            (0.272 - 0.272 * (1.0 - amount)),
-            (0.534 - 0.534 * (1.0 - amount)),
-            (0.131 + 0.869 * (1.0 - amount)),
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            1.0,
-            0.0,
-        ]),
-    })
-}
-
-#[inline(never)]
-fn convert_saturate_function(amount: f64) -> Kind {
-    let amount = PositiveF32::new(amount as f32).unwrap_or(PositiveF32::ZERO);
-    Kind::ColorMatrix(ColorMatrix {
-        input: Input::SourceGraphic,
-        kind: ColorMatrixKind::Saturate(amount),
-    })
-}
-
-#[inline(never)]
-fn convert_hue_rotate_function(amount: svgtypes::Angle) -> Kind {
-    Kind::ColorMatrix(ColorMatrix {
-        input: Input::SourceGraphic,
-        kind: ColorMatrixKind::HueRotate(amount.to_degrees() as f32),
-    })
-}
-
-#[inline(never)]
-fn convert_invert_function(amount: f64) -> Kind {
-    let amount = amount.min(1.0) as f32;
-    Kind::ComponentTransfer(ComponentTransfer {
-        input: Input::SourceGraphic,
-        func_r: TransferFunction::Table(vec![amount, 1.0 - amount]),
-        func_g: TransferFunction::Table(vec![amount, 1.0 - amount]),
-        func_b: TransferFunction::Table(vec![amount, 1.0 - amount]),
-        func_a: TransferFunction::Identity,
-    })
-}
-
-#[inline(never)]
-fn convert_opacity_function(amount: f64) -> Kind {
-    let amount = amount.min(1.0) as f32;
-    Kind::ComponentTransfer(ComponentTransfer {
-        input: Input::SourceGraphic,
-        func_r: TransferFunction::Identity,
-        func_g: TransferFunction::Identity,
-        func_b: TransferFunction::Identity,
-        func_a: TransferFunction::Table(vec![0.0, amount]),
-    })
-}
-
-#[inline(never)]
-fn convert_brightness_function(amount: f64) -> Kind {
-    let amount = amount as f32;
-    Kind::ComponentTransfer(ComponentTransfer {
-        input: Input::SourceGraphic,
-        func_r: TransferFunction::Linear {
-            slope: amount,
-            intercept: 0.0,
-        },
-        func_g: TransferFunction::Linear {
-            slope: amount,
-            intercept: 0.0,
-        },
-        func_b: TransferFunction::Linear {
-            slope: amount,
-            intercept: 0.0,
-        },
-        func_a: TransferFunction::Identity,
-    })
-}
-
-#[inline(never)]
-fn convert_contrast_function(amount: f64) -> Kind {
-    let amount = amount as f32;
-    Kind::ComponentTransfer(ComponentTransfer {
-        input: Input::SourceGraphic,
-        func_r: TransferFunction::Linear {
-            slope: amount,
-            intercept: -(0.5 * amount) + 0.5,
-        },
-        func_g: TransferFunction::Linear {
-            slope: amount,
-            intercept: -(0.5 * amount) + 0.5,
-        },
-        func_b: TransferFunction::Linear {
-            slope: amount,
-            intercept: -(0.5 * amount) + 0.5,
-        },
-        func_a: TransferFunction::Identity,
-    })
-}
-
-#[inline(never)]
-fn convert_blur_function(node: SvgNode, std_dev: Length, state: &converter::State) -> Kind {
-    let std_dev = PositiveF32::new(super::units::convert_user_length(
-        std_dev,
-        node,
-        AId::Dx,
-        state,
-    ))
-    .unwrap_or(PositiveF32::ZERO);
-    Kind::GaussianBlur(GaussianBlur {
-        input: Input::SourceGraphic,
-        std_dev_x: std_dev,
-        std_dev_y: std_dev,
-    })
-}
-
-#[inline(never)]
-fn convert_drop_shadow_function(
-    node: SvgNode,
-    color: Option<svgtypes::Color>,
-    dx: Length,
-    dy: Length,
-    std_dev: Length,
-    state: &converter::State,
-) -> Kind {
-    let std_dev = PositiveF32::new(super::units::convert_user_length(
-        std_dev,
-        node,
-        AId::Dx,
-        state,
-    ))
-    .unwrap_or(PositiveF32::ZERO);
-
-    let (color, opacity) = color
-        .unwrap_or_else(|| {
-            node.find_attribute(AId::Color)
-                .unwrap_or_else(svgtypes::Color::black)
-        })
-        .split_alpha();
-
-    Kind::DropShadow(DropShadow {
-        input: Input::SourceGraphic,
-        dx: super::units::convert_user_length(dx, node, AId::Dx, state),
-        dy: super::units::convert_user_length(dy, node, AId::Dy, state),
-        std_dev_x: std_dev,
-        std_dev_y: std_dev,
-        color,
-        opacity,
-    })
+    };
+    Node::new(Primitive::Turbulence(turbulence), [])
 }

@@ -173,7 +173,7 @@ fn convert_base_gradient(
         points.push((stop.offset().get(), color));
     }
 
-    if gradient.color_interpolation() == usvg::filter::ColorInterpolation::LinearRGB {
+    if gradient.color_interpolation() == usvg::ColorInterpolation::LinearRGB {
         points = linear_rgb_stops(&points);
     }
 

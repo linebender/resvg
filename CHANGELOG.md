@@ -8,6 +8,13 @@ This changelog also contains important changes in dependencies.
 
 ## [Unreleased]
 
+### Changed
+
+- Filters are rendered with [filtra](https://github.com/LaurenzV/filtra). (#1255)
+- `usvg` stores filters using the types from `filtra_types`, which is re-exported as
+  `usvg::filtra_types`. `usvg::filter::Filter` dereferences to `filtra_types::Filter<Group>`, and
+  `usvg`'s own filter primitive types are removed. (#1255)
+
 ### Added
 
 - `color-interpolation` on gradients: `linearRGB` interpolates the stops in linear light.

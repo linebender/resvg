@@ -2,7 +2,7 @@
     <defs>
         <path id="rect3" fill="#008000" stroke="none" d="M 36 36 L 156 36 L 156 156 L 36 156 Z"/>
         <filter id="filter1" x="4" y="4" width="192" height="192" filterUnits="userSpaceOnUse">
-            <feImage color-interpolation-filters="linearRGB" xlink:href="#rect3" result="result1"/>
+            <feImage color-interpolation-filters="linearRGB" result="result1" xlink:href="#rect3"/>
         </filter>
     </defs>
     <g filter="url(#filter1)">

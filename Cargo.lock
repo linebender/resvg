@@ -148,6 +148,45 @@ dependencies = [
 ]
 
 [[package]]
+name = "fearless_simd"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "629c9d6b6f30b5604089e0980f4d924a013aacb1654a6cdf5d3d852224f68651"
+
+[[package]]
+name = "filtra"
+version = "0.1.0"
+source = "git+https://github.com/LaurenzV/filtra?rev=12940850b1e0bdd15a762f1923af73a7c69ffddb#12940850b1e0bdd15a762f1923af73a7c69ffddb"
+dependencies = [
+ "filtra_core",
+ "filtra_kernels",
+ "filtra_types",
+]
+
+[[package]]
+name = "filtra_core"
+version = "0.1.0"
+source = "git+https://github.com/LaurenzV/filtra?rev=12940850b1e0bdd15a762f1923af73a7c69ffddb#12940850b1e0bdd15a762f1923af73a7c69ffddb"
+dependencies = [
+ "filtra_types",
+]
+
+[[package]]
+name = "filtra_kernels"
+version = "0.1.0"
+source = "git+https://github.com/LaurenzV/filtra?rev=12940850b1e0bdd15a762f1923af73a7c69ffddb#12940850b1e0bdd15a762f1923af73a7c69ffddb"
+dependencies = [
+ "fearless_simd",
+ "filtra_core",
+ "filtra_types",
+]
+
+[[package]]
+name = "filtra_types"
+version = "0.1.0"
+source = "git+https://github.com/LaurenzV/filtra?rev=12940850b1e0bdd15a762f1923af73a7c69ffddb#12940850b1e0bdd15a762f1923af73a7c69ffddb"
+
+[[package]]
 name = "flate2"
 version = "1.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -541,7 +580,7 @@ dependencies = [
 name = "resvg"
 version = "0.50.0"
 dependencies = [
- "bytemuck",
+ "filtra",
  "gif",
  "image-webp",
  "log",
@@ -758,6 +797,7 @@ version = "0.50.0"
 dependencies = [
  "base64",
  "data-url",
+ "filtra_types",
  "flate2",
  "fontdb",
  "harfrust",
