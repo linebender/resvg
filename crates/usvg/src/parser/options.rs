@@ -79,6 +79,12 @@ pub struct Options<'a> {
     /// Default: `(100, 100)`
     pub default_size: Size,
 
+    /// Optional containing viewport for resolving percentage root dimensions,
+    /// including when the document declares a viewBox.
+    ///
+    /// Default: None
+    pub viewport_size: Option<Size>,
+
     /// Specifies the way `xlink:href` in `<image>` elements should be handled.
     ///
     /// Default: see type's documentation for details
@@ -120,6 +126,7 @@ impl Default for Options<'_> {
             text_rendering: TextRendering::default(),
             image_rendering: ImageRendering::default(),
             default_size: Size::from_wh(100.0, 100.0).unwrap(),
+            viewport_size: None,
             image_href_resolver: ImageHrefResolver::default(),
             #[cfg(feature = "text")]
             font_resolver: FontResolver::default(),
