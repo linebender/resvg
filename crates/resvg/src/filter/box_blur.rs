@@ -23,6 +23,18 @@ const STEPS: usize = 5;
 pub fn apply(sigma_x: f64, sigma_y: f64, mut src: ImageRefMut) {
     let boxes_horz = create_box_gauss(sigma_x as f32);
     let boxes_vert = create_box_gauss(sigma_y as f32);
+
+    if boxes_horz
+        .iter()
+        .any(|&size| averages_to_zero(size, src.width))
+        || boxes_vert
+            .iter()
+            .any(|&size| averages_to_zero(size, src.height))
+    {
+        src.data.fill(RGBA8::default());
+        return;
+    }
+
     let mut backbuf = src.data.to_vec();
     let mut backbuf = ImageRefMut::new(src.width, src.height, &mut backbuf);
 
@@ -45,7 +57,7 @@ fn create_box_gauss(sigma: f32) -> [i32; STEPS] {
             wl -= 1;
         }
 
-        let wu = wl + 2;
+        let wu = wl.saturating_add(2);
 
         let wl_float = wl as f32;
         let m_ideal = (12.0 * sigma * sigma
@@ -68,6 +80,17 @@ fn create_box_gauss(sigma: f32) -> [i32; STEPS] {
     } else {
         [1; STEPS]
     }
+}
+
+/// Whether a box `box_size` pixels wide averages every pixel of a blur along `len`
+/// pixels to zero.
+///
+/// Pixels beyond the edges are transparent, so a box sums at most `len` pixels, at most
+/// `255 * len` per channel. A box wider than `4 * 255 * len` pixels makes every average
+/// smaller than a quarter, which rounds to zero, and the passes after it blur a
+/// transparent image.
+fn averages_to_zero(box_size: i32, len: u32) -> bool {
+    i64::from(box_size) > 4 * 255 * i64::from(len)
 }
 
 #[inline]
@@ -333,4 +356,46 @@ fn round(mut x: f32) -> f32 {
 #[inline]
 fn sub(c1: u8, c2: u8) -> isize {
     c1 as isize - c2 as isize
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_huge_sigma_sizes_the_boxes_without_overflow() {
+        for sigma in [1.5e9, 4.1e18, f32::MAX, f32::INFINITY] {
+            let sizes = create_box_gauss(sigma);
+            assert!(
+                sizes.iter().all(|&size| size >= 1 && size % 2 == 1),
+                "{sigma}: {sizes:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_blur_far_wider_than_the_image_leaves_it_transparent() {
+        let mut data = vec![RGBA8::new(255, 255, 255, 255); 16 * 16];
+        apply(4.1e18, 4.1e18, ImageRefMut::new(16, 16, &mut data));
+        assert!(data.iter().all(|&pixel| pixel == RGBA8::default()));
+    }
+
+    // Boxes just narrower than those `apply` skips already leave an opaque image
+    // transparent, so skipping the wider ones changes no pixel.
+    #[test]
+    fn a_blur_just_short_of_the_skipped_width_is_already_transparent() {
+        let sigma = 10_000.0;
+        assert!(
+            create_box_gauss(sigma)
+                .iter()
+                .all(|&size| !averages_to_zero(size, 16))
+        );
+        let mut data = vec![RGBA8::new(255, 255, 255, 255); 16 * 16];
+        apply(
+            sigma.into(),
+            sigma.into(),
+            ImageRefMut::new(16, 16, &mut data),
+        );
+        assert!(data.iter().all(|&pixel| pixel == RGBA8::default()));
+    }
 }

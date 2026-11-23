@@ -22,6 +22,9 @@ This changelog also contains important changes in dependencies.
 - Default filter primitive subregion: a primitive without `x`, `y`, `width` or `height` now uses
   the union of its inputs' subregions, as the Filter Effects spec requires, instead of the filter
   region. `feOffset` results are now clipped to their subregion.
+- `feGaussianBlur` and `feDropShadow` with a huge `stdDeviation` no longer overflow an integer
+  while sizing the box blur, which panicked in builds with overflow checks. A blur that much wider
+  than the image now leaves it transparent. (#1258)
 
 ## [0.50.0] 2026-11-11
 
