@@ -1,10 +1,10 @@
 <svg width="200" height="200" xmlns="http://www.w3.org/2000/svg">
     <defs>
         <filter id="filter2" x="-60" y="-60" width="320" height="320" filterUnits="userSpaceOnUse">
-            <feGaussianBlur color-interpolation-filters="sRGB" in="SourceGraphic" stdDeviation="4 4" result="result"/>
+            <feGaussianBlur color-interpolation-filters="sRGB" in="SourceGraphic" result="result1" stdDeviation="4 4"/>
         </filter>
         <filter id="filter1" x="4" y="4" width="192" height="192" filterUnits="userSpaceOnUse">
-            <feGaussianBlur color-interpolation-filters="linearRGB" in="SourceGraphic" stdDeviation="4 4" result="result1"/>
+            <feGaussianBlur color-interpolation-filters="linearRGB" in="SourceGraphic" result="result1" stdDeviation="4 4"/>
         </filter>
     </defs>
     <g filter="url(#filter2)">

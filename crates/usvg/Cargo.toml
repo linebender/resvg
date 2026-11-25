@@ -4,7 +4,7 @@ version = "0.50.0"
 keywords = ["svg"]
 license.workspace = true
 edition = "2024"
-rust-version = "1.85.0"
+rust-version = "1.89.0"
 description = "An SVG simplification library."
 categories = ["multimedia::images"]
 repository = "https://github.com/linebender/resvg"
@@ -19,6 +19,7 @@ required-features = ["svgz", "text", "system-fonts", "memmap-fonts", "writer"]
 
 [dependencies]
 base64 = { version = "0.23", optional = true } # for embedded images
+filtra_types = "0.1.0"
 log = "0.4"
 pico-args = { version = "0.5", features = ["eq-separator"] }
 strict-num = "0.1.1"

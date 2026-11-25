@@ -8,8 +8,9 @@ use svgtypes::{Length, LengthUnit as Unit};
 use super::paint_server::convert_color_interpolation;
 use super::svgtree::{AId, EId, SvgNode};
 use super::{OptionLog, converter};
-use crate::filter::ColorInterpolation;
-use crate::{Group, Mask, MaskType, Node, NonEmptyString, NonZeroRect, Transform, Units};
+use crate::{
+    ColorInterpolation, Group, Mask, MaskType, Node, NonEmptyString, NonZeroRect, Transform, Units,
+};
 
 pub(crate) fn convert(
     node: SvgNode,

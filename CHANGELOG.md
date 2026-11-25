@@ -8,6 +8,12 @@ This changelog also contains important changes in dependencies.
 
 ## [Unreleased]
 
+### Changed
+
+- **Big change**: Filters are now processed and rendered with [filtra](https://github.com/LaurenzV/filtra). This solves
+  many issues with panics, and makes rendering filter layers multiple times faster than before. (#1255)
+- MSRV raised from 1.85 to 1.89 for `usvg`, `resvg` and the C API.
+
 ### Added
 
 - `color-interpolation` on gradients: `linearRGB` interpolates the stops in linear light.
