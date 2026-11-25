@@ -440,7 +440,7 @@ fn convert_font(node: SvgNode, state: &converter::State) -> Font {
 
     // Map font-weight to wght axis (if not already set)
     if !has_wght {
-        variations.push(FontVariation::new(*b"wght", weight as f32));
+        variations.push(FontVariation::new(*b"wght", weight));
     }
 
     // Map font-stretch to wdth axis (if not already set)
@@ -500,7 +500,7 @@ fn convert_font(node: SvgNode, state: &converter::State) -> Font {
         families,
         style,
         stretch,
-        weight,
+        weight: weight.round() as u16,
         variations,
     }
 }
@@ -613,40 +613,27 @@ fn conv_font_stretch(node: SvgNode) -> FontStretch {
     }
 }
 
-fn resolve_font_weight(node: SvgNode) -> u16 {
+fn resolve_font_weight(node: SvgNode) -> f32 {
     let nodes: Vec<_> = node.ancestors().collect();
-    let mut weight = 400u16;
+    let mut weight = 400.0f32;
     for n in nodes.iter().rev().skip(1) {
         // skip Root
         weight = match n.attribute(AId::FontWeight).unwrap_or("") {
-            "normal" => 400,
-            "bold" => 700,
-            "bolder" if weight >= 900 => weight,
-            "bolder" => {
-                // By the CSS2 spec the default value should be 400
-                // so `bolder` will result in 500.
-                // But Chrome and Inkscape will give us 700.
-                // Have no idea is it a bug or something, but
-                // we will follow such behavior for now.
-                let step = if weight == 400 { 300 } else { 100 };
-
-                (weight + step).clamp(100, 900)
-            }
-            "lighter" if weight <= 100 => weight,
-            "lighter" => {
-                // By the CSS2 spec the default value should be 400
-                // so `lighter` will result in 300.
-                // But Chrome and Inkscape will give us 200.
-                // Have no idea is it a bug or something, but
-                // we will follow such behavior for now.
-                let step = if weight == 400 { 200 } else { 100 };
-
-                (weight - step).clamp(100, 900)
-            }
+            "normal" => 400.0,
+            "bold" => 700.0,
+            "bolder" => match weight {
+                w if w < 350.0 => 400.0,
+                w if w < 550.0 => 700.0,
+                w if w < 900.0 => 900.0,
+                w => w,
+            },
+            "lighter" => match weight {
+                w if w < 550.0 => w.min(100.0),
+                w if w < 750.0 => 400.0,
+                _ => 700.0,
+            },
             value => match value.parse::<svgtypes::Number>() {
-                Ok(svgtypes::Number(number)) if (1.0..=1000.0).contains(&number) => {
-                    number.round() as u16
-                }
+                Ok(svgtypes::Number(number)) if (1.0..=1000.0).contains(&number) => number as f32,
                 _ => weight,
             },
         };

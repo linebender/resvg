@@ -1555,11 +1555,13 @@ use crate::render;
 #[test] fn text_font_weight_700() { assert_eq!(render("tests/text/font-weight/700"), 0); }
 #[test] fn text_font_weight_850() { assert_eq!(render("tests/text/font-weight/850"), 0); }
 #[test] fn text_font_weight_bold() { assert_eq!(render("tests/text/font-weight/bold"), 0); }
+#[test] fn text_font_weight_bolder_on_variable_font() { assert_eq!(render("tests/text/font-weight/bolder-on-variable-font"), 0); }
 #[test] fn text_font_weight_bolder_with_clamping() { assert_eq!(render("tests/text/font-weight/bolder-with-clamping"), 0); }
 #[test] fn text_font_weight_bolder_without_parent() { assert_eq!(render("tests/text/font-weight/bolder-without-parent"), 0); }
 #[test] fn text_font_weight_bolder() { assert_eq!(render("tests/text/font-weight/bolder"), 0); }
 #[test] fn text_font_weight_inherit() { assert_eq!(render("tests/text/font-weight/inherit"), 0); }
 #[test] fn text_font_weight_invalid_number_1() { assert_eq!(render("tests/text/font-weight/invalid-number-1"), 0); }
+#[test] fn text_font_weight_lighter_on_variable_font() { assert_eq!(render("tests/text/font-weight/lighter-on-variable-font"), 0); }
 #[test] fn text_font_weight_lighter_with_clamping() { assert_eq!(render("tests/text/font-weight/lighter-with-clamping"), 0); }
 #[test] fn text_font_weight_lighter_without_parent() { assert_eq!(render("tests/text/font-weight/lighter-without-parent"), 0); }
 #[test] fn text_font_weight_lighter() { assert_eq!(render("tests/text/font-weight/lighter"), 0); }
