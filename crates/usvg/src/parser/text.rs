@@ -824,7 +824,7 @@ fn resolve_decoration(
     // decoration is declared somewhere, it means that this tspan will have it. However, we still
     // need to find the corresponding fill/stroke for it. To do this, we iterate through all
     // ancestors (i.e. tspans) until we find the text decoration declared. If not, we will
-    // stop at latest at the text node, and use its fill/stroke.
+    // stop at latest at the text node, and use its fill, stroke and paint order.
     let mut gen_style = |text_decoration: &str| {
         if !tspan
             .ancestors()
@@ -833,24 +833,15 @@ fn resolve_decoration(
             return None;
         }
 
-        let mut fill_node = None;
-        let mut stroke_node = None;
-
-        for node in tspan.ancestors() {
-            if find_decoration(node, text_decoration) || node.tag_name() == Some(EId::Text) {
-                fill_node = fill_node.map_or(Some(node), Some);
-                stroke_node = stroke_node.map_or(Some(node), Some);
-                break;
-            }
-        }
+        let node = tspan
+            .ancestors()
+            .find(|n| find_decoration(*n, text_decoration) || n.tag_name() == Some(EId::Text))?;
 
         Some(TextDecorationStyle {
-            fill: fill_node.and_then(|node| style::resolve_fill(node, true, state, cache)),
-            stroke: stroke_node.and_then(|node| style::resolve_stroke(node, true, state, cache)),
+            fill: style::resolve_fill(node, true, state, cache),
+            stroke: style::resolve_stroke(node, true, state, cache),
             paint_order: super::converter::svg_paint_order_to_usvg(
-                fill_node
-                    .and_then(|node| node.find_attribute(AId::PaintOrder))
-                    .unwrap_or_default(),
+                node.find_attribute(AId::PaintOrder).unwrap_or_default(),
             ),
         })
     };
