@@ -298,6 +298,11 @@ impl TextDecorationStyle {
     pub fn stroke(&self) -> Option<&Stroke> {
         self.stroke.as_ref()
     }
+
+    /// A paint order style.
+    pub fn paint_order(&self) -> PaintOrder {
+        self.paint_order
+    }
 }
 
 /// A text span decoration.
