@@ -695,14 +695,17 @@ fn write_element(node: &Node, is_clip_path: bool, opt: &WriteOptions, xml: &mut 
                         // (so that for example stroke color of span doesn't affect the text
                         // itself while baseline shifts need to be written after (since they are
                         // affected by the font size)
+                        let mut paint_order = PaintOrder::default();
                         for (deco_name, deco) in &decorations {
                             xml.start_svg_element(EId::Tspan);
                             xml.write_svg_attribute(AId::TextDecoration, deco_name);
                             write_fill(&deco.fill, false, opt, xml);
                             write_stroke(&deco.stroke, opt, xml);
+                            write_text_paint_order(deco.paint_order, paint_order, xml);
+                            paint_order = deco.paint_order;
                         }
 
-                        write_span(is_clip_path, opt, xml, chunk, span);
+                        write_span(is_clip_path, opt, xml, chunk, span, paint_order);
 
                         // End for each tspan we needed to create for decorations
                         for _ in &decorations {
@@ -1357,12 +1360,23 @@ fn write_num(num: f32, buf: &mut Vec<u8>, precision: u8) {
 }
 
 /// Write all of the tspan attributes except for decorations.
+fn write_text_paint_order(order: PaintOrder, inherited: PaintOrder, xml: &mut XmlWriter) {
+    if order != inherited {
+        let value = match order {
+            PaintOrder::FillAndStroke => "normal",
+            PaintOrder::StrokeAndFill => "stroke fill",
+        };
+        xml.write_svg_attribute(AId::PaintOrder, value);
+    }
+}
+
 fn write_span(
     is_clip_path: bool,
     opt: &WriteOptions,
     xml: &mut XmlWriter,
     chunk: &TextChunk,
     span: &TextSpan,
+    inherited_paint_order: PaintOrder,
 ) {
     xml.start_svg_element(EId::Tspan);
 
@@ -1447,9 +1461,7 @@ fn write_span(
         xml.write_svg_attribute(AId::FontVariant, "small-caps");
     }
 
-    if span.paint_order == PaintOrder::StrokeAndFill {
-        xml.write_svg_attribute(AId::PaintOrder, "stroke fill");
-    }
+    write_text_paint_order(span.paint_order, inherited_paint_order, xml);
 
     if !span.apply_kerning {
         xml.write_attribute("style", "font-kerning:none");

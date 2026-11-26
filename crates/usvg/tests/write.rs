@@ -210,6 +210,11 @@ fn preserve_text_with_complex_text_decoration() {
 }
 
 #[test]
+fn preserve_text_with_text_decoration_paint_order() {
+    resave_with_text("preserve-text-with-text-decoration-paint-order");
+}
+
+#[test]
 fn preserve_text_with_nested_baseline_shift() {
     resave_with_text("preserve-text-with-nested-baseline-shift");
 }

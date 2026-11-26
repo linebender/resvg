@@ -1666,6 +1666,8 @@ use crate::render;
 #[test] fn text_text_decoration_underline_with_rotate_list_4() { assert_eq!(render("tests/text/text-decoration/underline-with-rotate-list-4"), 0); }
 #[test] fn text_text_decoration_underline_with_y_list() { assert_eq!(render("tests/text/text-decoration/underline-with-y-list"), 0); }
 #[test] fn text_text_decoration_underline() { assert_eq!(render("tests/text/text-decoration/underline"), 0); }
+#[test] fn text_text_decoration_with_paint_order_on_tspan() { assert_eq!(render("tests/text/text-decoration/with-paint-order-on-tspan"), 0); }
+#[test] fn text_text_decoration_with_paint_order() { assert_eq!(render("tests/text/text-decoration/with-paint-order"), 0); }
 #[test] fn text_text_decoration_with_textLength_on_a_single_character() { assert_eq!(render("tests/text/text-decoration/with-textLength-on-a-single-character"), 0); }
 #[test] fn text_text_rendering_geometricPrecision() { assert_eq!(render("tests/text/text-rendering/geometricPrecision"), 0); }
 #[test] fn text_text_rendering_on_tspan() { assert_eq!(render("tests/text/text-rendering/on-tspan"), 0); }

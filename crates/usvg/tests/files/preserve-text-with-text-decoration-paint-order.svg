@@ -1,0 +1,7 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"
+     font-family="Noto Sans" font-size="48">
+    <text id="text1" x="50" y="100" fill="green" stroke="blue" stroke-width="4"
+          paint-order="stroke" text-decoration="underline">
+        <tspan id="tspan1" paint-order="normal">Text</tspan>
+    </text>
+</svg>
