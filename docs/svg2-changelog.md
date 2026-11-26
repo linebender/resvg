@@ -96,7 +96,7 @@ NOTE: This list is not final. This just things I was able to find so far. Patche
 
 ### Added
 
-- [ ] A [`pathLength`](https://www.w3.org/TR/SVG2/paths.html#PathLengthAttribute) attribute to all [basic shapes](https://www.w3.org/TR/SVG2/shapes.html).
+- [x] A [`pathLength`](https://www.w3.org/TR/SVG2/paths.html#PathLengthAttribute) attribute to all [basic shapes](https://www.w3.org/TR/SVG2/shapes.html).
 
 ### Changed
 

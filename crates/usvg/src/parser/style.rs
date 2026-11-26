@@ -144,12 +144,9 @@ pub(crate) fn calibrate_path_dashes(
     let Some(dashes) = &mut stroke.dasharray else {
         return;
     };
-    let Some(author_length) = node.attribute::<f32>(AId::PathLength) else {
+    let Some(author_length) = super::shapes::author_path_length(node) else {
         return;
     };
-    if !author_length.is_finite() || author_length < 0.0 {
-        return;
-    }
 
     let length = super::shapes::path_length(path);
 

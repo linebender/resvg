@@ -71,6 +71,11 @@ pub(crate) fn convert_path_data(value: &str) -> Option<Arc<Path>> {
     builder.finish().map(Arc::new)
 }
 
+pub(crate) fn author_path_length(node: SvgNode) -> Option<f32> {
+    node.attribute::<f32>(AId::PathLength)
+        .filter(|length| length.is_finite() && *length >= 0.0)
+}
+
 pub(crate) fn path_length(path: &Path) -> f64 {
     let mut prev_mx = path.points()[0].x;
     let mut prev_my = path.points()[0].y;
