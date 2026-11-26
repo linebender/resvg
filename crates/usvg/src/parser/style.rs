@@ -151,14 +151,27 @@ pub(crate) fn calibrate_path_dashes(
         return;
     }
 
-    // Infinite dash lengths (pathLength="0") render as a solid stroke.
+    let length = super::shapes::path_length(path);
+
     if author_length == 0.0 {
-        stroke.dasharray = None;
+        // Every non-zero dash and gap becomes infinite, so the first one decides whether
+        // the rest of each subpath is painted. A gap longer than the whole path stands in
+        // for an infinite one. The offset becomes infinite as well, which leaves the dash
+        // pattern undefined, so it is ignored.
         stroke.dashoffset = 0.0;
+        if dashes
+            .iter()
+            .position(|d| *d > 0.0)
+            .is_some_and(|i| i % 2 == 1)
+        {
+            *dashes = vec![0.0, (length + 1.0) as f32];
+        } else {
+            stroke.dasharray = None;
+        }
         return;
     }
 
-    let scale = super::shapes::path_length(path) / f64::from(author_length);
+    let scale = length / f64::from(author_length);
     for dash in dashes {
         *dash = (f64::from(*dash) * scale) as f32;
     }
