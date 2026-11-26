@@ -83,9 +83,25 @@ impl ImageHrefResolver<'_> {
     ///
     /// Paths have to be absolute or relative to the input SVG file or relative to
     /// [Options::resources_dir](crate::Options::resources_dir).
+    ///
+    /// Since `href` is a URL, a percent-encoded path is decoded before
+    /// being resolved, so that local file names with non-ASCII characters
+    /// or spaces (as produced, for example, by Inkscape) can be loaded.
     pub fn default_string_resolver() -> ImageHrefStringResolverFn<'static> {
         Box::new(move |href: &str, opts: &Options| {
-            let path = opts.get_abs_path(std::path::Path::new(href));
+            // Prefer the decoded path, but fall back to the raw one
+            // in case the file name contains a literal '%'.
+            let decoded = percent_decode_href(href);
+            let path = if decoded == href {
+                opts.get_abs_path(std::path::Path::new(href))
+            } else {
+                let path = opts.get_abs_path(std::path::Path::new(&decoded));
+                if path.exists() {
+                    path
+                } else {
+                    opts.get_abs_path(std::path::Path::new(href))
+                }
+            };
 
             if path.exists() {
                 let data = match std::fs::read(&path) {
@@ -300,6 +316,37 @@ pub(crate) fn convert_inner(
     }
 
     Some(())
+}
+
+/// Percent-decodes a path from an `<image>` `href`, as defined by the URL standard.
+///
+/// Invalid percent-escapes are kept as-is, and the input string is returned
+/// unchanged when it has no valid escapes or when the decoded bytes
+/// are not a valid UTF-8 string.
+fn percent_decode_href(href: &str) -> String {
+    if !href.contains('%') {
+        return href.to_string();
+    }
+
+    let hex_value = |b: u8| (b as char).to_digit(16).map(|v| v as u8);
+
+    let bytes = href.as_bytes();
+    let mut decoded = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'%' && i + 2 < bytes.len() {
+            if let (Some(hi), Some(lo)) = (hex_value(bytes[i + 1]), hex_value(bytes[i + 2])) {
+                decoded.push(hi * 16 + lo);
+                i += 3;
+                continue;
+            }
+        }
+
+        decoded.push(bytes[i]);
+        i += 1;
+    }
+
+    String::from_utf8(decoded).unwrap_or_else(|_| href.to_string())
 }
 
 pub(crate) fn get_href_data(href: &str, state: &converter::State) -> Option<ImageKind> {
