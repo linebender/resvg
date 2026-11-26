@@ -1,0 +1,9 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <title>With negative `pathLength`</title>
+
+    <path id="path1" d="M 20 100 H 180" fill="none" stroke="green" stroke-width="10"
+          stroke-dasharray="10 5" pathLength="-16"/>
+
+    <!-- image frame -->
+    <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>

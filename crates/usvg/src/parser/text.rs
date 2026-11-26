@@ -3,11 +3,10 @@
 
 use std::sync::Arc;
 
-use kurbo::{ParamCurve, ParamCurveArclen};
 use svgtypes::{FontFamily, Length, LengthUnit, parse_font_families};
 
 use super::svgtree::{AId, EId, FromValue, SvgNode};
-use super::{OptionLog, converter, style};
+use super::{OptionLog, converter, shapes, style};
 use crate::*;
 
 impl<'a, 'input: 'a> FromValue<'a, 'input> for TextAnchor {
@@ -373,7 +372,7 @@ fn resolve_text_flow(
     let start_offset = if start_offset.unit == LengthUnit::Percent {
         // 'If a percentage is given, then the `startOffset` represents
         // a percentage distance along the entire path.'
-        let path_len = path_length(&path);
+        let path_len = shapes::path_length(&path);
         (path_len * (start_offset.number / 100.0)) as f32
     } else {
         node.resolve_length(AId::StartOffset, state, 0.0)
@@ -915,58 +914,4 @@ fn convert_writing_mode(text_node: SvgNode) -> WritingMode {
     } else {
         WritingMode::LeftToRight
     }
-}
-
-fn path_length(path: &tiny_skia_path::Path) -> f64 {
-    let mut prev_mx = path.points()[0].x;
-    let mut prev_my = path.points()[0].y;
-    let mut prev_x = prev_mx;
-    let mut prev_y = prev_my;
-
-    fn create_curve_from_line(px: f32, py: f32, x: f32, y: f32) -> kurbo::CubicBez {
-        let line = kurbo::Line::new(
-            kurbo::Point::new(px as f64, py as f64),
-            kurbo::Point::new(x as f64, y as f64),
-        );
-        let p1 = line.eval(0.33);
-        let p2 = line.eval(0.66);
-        kurbo::CubicBez::new(line.p0, p1, p2, line.p1)
-    }
-
-    let mut length = 0.0;
-    for seg in path.segments() {
-        let curve = match seg {
-            tiny_skia_path::PathSegment::MoveTo(p) => {
-                prev_mx = p.x;
-                prev_my = p.y;
-                prev_x = p.x;
-                prev_y = p.y;
-                continue;
-            }
-            tiny_skia_path::PathSegment::LineTo(p) => {
-                create_curve_from_line(prev_x, prev_y, p.x, p.y)
-            }
-            tiny_skia_path::PathSegment::QuadTo(p1, p) => kurbo::QuadBez::new(
-                kurbo::Point::new(prev_x as f64, prev_y as f64),
-                kurbo::Point::new(p1.x as f64, p1.y as f64),
-                kurbo::Point::new(p.x as f64, p.y as f64),
-            )
-            .raise(),
-            tiny_skia_path::PathSegment::CubicTo(p1, p2, p) => kurbo::CubicBez::new(
-                kurbo::Point::new(prev_x as f64, prev_y as f64),
-                kurbo::Point::new(p1.x as f64, p1.y as f64),
-                kurbo::Point::new(p2.x as f64, p2.y as f64),
-                kurbo::Point::new(p.x as f64, p.y as f64),
-            ),
-            tiny_skia_path::PathSegment::Close => {
-                create_curve_from_line(prev_x, prev_y, prev_mx, prev_my)
-            }
-        };
-
-        length += curve.arclen(0.5);
-        prev_x = curve.p3.x as f32;
-        prev_y = curve.p3.y as f32;
-    }
-
-    length
 }

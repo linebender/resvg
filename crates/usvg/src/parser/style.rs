@@ -136,6 +136,48 @@ pub(crate) fn resolve_stroke(
     Some(stroke)
 }
 
+pub(crate) fn calibrate_path_dashes(
+    node: SvgNode,
+    path: &tiny_skia_path::Path,
+    stroke: &mut Stroke,
+) {
+    let Some(dashes) = &mut stroke.dasharray else {
+        return;
+    };
+    let Some(author_length) = node.attribute::<f32>(AId::PathLength) else {
+        return;
+    };
+    if !author_length.is_finite() || author_length < 0.0 {
+        return;
+    }
+
+    let length = super::shapes::path_length(path);
+
+    if author_length == 0.0 {
+        // Every non-zero dash and gap becomes infinite, so the first one decides whether
+        // the rest of each subpath is painted. A gap longer than the whole path stands in
+        // for an infinite one. The offset becomes infinite as well, which leaves the dash
+        // pattern undefined, so it is ignored.
+        stroke.dashoffset = 0.0;
+        if dashes
+            .iter()
+            .position(|d| *d > 0.0)
+            .is_some_and(|i| i % 2 == 1)
+        {
+            *dashes = vec![0.0, (length + 1.0) as f32];
+        } else {
+            stroke.dasharray = None;
+        }
+        return;
+    }
+
+    let scale = length / f64::from(author_length);
+    for dash in dashes {
+        *dash = (f64::from(*dash) * scale) as f32;
+    }
+    stroke.dashoffset = (f64::from(stroke.dashoffset) * scale) as f32;
+}
+
 fn convert_paint(
     node: SvgNode,
     value: &str,
