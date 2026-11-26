@@ -1711,8 +1711,12 @@ use crate::render;
 #[test] fn text_textPath_side_eq_right() { assert_eq!(render("tests/text/textPath/side=right"), 0); }
 #[test] fn text_textPath_simple_case() { assert_eq!(render("tests/text/textPath/simple-case"), 0); }
 #[test] fn text_textPath_spacing_eq_auto() { assert_eq!(render("tests/text/textPath/spacing=auto"), 0); }
+#[test] fn text_textPath_startOffset_with_pathLength_on_transformed_path() { assert_eq!(render("tests/text/textPath/startOffset-with-pathLength-on-transformed-path"), 0); }
+#[test] fn text_textPath_startOffset_with_pathLength() { assert_eq!(render("tests/text/textPath/startOffset-with-pathLength"), 0); }
+#[test] fn text_textPath_startOffset_with_zero_pathLength() { assert_eq!(render("tests/text/textPath/startOffset-with-zero-pathLength"), 0); }
 #[test] fn text_textPath_startOffset_eq__100() { assert_eq!(render("tests/text/textPath/startOffset=-100"), 0); }
 #[test] fn text_textPath_startOffset_eq_10percent() { assert_eq!(render("tests/text/textPath/startOffset=10percent"), 0); }
+#[test] fn text_textPath_startOffset_eq_25percent_with_pathLength() { assert_eq!(render("tests/text/textPath/startOffset=25percent-with-pathLength"), 0); }
 #[test] fn text_textPath_startOffset_eq_30() { assert_eq!(render("tests/text/textPath/startOffset=30"), 0); }
 #[test] fn text_textPath_startOffset_eq_5mm() { assert_eq!(render("tests/text/textPath/startOffset=5mm"), 0); }
 #[test] fn text_textPath_startOffset_eq_9999() { assert_eq!(render("tests/text/textPath/startOffset=9999"), 0); }

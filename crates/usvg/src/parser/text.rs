@@ -366,7 +366,7 @@ fn resolve_text_flow(
     state: &converter::State,
     cache: &mut converter::Cache,
 ) -> Option<TextFlow> {
-    let (id, path) = resolve_text_flow_path(node, state, cache)?;
+    let (id, path, author_length) = resolve_text_flow_path(node, state, cache)?;
 
     let start_offset: Length = node.attribute(AId::StartOffset).unwrap_or_default();
     let start_offset = if start_offset.unit == LengthUnit::Percent {
@@ -375,7 +375,15 @@ fn resolve_text_flow(
         let path_len = shapes::path_length(&path);
         (path_len * (start_offset.number / 100.0)) as f32
     } else {
-        node.resolve_length(AId::StartOffset, state, 0.0)
+        let offset = node.resolve_length(AId::StartOffset, state, 0.0);
+        match author_length {
+            Some(author_length) if author_length > 0.0 => {
+                (f64::from(offset) * shapes::path_length(&path) / f64::from(author_length)) as f32
+            }
+            // A zero `pathLength` makes any non-zero offset infinite.
+            Some(_) if offset != 0.0 => f32::MAX.copysign(offset),
+            _ => offset,
+        }
     };
 
     Some(TextFlow::Path(Arc::new(TextPath {
@@ -389,14 +397,14 @@ fn resolve_text_flow_path(
     node: SvgNode,
     state: &converter::State,
     cache: &mut converter::Cache,
-) -> Option<(NonEmptyString, Arc<tiny_skia_path::Path>)> {
+) -> Option<(NonEmptyString, Arc<tiny_skia_path::Path>, Option<f32>)> {
     // `path` takes precedence over `href`, unless it yields no path data.
     if let Some(path_data) = node.attribute::<&str>(AId::Path) {
         if let Some(path) = super::shapes::convert_path_data(path_data) {
             // The writer references text paths by ID, so an inline path needs one too.
             let id = NonEmptyString::new(node.element_id().to_string())
                 .unwrap_or_else(|| cache.gen_text_path_id());
-            return Some((id, path));
+            return Some((id, path, None));
         }
     }
 
@@ -406,7 +414,7 @@ fn resolve_text_flow_path(
 fn resolve_text_flow_href(
     node: SvgNode,
     state: &converter::State,
-) -> Option<(NonEmptyString, Arc<tiny_skia_path::Path>)> {
+) -> Option<(NonEmptyString, Arc<tiny_skia_path::Path>, Option<f32>)> {
     let linked_node = node.attribute::<SvgNode>(AId::Href)?;
     let path = super::shapes::convert(linked_node, state)?;
 
@@ -421,7 +429,7 @@ fn resolve_text_flow_href(
     };
 
     let id = NonEmptyString::new(linked_node.element_id().to_string())?;
-    Some((id, path))
+    Some((id, path, shapes::author_path_length(linked_node)))
 }
 
 fn convert_font(node: SvgNode, state: &converter::State) -> Font {

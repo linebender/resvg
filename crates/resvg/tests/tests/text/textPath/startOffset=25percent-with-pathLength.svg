@@ -1,0 +1,13 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"
+     xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>`startOffset=25%` with `pathLength`</title>
+
+    <path id="pathForText1" d="M 20 100 H 180" pathLength="16" fill="none" stroke="gray"/>
+
+    <text id="text1" font-family="Noto Sans" font-size="24">
+        <textPath id="textPath1" startOffset="25%" xlink:href="#pathForText1">Text</textPath>
+    </text>
+
+    <!-- image frame -->
+    <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>
