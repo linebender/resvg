@@ -58,6 +58,10 @@ typedef enum {
      * Failed to parse an SVG data.
      */
     RESVG_ERROR_PARSING_FAILED,
+    /**
+     * A decompressed SVGZ file exceeded the size limit.
+     */
+    RESVG_ERROR_SVGZ_DECOMPRESSION_LIMIT_REACHED,
 } resvg_error;
 
 /**
