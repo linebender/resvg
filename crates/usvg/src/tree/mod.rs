@@ -1677,7 +1677,7 @@ pub struct Tree {
     pub(crate) masks: Vec<Arc<Mask>>,
     pub(crate) filters: Vec<Arc<filter::Filter>>,
     #[cfg(feature = "text")]
-    pub(crate) fontdb: Arc<fontdb::Database>,
+    pub(crate) fonts: std::collections::HashMap<crate::FontKey, crate::FontData>,
 }
 
 impl Tree {
@@ -1756,10 +1756,12 @@ impl Tree {
         &self.filters
     }
 
-    /// Returns the font database that applies to all text nodes in the tree.
+    /// Returns the data of a font that glyphs in this tree refer to.
+    ///
+    /// Fonts used by nested SVG images belong to the trees of those images.
     #[cfg(feature = "text")]
-    pub fn fontdb(&self) -> &Arc<fontdb::Database> {
-        &self.fontdb
+    pub fn font(&self, key: crate::FontKey) -> Option<&crate::FontData> {
+        self.fonts.get(&key)
     }
 
     pub(crate) fn collect_paint_servers(&mut self) {

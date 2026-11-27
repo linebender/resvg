@@ -5,7 +5,6 @@ use std::collections::{HashMap, HashSet};
 use std::num::NonZeroU16;
 use std::sync::Arc;
 
-use fontdb::ID;
 use harfrust::ShapeOptions;
 use kurbo::{ParamCurve, ParamCurveArclen, ParamCurveDeriv};
 use strict_num::NonZeroPositiveF32;
@@ -16,7 +15,7 @@ use super::cache::{FontCache, FontInstance, with_optical_sizing};
 use crate::tree::{BBox, IsValidLength};
 use crate::{
     AlignmentBaseline, ApproxZeroUlps, BaselineShift, DominantBaseline, Fill, FillRule, Font,
-    FontResolver, GlyphId, LengthAdjust, PaintOrder, Path, ShapeRendering, Stroke, Text,
+    FontKey, FontResolver, GlyphId, LengthAdjust, PaintOrder, Path, ShapeRendering, Stroke, Text,
     TextAnchor, TextChunk, TextDecorationStyle, TextFlow, TextPath, TextSpan, WritingMode,
 };
 
@@ -42,9 +41,9 @@ pub struct PositionedGlyph {
     pub id: GlyphId,
     /// The text from the original string that corresponds to that glyph.
     pub text: String,
-    /// The ID of the font the glyph should be taken from. Can be used with the
-    /// [font database of the tree](crate::Tree::fontdb) this glyph is part of.
-    pub font: ID,
+    /// The font the glyph should be taken from. Its data is available via
+    /// [`Tree::font`](crate::Tree::font).
+    pub font: FontKey,
 }
 
 impl PositionedGlyph {
@@ -180,14 +179,15 @@ impl GlyphCluster {
 
 pub(crate) fn layout_text(
     text_node: &Text,
-    resolver: &FontResolver,
+    resolver: &dyn FontResolver,
     fonts: &mut FontCache,
 ) -> Option<(Vec<Span>, NonZeroRect)> {
     for chunk in &text_node.chunks {
         for span in &chunk.spans {
             if !fonts.resolved.contains_key(&span.font) {
-                if let Some(font) = (resolver.select_font)(&span.font, &mut fonts.fontdb)
-                    .and_then(|id| resolve_font(id, &span.font.variations, fonts))
+                if let Some(font) = resolver
+                    .select_font(&span.font)
+                    .and_then(|key| resolve_font(key, &span.font.variations, resolver, fonts))
                 {
                     fonts.resolved.insert(span.font.clone(), Arc::new(font));
                 }
@@ -872,7 +872,7 @@ fn collect_normals(
 /// but not the text layouting. So all clusters are in the 0x0 position.
 fn process_chunk(
     chunk: &TextChunk,
-    resolver: &FontResolver,
+    resolver: &dyn FontResolver,
     fonts: &mut FontCache,
 ) -> Vec<GlyphCluster> {
     // The way this function works is a bit tricky.
@@ -923,7 +923,7 @@ fn process_chunk(
             font,
             span.small_caps,
             span.apply_kerning,
-            &span.font.variations,
+            &span.font,
             span.font_size.get(),
             span.font_optical_sizing,
             resolver,
@@ -1183,7 +1183,7 @@ fn form_glyph_clusters(glyphs: &[Glyph], text: &str, font_size: f32) -> GlyphClu
             span_ts: Transform::default(),
             units_per_em: glyph.font.units_per_em.get(),
             font_size,
-            font: glyph.font.id,
+            font: glyph.font.key,
             text: glyph.text.clone(),
             id: glyph.id,
         });
@@ -1217,11 +1217,15 @@ fn form_glyph_clusters(glyphs: &[Glyph], text: &str, font_size: f32) -> GlyphClu
 
 #[inline(never)]
 fn resolve_font(
-    id: ID,
+    key: FontKey,
     variations: &[crate::FontVariation],
+    resolver: &dyn FontResolver,
     fonts: &mut FontCache,
 ) -> Option<ResolvedFont> {
-    let font = &fonts.load(id)?.instance(variations.iter().copied()).font;
+    let font = &fonts
+        .load(key, resolver)?
+        .instance(variations.iter().copied())
+        .font;
     let metrics = font.metrics();
 
     // Reject fonts with an out-of-range unitsPerEm, like `ttf-parser` did.
@@ -1284,7 +1288,7 @@ fn resolve_font(
     };
 
     Some(ResolvedFont {
-        id,
+        key,
         units_per_em,
         ascent: ascent.round() as i16,
         descent: descent.round() as i16,
@@ -1303,12 +1307,13 @@ pub(crate) fn shape_text(
     font: Arc<ResolvedFont>,
     small_caps: bool,
     apply_kerning: bool,
-    variations: &[crate::FontVariation],
+    span_font: &Font,
     font_size: f32,
     font_optical_sizing: crate::FontOpticalSizing,
-    resolver: &FontResolver,
+    resolver: &dyn FontResolver,
     fonts: &mut FontCache,
 ) -> Vec<Glyph> {
+    let variations = &span_font.variations;
     let shaping_variations = with_optical_sizing(variations, font_optical_sizing, font_size);
 
     let mut glyphs = shape_text_with_font(
@@ -1322,7 +1327,7 @@ pub(crate) fn shape_text(
     .unwrap_or_default();
 
     // Remember all fonts used for shaping.
-    let mut used_fonts = vec![font.id];
+    let mut used_fonts = vec![font.key];
 
     // Loop until all glyphs become resolved or until no more fonts are left.
     'outer: loop {
@@ -1335,8 +1340,10 @@ pub(crate) fn shape_text(
         }
 
         if let Some(c) = missing {
-            let fallback_font = match (resolver.select_fallback)(c, &used_fonts, &mut fonts.fontdb)
-                .and_then(|id| resolve_font(id, variations, fonts))
+            let fallback_font = match resolver
+                .select_fallback(c, span_font, font.key, &used_fonts)
+                .filter(|key| !used_fonts.contains(key))
+                .and_then(|key| resolve_font(key, variations, resolver, fonts))
             {
                 Some(v) => Arc::new(v),
                 None => break 'outer,
@@ -1376,7 +1383,7 @@ pub(crate) fn shape_text(
             }
 
             // Remember this font.
-            used_fonts.push(fallback_font.id);
+            used_fonts.push(fallback_font.key);
         } else {
             break 'outer;
         }
@@ -1415,7 +1422,7 @@ fn shape_text_with_font(
         font: hr_font,
         plans,
         ..
-    } = fonts.load(font.id)?.instance(variations);
+    } = fonts.get(font.key)?.instance(variations);
 
     let bidi_info = unicode_bidi::BidiInfo::new(text, Some(unicode_bidi::Level::ltr()));
     let paragraph = &bidi_info.paragraphs[0];
@@ -1620,7 +1627,7 @@ impl Glyph {
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct ResolvedFont {
-    pub(crate) id: ID,
+    pub(crate) key: FontKey,
 
     units_per_em: NonZeroU16,
 

@@ -32,7 +32,7 @@ impl Default for FontStretch {
     }
 }
 
-#[cfg(feature = "text")]
+#[cfg(feature = "fontdb")]
 impl From<fontdb::Stretch> for FontStretch {
     fn from(stretch: fontdb::Stretch) -> Self {
         match stretch {
@@ -49,7 +49,7 @@ impl From<fontdb::Stretch> for FontStretch {
     }
 }
 
-#[cfg(feature = "text")]
+#[cfg(feature = "fontdb")]
 impl From<FontStretch> for fontdb::Stretch {
     fn from(stretch: FontStretch) -> Self {
         match stretch {
@@ -117,7 +117,7 @@ impl Default for FontStyle {
     }
 }
 
-#[cfg(feature = "text")]
+#[cfg(feature = "fontdb")]
 impl From<fontdb::Style> for FontStyle {
     fn from(style: fontdb::Style) -> Self {
         match style {
@@ -128,7 +128,7 @@ impl From<fontdb::Style> for FontStyle {
     }
 }
 
-#[cfg(feature = "text")]
+#[cfg(feature = "fontdb")]
 impl From<FontStyle> for fontdb::Style {
     fn from(style: FontStyle) -> Self {
         match style {

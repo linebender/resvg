@@ -340,33 +340,35 @@ fn process(args: Args) -> Result<(), String> {
         (svg_from, svg_to)
     };
 
-    let mut fontdb = usvg::fontdb::Database::new();
-    if !args.skip_system_fonts {
-        // TODO: only when needed
-        fontdb.load_system_fonts();
-    }
-
-    for path in &args.font_files {
-        if let Err(e) = fontdb.load_font_file(path) {
-            log::warn!("Failed to load '{}' cause {}.", path.display(), e);
+    let load_fonts = move || {
+        let mut fontdb = usvg::fontdb::Database::new();
+        if !args.skip_system_fonts {
+            fontdb.load_system_fonts();
         }
-    }
 
-    for path in &args.font_dirs {
-        fontdb.load_fonts_dir(path);
-    }
+        for path in &args.font_files {
+            if let Err(e) = fontdb.load_font_file(path) {
+                log::warn!("Failed to load '{}' cause {}.", path.display(), e);
+            }
+        }
 
-    let take_or = |mut family: Option<String>, fallback: &str| {
-        family.take().unwrap_or_else(|| fallback.to_string())
+        for path in &args.font_dirs {
+            fontdb.load_fonts_dir(path);
+        }
+
+        let take_or =
+            |family: Option<String>, fallback: &str| family.unwrap_or_else(|| fallback.to_string());
+
+        fontdb.set_serif_family(take_or(args.serif_family, "Times New Roman"));
+        fontdb.set_sans_serif_family(take_or(args.sans_serif_family, "Arial"));
+        fontdb.set_cursive_family(take_or(args.cursive_family, "Comic Sans MS"));
+        fontdb.set_fantasy_family(take_or(args.fantasy_family, "Impact"));
+        fontdb.set_monospace_family(take_or(args.monospace_family, "Courier New"));
+        fontdb
     };
 
-    fontdb.set_serif_family(take_or(args.serif_family, "Times New Roman"));
-    fontdb.set_sans_serif_family(take_or(args.sans_serif_family, "Arial"));
-    fontdb.set_cursive_family(take_or(args.cursive_family, "Comic Sans MS"));
-    fontdb.set_fantasy_family(take_or(args.fantasy_family, "Impact"));
-    fontdb.set_monospace_family(take_or(args.monospace_family, "Courier New"));
-
-    if args.list_fonts {
+    let font_resolver = if args.list_fonts {
+        let fontdb = load_fonts();
         for face in fontdb.faces() {
             if let usvg::fontdb::Source::File(path) = &face.source {
                 let families: Vec<_> = face
@@ -386,7 +388,10 @@ fn process(args: Args) -> Result<(), String> {
                 );
             }
         }
-    }
+        usvg::FontdbResolver::new(move || fontdb)
+    } else {
+        usvg::FontdbResolver::new(load_fonts)
+    };
 
     let resources_dir = match args.resources_dir {
         Some(v) => Some(v),
@@ -429,8 +434,7 @@ fn process(args: Args) -> Result<(), String> {
         default_size: usvg::Size::from_wh(args.default_width as f32, args.default_height as f32)
             .unwrap(),
         image_href_resolver: usvg::ImageHrefResolver::default(),
-        font_resolver: usvg::FontResolver::default(),
-        fontdb: Arc::new(fontdb),
+        font_resolver: Arc::new(font_resolver),
         max_depth: usvg::DEFAULT_MAX_DEPTH,
         style_sheet,
     };

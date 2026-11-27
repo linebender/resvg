@@ -18,7 +18,7 @@ mod extra;
 
 const IMAGE_SIZE: u32 = 300;
 
-static GLOBAL_FONTDB: Lazy<Arc<fontdb::Database>> = Lazy::new(|| {
+static GLOBAL_FONTS: Lazy<Arc<usvg::FontdbResolver>> = Lazy::new(|| {
     if let Ok(()) = log::set_logger(&LOGGER) {
         log::set_max_level(log::LevelFilter::Warn);
     }
@@ -47,7 +47,7 @@ static GLOBAL_FONTDB: Lazy<Arc<fontdb::Database>> = Lazy::new(|| {
     fontdb.set_cursive_family("Yellowtail");
     fontdb.set_fantasy_family("Sedgwick Ave Display");
     fontdb.set_monospace_family("Noto Mono");
-    Arc::new(fontdb)
+    Arc::new(usvg::FontdbResolver::new(move || fontdb))
 });
 
 pub fn render(name: &str) -> usize {
@@ -72,7 +72,7 @@ pub fn render_inner(name: &str, test_mode: TestMode) -> usize {
     let make_ref = std::env::var("MAKE_REF").is_ok();
 
     let opt = usvg::Options {
-        fontdb: GLOBAL_FONTDB.clone(),
+        font_resolver: GLOBAL_FONTS.clone(),
         resources_dir: Some(
             std::path::PathBuf::from(&svg_path)
                 .parent()

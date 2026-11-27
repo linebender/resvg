@@ -9,14 +9,14 @@ fn main() {
     }
 
     let tree = {
-        let mut opt = usvg::Options {
+        let opt = usvg::Options {
             // Get file's absolute directory.
             resources_dir: std::fs::canonicalize(&args[1])
                 .ok()
                 .and_then(|p| p.parent().map(|p| p.to_path_buf())),
+            font_resolver: std::sync::Arc::new(usvg::FontdbResolver::system()),
             ..usvg::Options::default()
         };
-        opt.fontdb_mut().load_system_fonts();
 
         let svg_data = std::fs::read(&args[1]).unwrap();
         usvg::Tree::from_data(&svg_data, &opt).unwrap()
