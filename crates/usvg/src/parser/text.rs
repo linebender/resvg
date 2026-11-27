@@ -3,11 +3,10 @@
 
 use std::sync::Arc;
 
-use kurbo::{ParamCurve, ParamCurveArclen};
 use svgtypes::{FontFamily, Length, LengthUnit, parse_font_families};
 
 use super::svgtree::{AId, EId, FromValue, SvgNode};
-use super::{OptionLog, converter, style};
+use super::{OptionLog, converter, shapes, style};
 use crate::*;
 
 impl<'a, 'input: 'a> FromValue<'a, 'input> for TextAnchor {
@@ -367,16 +366,24 @@ fn resolve_text_flow(
     state: &converter::State,
     cache: &mut converter::Cache,
 ) -> Option<TextFlow> {
-    let (id, path) = resolve_text_flow_path(node, state, cache)?;
+    let (id, path, author_length) = resolve_text_flow_path(node, state, cache)?;
 
     let start_offset: Length = node.attribute(AId::StartOffset).unwrap_or_default();
     let start_offset = if start_offset.unit == LengthUnit::Percent {
         // 'If a percentage is given, then the `startOffset` represents
         // a percentage distance along the entire path.'
-        let path_len = path_length(&path);
+        let path_len = shapes::path_length(&path);
         (path_len * (start_offset.number / 100.0)) as f32
     } else {
-        node.resolve_length(AId::StartOffset, state, 0.0)
+        let offset = node.resolve_length(AId::StartOffset, state, 0.0);
+        match author_length {
+            Some(author_length) if author_length > 0.0 => {
+                (f64::from(offset) * shapes::path_length(&path) / f64::from(author_length)) as f32
+            }
+            // A zero `pathLength` makes any non-zero offset infinite.
+            Some(_) if offset != 0.0 => f32::MAX.copysign(offset),
+            _ => offset,
+        }
     };
 
     Some(TextFlow::Path(Arc::new(TextPath {
@@ -390,14 +397,14 @@ fn resolve_text_flow_path(
     node: SvgNode,
     state: &converter::State,
     cache: &mut converter::Cache,
-) -> Option<(NonEmptyString, Arc<tiny_skia_path::Path>)> {
+) -> Option<(NonEmptyString, Arc<tiny_skia_path::Path>, Option<f32>)> {
     // `path` takes precedence over `href`, unless it yields no path data.
     if let Some(path_data) = node.attribute::<&str>(AId::Path) {
         if let Some(path) = super::shapes::convert_path_data(path_data) {
             // The writer references text paths by ID, so an inline path needs one too.
             let id = NonEmptyString::new(node.element_id().to_string())
                 .unwrap_or_else(|| cache.gen_text_path_id());
-            return Some((id, path));
+            return Some((id, path, None));
         }
     }
 
@@ -407,7 +414,7 @@ fn resolve_text_flow_path(
 fn resolve_text_flow_href(
     node: SvgNode,
     state: &converter::State,
-) -> Option<(NonEmptyString, Arc<tiny_skia_path::Path>)> {
+) -> Option<(NonEmptyString, Arc<tiny_skia_path::Path>, Option<f32>)> {
     let linked_node = node.attribute::<SvgNode>(AId::Href)?;
     let path = super::shapes::convert(linked_node, state)?;
 
@@ -422,7 +429,7 @@ fn resolve_text_flow_href(
     };
 
     let id = NonEmptyString::new(linked_node.element_id().to_string())?;
-    Some((id, path))
+    Some((id, path, shapes::author_path_length(linked_node)))
 }
 
 fn convert_font(node: SvgNode, state: &converter::State) -> Font {
@@ -440,7 +447,7 @@ fn convert_font(node: SvgNode, state: &converter::State) -> Font {
 
     // Map font-weight to wght axis (if not already set)
     if !has_wght {
-        variations.push(FontVariation::new(*b"wght", weight as f32));
+        variations.push(FontVariation::new(*b"wght", weight));
     }
 
     // Map font-stretch to wdth axis (if not already set)
@@ -500,7 +507,7 @@ fn convert_font(node: SvgNode, state: &converter::State) -> Font {
         families,
         style,
         stretch,
-        weight,
+        weight: weight.round() as u16,
         variations,
     }
 }
@@ -613,52 +620,33 @@ fn conv_font_stretch(node: SvgNode) -> FontStretch {
     }
 }
 
-fn resolve_font_weight(node: SvgNode) -> u16 {
-    fn bound(min: usize, val: usize, max: usize) -> usize {
-        std::cmp::max(min, std::cmp::min(max, val))
-    }
-
+fn resolve_font_weight(node: SvgNode) -> f32 {
     let nodes: Vec<_> = node.ancestors().collect();
-    let mut weight = 400;
+    let mut weight = 400.0f32;
     for n in nodes.iter().rev().skip(1) {
         // skip Root
         weight = match n.attribute(AId::FontWeight).unwrap_or("") {
-            "normal" => 400,
-            "bold" => 700,
-            "100" => 100,
-            "200" => 200,
-            "300" => 300,
-            "400" => 400,
-            "500" => 500,
-            "600" => 600,
-            "700" => 700,
-            "800" => 800,
-            "900" => 900,
-            "bolder" => {
-                // By the CSS2 spec the default value should be 400
-                // so `bolder` will result in 500.
-                // But Chrome and Inkscape will give us 700.
-                // Have no idea is it a bug or something, but
-                // we will follow such behavior for now.
-                let step = if weight == 400 { 300 } else { 100 };
-
-                bound(100, weight + step, 900)
-            }
-            "lighter" => {
-                // By the CSS2 spec the default value should be 400
-                // so `lighter` will result in 300.
-                // But Chrome and Inkscape will give us 200.
-                // Have no idea is it a bug or something, but
-                // we will follow such behavior for now.
-                let step = if weight == 400 { 200 } else { 100 };
-
-                bound(100, weight - step, 900)
-            }
-            _ => weight,
+            "normal" => 400.0,
+            "bold" => 700.0,
+            "bolder" => match weight {
+                w if w < 350.0 => 400.0,
+                w if w < 550.0 => 700.0,
+                w if w < 900.0 => 900.0,
+                w => w,
+            },
+            "lighter" => match weight {
+                w if w < 550.0 => w.min(100.0),
+                w if w < 750.0 => 400.0,
+                _ => 700.0,
+            },
+            value => match value.parse::<svgtypes::Number>() {
+                Ok(svgtypes::Number(number)) if (1.0..=1000.0).contains(&number) => number as f32,
+                _ => weight,
+            },
         };
     }
 
-    weight as u16
+    weight
 }
 
 /// Resolves text's character positions.
@@ -824,7 +812,7 @@ fn resolve_decoration(
     // decoration is declared somewhere, it means that this tspan will have it. However, we still
     // need to find the corresponding fill/stroke for it. To do this, we iterate through all
     // ancestors (i.e. tspans) until we find the text decoration declared. If not, we will
-    // stop at latest at the text node, and use its fill/stroke.
+    // stop at latest at the text node, and use its fill, stroke and paint order.
     let mut gen_style = |text_decoration: &str| {
         if !tspan
             .ancestors()
@@ -833,20 +821,16 @@ fn resolve_decoration(
             return None;
         }
 
-        let mut fill_node = None;
-        let mut stroke_node = None;
-
-        for node in tspan.ancestors() {
-            if find_decoration(node, text_decoration) || node.tag_name() == Some(EId::Text) {
-                fill_node = fill_node.map_or(Some(node), Some);
-                stroke_node = stroke_node.map_or(Some(node), Some);
-                break;
-            }
-        }
+        let node = tspan
+            .ancestors()
+            .find(|n| find_decoration(*n, text_decoration) || n.tag_name() == Some(EId::Text))?;
 
         Some(TextDecorationStyle {
-            fill: fill_node.and_then(|node| style::resolve_fill(node, true, state, cache)),
-            stroke: stroke_node.and_then(|node| style::resolve_stroke(node, true, state, cache)),
+            fill: style::resolve_fill(node, true, state, cache),
+            stroke: style::resolve_stroke(node, true, state, cache),
+            paint_order: super::converter::svg_paint_order_to_usvg(
+                node.find_attribute(AId::PaintOrder).unwrap_or_default(),
+            ),
         })
     };
 
@@ -938,58 +922,4 @@ fn convert_writing_mode(text_node: SvgNode) -> WritingMode {
     } else {
         WritingMode::LeftToRight
     }
-}
-
-fn path_length(path: &tiny_skia_path::Path) -> f64 {
-    let mut prev_mx = path.points()[0].x;
-    let mut prev_my = path.points()[0].y;
-    let mut prev_x = prev_mx;
-    let mut prev_y = prev_my;
-
-    fn create_curve_from_line(px: f32, py: f32, x: f32, y: f32) -> kurbo::CubicBez {
-        let line = kurbo::Line::new(
-            kurbo::Point::new(px as f64, py as f64),
-            kurbo::Point::new(x as f64, y as f64),
-        );
-        let p1 = line.eval(0.33);
-        let p2 = line.eval(0.66);
-        kurbo::CubicBez::new(line.p0, p1, p2, line.p1)
-    }
-
-    let mut length = 0.0;
-    for seg in path.segments() {
-        let curve = match seg {
-            tiny_skia_path::PathSegment::MoveTo(p) => {
-                prev_mx = p.x;
-                prev_my = p.y;
-                prev_x = p.x;
-                prev_y = p.y;
-                continue;
-            }
-            tiny_skia_path::PathSegment::LineTo(p) => {
-                create_curve_from_line(prev_x, prev_y, p.x, p.y)
-            }
-            tiny_skia_path::PathSegment::QuadTo(p1, p) => kurbo::QuadBez::new(
-                kurbo::Point::new(prev_x as f64, prev_y as f64),
-                kurbo::Point::new(p1.x as f64, p1.y as f64),
-                kurbo::Point::new(p.x as f64, p.y as f64),
-            )
-            .raise(),
-            tiny_skia_path::PathSegment::CubicTo(p1, p2, p) => kurbo::CubicBez::new(
-                kurbo::Point::new(prev_x as f64, prev_y as f64),
-                kurbo::Point::new(p1.x as f64, p1.y as f64),
-                kurbo::Point::new(p2.x as f64, p2.y as f64),
-                kurbo::Point::new(p.x as f64, p.y as f64),
-            ),
-            tiny_skia_path::PathSegment::Close => {
-                create_curve_from_line(prev_x, prev_y, prev_mx, prev_my)
-            }
-        };
-
-        length += curve.arclen(0.5);
-        prev_x = curve.p3.x as f32;
-        prev_y = curve.p3.y as f32;
-    }
-
-    length
 }

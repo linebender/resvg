@@ -877,6 +877,7 @@ fn convert_path(
     }
 
     if let Some(stroke) = stroke.as_mut() {
+        super::style::calibrate_path_dashes(node, &tiny_skia_path, stroke);
         if let (Some(ContextElement::PathNode), Some((context_transform, context_bbox))) =
             (stroke.context_element, state.context_path)
         {

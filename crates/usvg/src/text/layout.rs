@@ -472,7 +472,7 @@ pub(crate) fn convert_decoration(
         span.visible,
         decoration.fill.take(),
         decoration.stroke.take(),
-        PaintOrder::default(),
+        decoration.paint_order,
         ShapeRendering::default(),
         Arc::new(path_data),
         Transform::default(),

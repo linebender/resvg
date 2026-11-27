@@ -3,7 +3,7 @@
     <title>`lighter` without parent</title>
 
     <text id="text1" x="100" y="100" font-weight="lighter">Text</text>
-    <text id="text2" x="100" y="130" font-weight="200">Text</text>
+    <text id="text2" x="100" y="130" font-weight="100">Text</text>
 
     <!-- image frame -->
     <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>

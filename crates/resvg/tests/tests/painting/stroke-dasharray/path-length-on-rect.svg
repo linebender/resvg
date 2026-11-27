@@ -1,0 +1,9 @@
+<svg id="svg1" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+    <title>With `pathLength` on `rect`</title>
+
+    <rect id="rect1" x="40" y="60" width="120" height="80" fill="none" stroke="green"
+          stroke-width="10" stroke-dasharray="3 2" stroke-dashoffset="1" pathLength="40"/>
+
+    <!-- image frame -->
+    <rect id="frame" x="1" y="1" width="198" height="198" fill="none" stroke="black"/>
+</svg>
