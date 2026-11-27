@@ -586,6 +586,7 @@ fn parse_args() -> Result<Args, String> {
         text_rendering: args.text_rendering,
         image_rendering: args.image_rendering,
         default_size,
+        viewport_size: None,
         image_href_resolver: usvg::ImageHrefResolver::default(),
         font_resolver: usvg::FontResolver::default(),
         fontdb: Arc::new(fontdb::Database::new()),

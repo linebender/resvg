@@ -772,6 +772,22 @@ fn long_clip_path_chain() {
 }
 
 #[test]
+fn percentage_root_size_uses_containing_viewport() {
+    let options = usvg::Options {
+        viewport_size: usvg::Size::from_wh(320.0, 200.0),
+        ..Default::default()
+    };
+    for view_box in ["", "viewBox='0 0 20 10'"] {
+        let svg = format!(
+            "<svg xmlns='http://www.w3.org/2000/svg' width='50%' height='75' {view_box}><rect width='20' height='10'/></svg>"
+        );
+        let tree = usvg::Tree::from_str(&svg, &options).unwrap();
+        assert_eq!(tree.size().width(), 160.0);
+        assert_eq!(tree.size().height(), 75.0);
+    }
+}
+
+#[test]
 fn image_too_thin_to_fit_is_skipped() {
     let svg = "<svg xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink'>\
         <image x='1000' y='1000' width='1' height='1' xlink:href='data:image/png;base64,\

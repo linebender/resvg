@@ -432,6 +432,20 @@ fn resolve_svg_size(svg: &SvgNode, opt: &Options) -> (Result<Size, Error>, bool)
 
     let view_box = svg.parse_viewbox();
 
+    if let Some(viewport) = opt.viewport_size {
+        let w = if width.unit == Unit::Percent {
+            viewport.width() * width.number as f32 / 100.0
+        } else {
+            svg.convert_user_length(AId::Width, &state, def)
+        };
+        let h = if height.unit == Unit::Percent {
+            viewport.height() * height.number as f32 / 100.0
+        } else {
+            svg.convert_user_length(AId::Height, &state, def)
+        };
+        return (Size::from_wh(w, h).ok_or(Error::InvalidSize), false);
+    }
+
     let restore_viewbox =
         if (width.unit == Unit::Percent || height.unit == Unit::Percent) && view_box.is_none() {
             // Apply the percentages to the fallback size.

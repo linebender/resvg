@@ -428,6 +428,7 @@ fn process(args: Args) -> Result<(), String> {
         image_rendering: args.image_rendering,
         default_size: usvg::Size::from_wh(args.default_width as f32, args.default_height as f32)
             .unwrap(),
+        viewport_size: None,
         image_href_resolver: usvg::ImageHrefResolver::default(),
         font_resolver: usvg::FontResolver::default(),
         fontdb: Arc::new(fontdb),
