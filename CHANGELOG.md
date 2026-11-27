@@ -20,6 +20,8 @@ This changelog also contains important changes in dependencies.
   `usvg::BaseGradient::color_interpolation`. (#1229)
 - `color-interpolation` on masks: `linearRGB` computes the luminance of a luminance mask in linear light.
   `usvg::Mask::color_interpolation`. (#1235)
+- `usvg::ImageKind::RGBA` and `usvg::RawImage` to pass already decoded RGBA pixels
+  to an `image` element through `ImageHrefResolver`, without encoding them first.
 
 ### Fixed
 

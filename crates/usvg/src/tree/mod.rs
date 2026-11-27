@@ -1555,6 +1555,11 @@ pub enum ImageKind {
     WEBP(Arc<Vec<u8>>),
     /// A preprocessed SVG tree. Can be rendered as is.
     SVG(Tree),
+    /// Already decoded pixels.
+    ///
+    /// Lets the caller pass an image decoded by itself, e.g. in a format usvg doesn't support,
+    /// or one it has already decoded for other purposes, without re-encoding it.
+    RGBA(RawImage),
 }
 
 impl ImageKind {
@@ -1568,6 +1573,7 @@ impl ImageKind {
                 .and_then(|size| Size::from_wh(size.width as f32, size.height as f32))
                 .log_none(|| log::warn!("Image has an invalid size. Skipped.")),
             ImageKind::SVG(svg) => Some(svg.size),
+            ImageKind::RGBA(image) => Size::from_wh(image.width as f32, image.height as f32),
         }
     }
 }
@@ -1580,7 +1586,77 @@ impl std::fmt::Debug for ImageKind {
             ImageKind::GIF(_) => f.write_str("ImageKind::GIF(..)"),
             ImageKind::WEBP(_) => f.write_str("ImageKind::WEBP(..)"),
             ImageKind::SVG(_) => f.write_str("ImageKind::SVG(..)"),
+            ImageKind::RGBA(image) => {
+                write!(f, "ImageKind::RGBA({}x{}, ..)", image.width, image.height)
+            }
         }
+    }
+}
+
+/// Decoded image pixels.
+///
+/// The pixels are stored row by row, top to bottom, without padding,
+/// as 8-bit RGBA with unpremultiplied (straight) alpha.
+#[derive(Clone)]
+pub struct RawImage {
+    width: u32,
+    height: u32,
+    data: Arc<dyn AsRef<[u8]> + Send + Sync>,
+}
+
+impl RawImage {
+    /// Creates an image from 8-bit unpremultiplied RGBA pixels.
+    ///
+    /// `data` can be any shared byte buffer, so pixels the caller already holds
+    /// are not copied.
+    ///
+    /// Returns `None` when the width or height is zero, or when `data` is not exactly
+    /// `width * height * 4` bytes long.
+    pub fn from_rgba8(
+        width: u32,
+        height: u32,
+        data: Arc<dyn AsRef<[u8]> + Send + Sync>,
+    ) -> Option<Self> {
+        if width == 0 || height == 0 {
+            return None;
+        }
+
+        let len = (width as usize)
+            .checked_mul(height as usize)?
+            .checked_mul(4)?;
+        if (*data).as_ref().len() != len {
+            return None;
+        }
+
+        Some(RawImage {
+            width,
+            height,
+            data,
+        })
+    }
+
+    /// The image width in pixels.
+    pub fn width(&self) -> u32 {
+        self.width
+    }
+
+    /// The image height in pixels.
+    pub fn height(&self) -> u32 {
+        self.height
+    }
+
+    /// The pixels as 8-bit unpremultiplied RGBA, row by row, without padding.
+    pub fn data(&self) -> &[u8] {
+        (*self.data).as_ref()
+    }
+}
+
+impl std::fmt::Debug for RawImage {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.debug_struct("RawImage")
+            .field("width", &self.width)
+            .field("height", &self.height)
+            .finish_non_exhaustive()
     }
 }
 

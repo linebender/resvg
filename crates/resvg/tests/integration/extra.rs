@@ -80,3 +80,42 @@ fn render_node_filter_on_empty_group() {
 fn render_node_filter_with_transform_on_shape() {
     assert_eq!(render_node("extra/filter-with-transform-on-shape", "g1"), 0);
 }
+
+#[test]
+fn raw_image() {
+    use std::sync::Arc;
+
+    // A 2x1 image: opaque red and half-transparent blue.
+    let pixels: Arc<Vec<u8>> = Arc::new(vec![255, 0, 0, 255, 0, 0, 255, 128]);
+    let image = usvg::RawImage::from_rgba8(2, 1, pixels).unwrap();
+
+    let mut opt = usvg::Options::default();
+    opt.image_href_resolver.resolve_string =
+        Box::new(move |href, _| (href == "pixels").then(|| usvg::ImageKind::RGBA(image.clone())));
+
+    let svg = "<svg xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' \
+               width='4' height='2'>\
+               <image xlink:href='pixels' width='4' height='2' style='image-rendering:pixelated'/>\
+               </svg>";
+    let tree = usvg::Tree::from_str(svg, &opt).unwrap();
+
+    let mut pixmap = tiny_skia::Pixmap::new(4, 2).unwrap();
+    resvg::render(&tree, tiny_skia::Transform::default(), &mut pixmap.as_mut());
+
+    let red = tiny_skia::ColorU8::from_rgba(255, 0, 0, 255).premultiply();
+    let blue = tiny_skia::ColorU8::from_rgba(0, 0, 255, 128).premultiply();
+    for y in 0..2 {
+        assert_eq!(pixmap.pixel(0, y), Some(red));
+        assert_eq!(pixmap.pixel(1, y), Some(red));
+        assert_eq!(pixmap.pixel(2, y), Some(blue));
+        assert_eq!(pixmap.pixel(3, y), Some(blue));
+    }
+}
+
+#[test]
+fn raw_image_invalid_size() {
+    use std::sync::Arc;
+
+    assert!(usvg::RawImage::from_rgba8(2, 2, Arc::new(vec![0u8; 12])).is_none());
+    assert!(usvg::RawImage::from_rgba8(0, 1, Arc::new(Vec::<u8>::new())).is_none());
+}

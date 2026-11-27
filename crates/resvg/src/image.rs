@@ -23,6 +23,9 @@ pub fn render_inner(
         usvg::ImageKind::SVG(tree) => {
             render_vector(tree, transform, pixmap);
         }
+        usvg::ImageKind::RGBA(image) => {
+            render_raw(image, transform, rendering_mode, pixmap);
+        }
         #[cfg(feature = "raster-images")]
         _ => {
             raster_images::render_raster(image_kind, transform, rendering_mode, pixmap);
@@ -53,15 +56,77 @@ fn render_vector(
     Some(())
 }
 
+fn render_raw(
+    image: &usvg::RawImage,
+    transform: tiny_skia::Transform,
+    rendering_mode: usvg::ImageRendering,
+    pixmap: &mut tiny_skia::PixmapMut,
+) -> Option<()> {
+    let mut raster = tiny_skia::Pixmap::new(image.width(), image.height())?;
+    rgba_to_pixmap(image.data(), &mut raster);
+    render_pixmap(&raster, transform, rendering_mode, pixmap)
+}
+
+fn rgba_to_pixmap(data: &[u8], pixmap: &mut tiny_skia::Pixmap) {
+    use rgb::FromSlice;
+
+    let mut i = 0;
+    let dst = pixmap.data_mut();
+    for p in data.as_rgba() {
+        let a = p.a as f64 / 255.0;
+        dst[i + 0] = (p.r as f64 * a + 0.5) as u8;
+        dst[i + 1] = (p.g as f64 * a + 0.5) as u8;
+        dst[i + 2] = (p.b as f64 * a + 0.5) as u8;
+        dst[i + 3] = p.a;
+
+        i += tiny_skia::BYTES_PER_PIXEL;
+    }
+}
+
+fn render_pixmap(
+    raster: &tiny_skia::Pixmap,
+    transform: tiny_skia::Transform,
+    rendering_mode: usvg::ImageRendering,
+    pixmap: &mut tiny_skia::PixmapMut,
+) -> Option<()> {
+    use usvg::ImageRendering;
+
+    let rect = tiny_skia::Size::from_wh(raster.width() as f32, raster.height() as f32)?
+        .to_rect(0.0, 0.0)?;
+
+    let quality = match rendering_mode {
+        ImageRendering::OptimizeQuality => tiny_skia::FilterQuality::Bicubic,
+        ImageRendering::OptimizeSpeed => tiny_skia::FilterQuality::Nearest,
+        ImageRendering::Smooth => tiny_skia::FilterQuality::Bilinear,
+        ImageRendering::HighQuality => tiny_skia::FilterQuality::Bicubic,
+        ImageRendering::CrispEdges => tiny_skia::FilterQuality::Nearest,
+        ImageRendering::Pixelated => tiny_skia::FilterQuality::Nearest,
+    };
+
+    let pattern = tiny_skia::Pattern::new(
+        raster.as_ref(),
+        tiny_skia::SpreadMode::Pad,
+        quality,
+        1.0,
+        tiny_skia::Transform::default(),
+    );
+    let mut paint = tiny_skia::Paint::default();
+    paint.shader = pattern;
+
+    pixmap.fill_rect(rect, &paint, transform, None);
+
+    Some(())
+}
+
 #[cfg(feature = "raster-images")]
 mod raster_images {
+    use super::rgba_to_pixmap;
     use crate::OptionLog;
     use std::io::Cursor;
-    use usvg::ImageRendering;
 
     fn decode_raster(image: &usvg::ImageKind) -> Option<tiny_skia::Pixmap> {
         match image {
-            usvg::ImageKind::SVG(_) => None,
+            usvg::ImageKind::SVG(_) | usvg::ImageKind::RGBA(_) => None,
             usvg::ImageKind::JPEG(data) => {
                 decode_jpeg(data).log_none(|| log::warn!("Failed to decode a JPEG image."))
             }
@@ -154,22 +219,6 @@ mod raster_images {
         }
     }
 
-    fn rgba_to_pixmap(data: &[u8], pixmap: &mut tiny_skia::Pixmap) {
-        use rgb::FromSlice;
-
-        let mut i = 0;
-        let dst = pixmap.data_mut();
-        for p in data.as_rgba() {
-            let a = p.a as f64 / 255.0;
-            dst[i + 0] = (p.r as f64 * a + 0.5) as u8;
-            dst[i + 1] = (p.g as f64 * a + 0.5) as u8;
-            dst[i + 2] = (p.b as f64 * a + 0.5) as u8;
-            dst[i + 3] = p.a;
-
-            i += tiny_skia::BYTES_PER_PIXEL;
-        }
-    }
-
     pub(crate) fn render_raster(
         image: &usvg::ImageKind,
         transform: tiny_skia::Transform,
@@ -177,31 +226,6 @@ mod raster_images {
         pixmap: &mut tiny_skia::PixmapMut,
     ) -> Option<()> {
         let raster = decode_raster(image)?;
-
-        let rect = tiny_skia::Size::from_wh(raster.width() as f32, raster.height() as f32)?
-            .to_rect(0.0, 0.0)?;
-
-        let quality = match rendering_mode {
-            ImageRendering::OptimizeQuality => tiny_skia::FilterQuality::Bicubic,
-            ImageRendering::OptimizeSpeed => tiny_skia::FilterQuality::Nearest,
-            ImageRendering::Smooth => tiny_skia::FilterQuality::Bilinear,
-            ImageRendering::HighQuality => tiny_skia::FilterQuality::Bicubic,
-            ImageRendering::CrispEdges => tiny_skia::FilterQuality::Nearest,
-            ImageRendering::Pixelated => tiny_skia::FilterQuality::Nearest,
-        };
-
-        let pattern = tiny_skia::Pattern::new(
-            raster.as_ref(),
-            tiny_skia::SpreadMode::Pad,
-            quality,
-            1.0,
-            tiny_skia::Transform::default(),
-        );
-        let mut paint = tiny_skia::Paint::default();
-        paint.shader = pattern;
-
-        pixmap.fill_rect(rect, &paint, transform, None);
-
-        Some(())
+        super::render_pixmap(&raster, transform, rendering_mode, pixmap)
     }
 }
