@@ -770,3 +770,14 @@ fn long_clip_path_chain() {
 
     assert!(usvg::Tree::from_str(&svg, &usvg::Options::default()).is_ok());
 }
+
+#[test]
+fn image_too_thin_to_fit_is_skipped() {
+    let svg = "<svg xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink'>\
+        <image x='1000' y='1000' width='1' height='1' xlink:href='data:image/png;base64,\
+        iVBORw0KGgoAAAANSUhEUgABhqAAAAABAQAAAAB1BSt4AAAAI0lEQVR42u3BMQEAAADCoPVPbQwfoAAAAAAAAAAAAAAAAA4GMNUAAcmPjhAAAAAASUVORK5CYII='/>\
+    </svg>";
+
+    let tree = usvg::Tree::from_str(svg, &usvg::Options::default()).unwrap();
+    assert!(!tree.root().has_children());
+}

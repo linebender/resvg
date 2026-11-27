@@ -223,7 +223,13 @@ pub(crate) fn convert_inner(
         rect.width() - aligned_size.width(),
         rect.height() - aligned_size.height(),
     );
-    let view_box = aligned_size.to_non_zero_rect(aligned_x, aligned_y);
+    let view_box = NonZeroRect::from_xywh(
+        aligned_x,
+        aligned_y,
+        aligned_size.width(),
+        aligned_size.height(),
+    )
+    .log_none(|| log::warn!("Image has an invalid size. Skipped."))?;
 
     let image_ts = Transform::from_row(
         view_box.width() / actual_size.width(),
