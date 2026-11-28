@@ -116,16 +116,31 @@ pub(crate) fn convert(
         // Instead of the one `from_functions` derives from the content, we currently use a fairly
         // large one. This is far from ideal, but good for now.
         // TODO: Should be fixed eventually.
-        let region = match function {
+        let padding = match function {
             FilterFunction::DropShadow { .. } | FilterFunction::Blur(_) => {
                 NonZeroRect::from_xywh(-0.5, -0.5, 2.0, 2.0).unwrap()
             }
             _ => NonZeroRect::from_xywh(-0.1, -0.1, 1.2, 1.2).unwrap(),
         };
-        let region = convert_rect(region.bbox_transform(object_bbox));
-
-        let mut filter = filtra_types::Filter::from_functions(&[function], region);
-        filter.region = region;
+        let padded_region = padding.bbox_transform(object_bbox);
+        let mut filter = filtra_types::Filter::from_functions(
+            std::slice::from_ref(&function),
+            convert_rect(object_bbox),
+        );
+        let region = if matches!(function, FilterFunction::DropShadow { .. }) {
+            // Retain the usual padding and include the shadow's translated bounds.
+            let shadow = filter.region;
+            NonZeroRect::from_ltrb(
+                padded_region.left().min(shadow.x),
+                padded_region.top().min(shadow.y),
+                padded_region.right().max(shadow.x + shadow.width),
+                padded_region.bottom().max(shadow.y + shadow.height),
+            )
+            .unwrap_or(padded_region)
+        } else {
+            padded_region
+        };
+        filter.region = convert_rect(region);
 
         filters.push(Arc::new(Filter {
             id: cache.gen_filter_id(),

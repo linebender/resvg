@@ -781,3 +781,15 @@ fn image_too_thin_to_fit_is_skipped() {
     let tree = usvg::Tree::from_str(svg, &usvg::Options::default()).unwrap();
     assert!(!tree.root().has_children());
 }
+
+#[test]
+fn css_drop_shadow_filter_region_covers_large_offsets() {
+    let svg = "
+        <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 120'>
+            <rect x='50' y='50' width='10' height='10' filter='drop-shadow(60px -30px 2px blue)'/>
+        </svg>";
+    let tree = usvg::Tree::from_str(svg, &usvg::Options::default()).unwrap();
+    let region = tree.filters()[0].rect();
+    assert!(region.right() >= 126.0, "{region:?}");
+    assert!(region.top() <= 14.0, "{region:?}");
+}
