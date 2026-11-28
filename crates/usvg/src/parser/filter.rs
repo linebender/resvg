@@ -46,7 +46,7 @@ pub(crate) fn convert(
         None => return Ok(Vec::new()),
     };
 
-    let mut has_invalid_urls = false;
+    let mut has_invalid_filters = false;
     let mut filters = Vec::new();
 
     for func in svgtypes::FilterValueListParser::from(value) {
@@ -88,16 +88,18 @@ pub(crate) fn convert(
             svgtypes::FilterValue::Sepia(amount) => FilterFunction::Sepia(amount as f32),
             svgtypes::FilterValue::Saturate(amount) => FilterFunction::Saturate(amount as f32),
             svgtypes::FilterValue::Url(url) => {
-                if let Some(link) = node.document().element_by_id(url) {
-                    if let Ok(res) = convert_url(link, state, object_bbox, cache) {
-                        if let Some(f) = res {
-                            filters.push(f);
-                        }
-                    } else {
-                        has_invalid_urls = true;
-                    }
-                } else {
-                    has_invalid_urls = true;
+                let Some(link) = node
+                    .document()
+                    .element_by_id(url)
+                    .filter(|link| link.tag_name() == Some(EId::Filter))
+                else {
+                    // An unresolved filter reference disables the entire filter list.
+                    return Ok(Vec::new());
+                };
+                match convert_url(link, state, object_bbox, cache) {
+                    Ok(Some(filter)) => filters.push(filter),
+                    Ok(None) => {}
+                    Err(()) => has_invalid_filters = true,
                 }
 
                 continue;
@@ -133,11 +135,8 @@ pub(crate) fn convert(
         }));
     }
 
-    // If a `filter` attribute had urls pointing to a missing elements
-    // and there are no valid filters at all - this is an error.
-    //
-    // Note that an invalid url is not an error in general.
-    if filters.is_empty() && has_invalid_urls {
+    // A resolved filter with an invalid region can suppress painting.
+    if filters.is_empty() && has_invalid_filters {
         return Err(());
     }
 
