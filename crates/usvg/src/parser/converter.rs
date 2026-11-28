@@ -738,6 +738,25 @@ pub(crate) fn convert_group(
     };
     collect_children(cache, &mut g);
 
+    // Disabled geometry cannot produce output, even with a source-independent filter.
+    if g.children.is_empty()
+        && matches!(
+            node.tag_name(),
+            Some(
+                EId::Rect
+                    | EId::Circle
+                    | EId::Ellipse
+                    | EId::Line
+                    | EId::Polyline
+                    | EId::Polygon
+                    | EId::Path
+                    | EId::Image
+            )
+        )
+    {
+        return None;
+    }
+
     let object_bbox = || g.bounding_box().and_then(|r| r.to_non_zero_rect());
 
     // `mask` and `filter` cannot be set on `clipPath` children.

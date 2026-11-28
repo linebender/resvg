@@ -781,3 +781,19 @@ fn image_too_thin_to_fit_is_skipped() {
     let tree = usvg::Tree::from_str(svg, &usvg::Options::default()).unwrap();
     assert!(!tree.root().has_children());
 }
+
+#[test]
+fn zero_width_rect_cannot_generate_filter_output() {
+    let svg = "
+        <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 10'>
+            <defs>
+                <filter id='flood' filterUnits='userSpaceOnUse' x='0' y='0' width='30' height='10'>
+                    <feFlood flood-color='red'/>
+                </filter>
+            </defs>
+            <rect width='0' height='10' filter='url(#flood)'/>
+        </svg>";
+    let tree = usvg::Tree::from_str(svg, &usvg::Options::default()).unwrap();
+    assert!(!tree.root().has_children());
+    assert!(tree.filters().is_empty());
+}
