@@ -754,7 +754,14 @@ pub(crate) fn convert_group(
     let mut mask = None;
     if state.parent_clip_path.is_none() {
         if let Some(link) = node.attribute::<SvgNode>(AId::Mask) {
-            mask = super::mask::convert(link, state, &object_bbox, cache);
+            let mode = match node.attribute::<&str>(AId::MaskMode) {
+                Some(value) if value.eq_ignore_ascii_case("alpha") => Some(crate::MaskType::Alpha),
+                Some(value) if value.eq_ignore_ascii_case("luminance") => {
+                    Some(crate::MaskType::Luminance)
+                }
+                _ => None,
+            };
+            mask = super::mask::convert(link, state, &object_bbox, mode, cache);
             if mask.is_none() {
                 return None;
             }
