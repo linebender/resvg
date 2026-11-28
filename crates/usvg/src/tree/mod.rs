@@ -1076,6 +1076,7 @@ pub struct Group {
     pub(crate) clip_path: Option<Arc<ClipPath>>,
     /// Whether the group is a context element (i.e. a use node)
     pub(crate) is_context_element: bool,
+    pub(crate) is_marker_group: bool,
     pub(crate) mask: Option<Arc<Mask>>,
     pub(crate) filters: Vec<Arc<filter::Filter>>,
     // Calculated from `children` on first access and cached, so they must
@@ -1108,6 +1109,7 @@ impl Group {
             mask: None,
             filters: Vec::new(),
             is_context_element: false,
+            is_marker_group: false,
             bounding_boxes: OnceLock::new(),
             children: Vec::new(),
         }
@@ -1183,7 +1185,12 @@ impl Group {
     /// Can be set to `None` in case of an empty group.
     pub fn bounding_box(&self) -> Option<Rect> {
         *self.bounding_boxes().bounding_box.get_or_init(|| {
-            self.union_of_children(|child| Some(child.to_parent_coordinates(child.bounding_box()?)))
+            self.union_of_children(|child| {
+                if matches!(child, Node::Group(group) if group.is_marker_group) {
+                    return None;
+                }
+                Some(child.to_parent_coordinates(child.bounding_box()?))
+            })
         })
     }
 
@@ -1191,10 +1198,14 @@ impl Group {
     ///
     /// `userSpaceOnUse` in SVG terms.
     pub fn abs_bounding_box(&self) -> Option<Rect> {
-        *self
-            .bounding_boxes()
-            .abs_bounding_box
-            .get_or_init(|| self.union_of_children(Node::abs_bounding_box))
+        *self.bounding_boxes().abs_bounding_box.get_or_init(|| {
+            self.union_of_children(|child| {
+                if matches!(child, Node::Group(group) if group.is_marker_group) {
+                    return None;
+                }
+                child.abs_bounding_box()
+            })
+        })
     }
 
     /// Element's object bounding box including stroke.

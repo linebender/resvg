@@ -781,3 +781,27 @@ fn image_too_thin_to_fit_is_skipped() {
     let tree = usvg::Tree::from_str(svg, &usvg::Options::default()).unwrap();
     assert!(!tree.root().has_children());
 }
+
+#[test]
+fn svg_markers_do_not_extend_object_bounds() {
+    let svg = "
+        <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'>
+            <defs>
+                <marker id='wide' markerUnits='userSpaceOnUse'
+                        markerWidth='40' markerHeight='10' orient='0'>
+                    <rect width='40' height='10'/>
+                </marker>
+            </defs>
+            <g id='marked' transform='translate(3 5)'>
+                <path id='shape' d='M10 10 L20 20 L30 10' marker-end='url(#wide)'/>
+            </g>
+        </svg>";
+    let tree = usvg::Tree::from_str(svg, &usvg::Options::default()).unwrap();
+    let usvg::Node::Group(marked) = tree.node_by_id("marked").unwrap() else {
+        panic!("expected the marked group");
+    };
+    let shape = tree.node_by_id("shape").unwrap();
+    assert_eq!(marked.bounding_box(), shape.bounding_box());
+    assert_eq!(marked.abs_bounding_box(), shape.abs_bounding_box());
+    assert!(marked.layer_bounding_box().unwrap().right() > 30.0);
+}
