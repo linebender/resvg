@@ -16,6 +16,7 @@ pub(crate) fn convert(
     node: SvgNode,
     state: &converter::State,
     object_bbox: &dyn Fn() -> Option<NonZeroRect>,
+    mode: Option<MaskType>,
     cache: &mut converter::Cache,
 ) -> Option<Arc<Mask>> {
     // A `mask` attribute must reference a `mask` element.
@@ -36,7 +37,9 @@ pub(crate) fn convert(
     // Only `userSpaceOnUse` masks can be shared,
     // because `objectBoundingBox` one will be converted into user one
     // and will become node-specific.
-    let cacheable = units == Units::UserSpaceOnUse && content_units == Units::UserSpaceOnUse;
+    // A target override must not change the cached mask used by other elements.
+    let cacheable =
+        mode.is_none() && units == Units::UserSpaceOnUse && content_units == Units::UserSpaceOnUse;
     if cacheable {
         if let Some(mask) = cache.masks.get(node.element_id()) {
             return Some(mask.clone());
@@ -65,8 +68,8 @@ pub(crate) fn convert(
     }
 
     let mut id = NonEmptyString::new(node.element_id().to_string())?;
-    // Generate ID only when we're parsing `objectBoundingBox` mask for the second time.
-    if !cacheable && cache.masks.contains_key(id.get()) {
+    // Give target-specific variants their own IDs.
+    if mode.is_some() || (!cacheable && cache.masks.contains_key(id.get())) {
         id = cache.gen_mask_id();
     }
     let id_copy = id.get().to_string();
@@ -87,7 +90,7 @@ pub(crate) fn convert(
     // Resolve linked mask.
     let mut mask = None;
     if let Some(link) = node.attribute::<SvgNode>(AId::Mask) {
-        mask = convert(link, state, object_bbox, cache);
+        mask = convert(link, state, object_bbox, None, cache);
 
         // Linked `mask` must be valid.
         if mask.is_none() {
@@ -95,11 +98,13 @@ pub(crate) fn convert(
         }
     }
 
-    let kind = if node.attribute(AId::MaskType) == Some("alpha") {
-        MaskType::Alpha
-    } else {
-        MaskType::Luminance
-    };
+    let kind = mode.unwrap_or_else(|| {
+        if node.attribute(AId::MaskType) == Some("alpha") {
+            MaskType::Alpha
+        } else {
+            MaskType::Luminance
+        }
+    });
 
     let mut mask = Mask {
         id,

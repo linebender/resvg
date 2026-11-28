@@ -781,3 +781,35 @@ fn image_too_thin_to_fit_is_skipped() {
     let tree = usvg::Tree::from_str(svg, &usvg::Options::default()).unwrap();
     assert!(!tree.root().has_children());
 }
+
+#[test]
+fn mask_mode_overrides_the_shared_svg_mask_per_target() {
+    let svg = "
+        <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 10'>
+            <style>.alpha { mask-mode: alpha }</style>
+            <defs>
+                <mask id='shared' maskUnits='userSpaceOnUse' mask-type='luminance'>
+                    <rect width='30' height='10' fill='black'/>
+                </mask>
+            </defs>
+            <g id='alpha' class='alpha' mask='url(#shared)'><rect width='10' height='10'/></g>
+            <g id='luminance' mask='url(#shared)' style='mask-mode: luminance'>
+                <rect x='10' width='10' height='10'/>
+            </g>
+            <g id='default' mask='url(#shared)' style='mask-mode: match-source'>
+                <rect x='20' width='10' height='10'/>
+            </g>
+        </svg>";
+    let tree = usvg::Tree::from_str(svg, &usvg::Options::default()).unwrap();
+    let mask = |id| {
+        let usvg::Node::Group(group) = tree.node_by_id(id).unwrap() else {
+            panic!("expected the masked group");
+        };
+        group.mask().unwrap()
+    };
+    assert_eq!(mask("alpha").kind(), usvg::MaskType::Alpha);
+    assert_eq!(mask("luminance").kind(), usvg::MaskType::Luminance);
+    assert_eq!(mask("default").kind(), usvg::MaskType::Luminance);
+    assert_eq!(mask("default").id(), "shared");
+    assert_ne!(mask("alpha").id(), mask("default").id());
+}
