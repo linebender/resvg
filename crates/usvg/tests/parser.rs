@@ -781,3 +781,20 @@ fn image_too_thin_to_fit_is_skipped() {
     let tree = usvg::Tree::from_str(svg, &usvg::Options::default()).unwrap();
     assert!(!tree.root().has_children());
 }
+
+#[test]
+fn unresolved_filter_reference_preserves_the_source_graphic() {
+    let svg = "
+        <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 10'>
+            <defs><rect id='not-a-filter' width='10' height='10'/></defs>
+            <rect id='missing' width='10' height='10' filter='url(#missing-filter)'/>
+            <rect id='wrong-kind' x='10' width='10' height='10' filter='url(#not-a-filter)'/>
+            <rect id='mixed' x='20' width='10' height='10'
+                  filter='opacity(0.5) url(#missing-filter)'/>
+        </svg>";
+    let tree = usvg::Tree::from_str(svg, &usvg::Options::default()).unwrap();
+    for id in ["missing", "wrong-kind", "mixed"] {
+        assert!(tree.node_by_id(id).is_some(), "{id} should remain visible");
+    }
+    assert!(tree.filters().is_empty());
+}

@@ -770,18 +770,7 @@ pub(crate) fn convert_group(
                 if let Ok(f) = super::filter::convert(node, state, object_bbox(), cache) {
                     filters = f;
                 } else {
-                    // A filter that not a link or a filter with a link to a non existing element.
-                    //
-                    // Unlike `clip-path` and `mask`, when a `filter` link is invalid
-                    // then the whole element should be ignored.
-                    //
-                    // This is kinda an undefined behaviour.
-                    // In most cases, Chrome, Firefox and rsvg will ignore such elements,
-                    // but in some cases Chrome allows it. Not sure why.
-                    // Inkscape (0.92) simply ignores such attributes, rendering element as is.
-                    // Batik (1.12) crashes.
-                    //
-                    // Test file: e-filter-051.svg
+                    // No usable filter remains after a resolved filter failed conversion.
                     return None;
                 }
             }
